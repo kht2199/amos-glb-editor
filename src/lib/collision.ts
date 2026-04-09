@@ -1,4 +1,5 @@
 import type { CollisionIssue, LiftEntity, PortEntity, ReadOnlyEntity } from '../types'
+import { worldToLocal } from './utils'
 
 interface Rect {
   minX: number
@@ -53,7 +54,11 @@ export function detectCollisions(lifts: LiftEntity[], ports: PortEntity[], reado
       }
     }
 
-    if (Math.abs(port.position.x - parentLift.position.x) > parentLift.width || Math.abs(port.position.y - parentLift.position.y) > parentLift.depth) {
+    const local = worldToLocal(parentLift, port.position.x, port.position.y)
+    const localPadding = 12
+    const outsideLiftEnvelope = Math.abs(local.x) > parentLift.width / 2 + localPadding || Math.abs(local.y) > parentLift.depth / 2 + localPadding
+
+    if (outsideLiftEnvelope) {
       issues.push({
         id: `port-detached-${port.editorId}`,
         sourceId: port.editorId,
