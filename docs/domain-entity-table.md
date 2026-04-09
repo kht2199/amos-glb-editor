@@ -1,6 +1,6 @@
-# Threejs Object Editor 도메인 엔티티 표
+# glb-editor 도메인 엔티티 표
 
-이 문서는 현재 `threejs-object-editor`가 사용하는 반도체 물류 구조 편집용 공식 엔티티를 정리한다.
+이 문서는 현재 `glb-editor`가 사용하는 반도체 물류 구조 편집용 공식 엔티티를 정리한다.
 
 ## 목적
 - 실제 장비 용어와 editor 내부 엔티티를 분리한다.
@@ -12,8 +12,8 @@
 - `AMHS`는 시스템 전체 개념이며 현재 직접 편집 엔티티는 아니다.
 - `Lift`는 프로젝트의 수직 이송 모듈 추상화다.
 - `Port`는 도킹/인계 지점 추상화다. 실제 장비의 load port와 1:1 동치라고 단정하지 않는다.
-- `Bridge`, `Rail`, `Stocker`는 현재 demo scene의 read-only 참조 구조물이다.
-- `Transport`/`OHT` 개념은 타입·온톨로지에는 유지하지만, 현재 demo scene의 중심 검토 대상은 아니다.
+- `Bridge`, `Rail`, `Stocker`, `Transport`는 현재 demo scene의 read-only 참조 구조물이다.
+- `Transport`는 현재도 demo scene에 포함되지만, 여전히 편집 중심 엔티티가 아니라 **OHT/ceiling logistics 문맥을 보여주는 보조 구조**다.
 - 물리 구조층과 제어/운영층은 분리해서 다룬다. 현재 editor는 물리 구조층 중심이다.
 
 ## 공식 엔티티 표
@@ -23,8 +23,8 @@
 | Port | Interface / Handoff Point | Lift 또는 다른 구조물에 부착되는 도킹/인계 지점 | Yes | `PortEntity` | `id`, `portType`, `semanticRole`, `domainParentId`, `domainParentType`, `parentLiftId`, `level`, `face`, `slot` | scene graph parent와 domain parent가 다를 수 있음 |
 | Bridge | Guideway | rail/구조 연결용 고정 구조 | No | `ReadOnlyEntity` | `id`, `position`, `width`, `depth`, `height` | read-only 참조 구조 |
 | Rail | Guideway | transport 경로로 해석되는 선형 구조 | No | `ReadOnlyEntity` | `id`, `position`, `width`, `depth`, `height` | OHT/OHS guideway 추상화 |
-| Stocker | Storage | carrier 임시 저장 장치 본체 | No | `ReadOnlyEntity` | `id`, `position`, `width`, `depth`, `height` | 내부 slot/shelf/access 구조는 아직 분리하지 않음 |
-| Transport | Vehicle / Carrier Transport | overhead vehicle / OHT 계열 이동체 참조 엔티티 | No | `ReadOnlyEntity` | `id`, `position`, `width`, `depth`, `height` | 현재는 read-only 시각 참조용 |
+| Stocker | Storage | carrier 임시 저장 장치 본체 | No | `ReadOnlyEntity` | `id`, `position`, `width`, `depth`, `height` | demo scene에서는 내부 vertical carriage / storage bay rhythm / top handoff 문맥을 read-only geometry로 함께 표현 가능 |
+| Transport | Vehicle / Carrier Transport | overhead vehicle / OHT 계열 이동체 참조 엔티티 | No | `ReadOnlyEntity` | `id`, `position`, `width`, `depth`, `height` | 현재 demo scene에서 compact OHT carrier 형태의 read-only 시각 참조로 사용 |
 | FOUP | Carrier | 운반 대상 payload | No | 별도 엔티티 없음 | 추후 runtime payload/meta 가능 | 현재 scene 구조물로 다루지 않음 |
 | EFEM | Tool Front Interface | 공정 장비 front-end module | No | 별도 엔티티 없음 | 추후 tool-side model 필요 시 추가 | 현재 editor 범위 밖 |
 
@@ -74,11 +74,13 @@
 
 ### Stocker
 - 저장 장치 본체로 해석한다.
-- 향후 `StockerAccessPort`, `slot/shelf`, 내부 shuttle/elevator 메타로 세분화할 수 있다.
+- demo scene에서는 `StockerAccessPort`, 반복 slot/shelf rhythm, 내부 vertical carriage, top handoff contact를 읽을 수 있는 방향이 바람직하다.
+- 다만 이 내부 표현은 편집 엔티티 분해가 아니라 **read-only ontology hint**다.
 
 ### Transport
 - OHT/overhead vehicle 계열의 참조 엔티티다.
 - 현재 editor의 핵심 편집 대상은 아니며, 타입/온톨로지/향후 시뮬레이션 연결을 위한 개념 레벨로 유지한다.
+- 시각적으로는 바닥 AGV가 아니라 **ceiling guideway에 매달린 compact carrier**처럼 읽히는 것이 적절하다.
 
 ## 현재 타입 시스템 매핑
 ### `src/types.ts`
@@ -110,10 +112,10 @@
 
 ## 현재 모델의 한계
 1. `TOOL_LOAD`, `BUFFER_HANDOFF`는 현업 용어와 완전히 일치하는지 SME 확인이 필요하다.
-2. `Stocker` 내부 ontology는 아직 생략되어 있다.
+2. `Stocker` 내부 ontology는 read-only hint 수준까지만 반영되어 있고, slot/hoist/handoff가 독립 엔티티로 분리된 것은 아니다.
 3. `Transport`는 read-only 대표 엔티티 수준이며 실제 시뮬레이션 vehicle 모델은 아니다.
 4. `EFEM`, `Tool`, 제어/운영 소프트웨어 계층은 아직 모델 밖이다.
 
 ## 결론
-현재 `threejs-object-editor`는 반도체 물류 구조를 축약한 scene 위에서
+현재 `glb-editor`는 반도체 물류 구조를 축약한 scene 위에서
 **Lift와 Port를 안전하게 수정하고 domain metadata를 유지한 채 GLB로 다시 내보내기 위한 제약형 editor**로 보는 것이 가장 정확하다.

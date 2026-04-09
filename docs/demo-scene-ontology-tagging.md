@@ -13,10 +13,11 @@
 - Port 4개
   - Lift dock port 3개
   - Stocker access port 1개
-- Read-only object 3개
+- Read-only object 4개
   - Bridge 1개
   - Rail 1개
   - Stocker 1개
+  - Transport 1개
 - Cleanroom visual shell 1식
   - floor / ceiling grid / column / rear wall
 
@@ -26,14 +27,15 @@
 ## 캐리어 흐름 관점의 해석
 현재 demo scene은 아래 구조를 단순화한 장면으로 본다.
 
-`Rail/Bridge guideway → Lift handoff port → Stocker access point / storage body`
+`Transport(OHT) → Rail/Bridge guideway → Stocker top handoff contact → internal vertical carriage / storage body → Stocker access point`
 
 즉,
+- `Transport`는 ceiling guideway 위를 흐르는 OHT 문맥
 - `Rail`, `Bridge`는 guideway 배경 구조
 - `Lift`는 편집 핵심 수직 이송 모듈
 - `Port`는 의미론적 역할을 가진 handoff / access point
-- `Stocker`는 저장 장치 본체
-- `Transport`/`OHT`는 현재 scene의 중심 오브젝트는 아니지만 타입·온톨로지 차원에서 유지되는 개념
+- `Stocker`는 저장 장치 본체이며, 내부 carriage / slot rhythm / top handoff hint를 read-only geometry로 읽을 수 있음
+- `Transport`/`OHT`는 현재 scene의 중심 오브젝트는 아니지만, 이번 버전부터 scene 안에서 ceiling logistics 문맥을 직접 보여주는 read-only reference로 포함됨
 - cleanroom shell은 도메인 엔티티라기보다 lightweight visual context
 
 ## 노드/엔티티 tagging 표
@@ -48,6 +50,7 @@
 | Bridge 01 | `bridge_01` | `Guideway.Bridge` | Bridge | - | read-only | 배경 연결 구조 |
 | Rail 01 | `rail_01` | `Guideway.Rail` | Rail | - | read-only | transport path reference |
 | Stocker 01 | `stocker_01` | `Storage.Stocker` | Stocker | - | read-only | 저장 장치 본체 |
+| Transport 01 | `transport_01` | `Transport.OHTCarrier` | Transport | `Rail(rail_01)` | read-only | 상부 guideway를 따라 이동하는 OHT carrier 문맥 |
 | CleanroomShell | - | `Context.CleanroomShell` | visual context only | - | non-editable / non-domain | 천장 grid, floor, column, rear wall로 구성된 lightweight 시각 배경 |
 
 ## domain parent 해석
@@ -99,7 +102,8 @@
 현재 demo scene은 반도체 FAB 전체를 정밀 재현한 샘플이 아니라,
 **Lift 중심 편집기에서 Port의 의미론적 역할과 부모 복원 규칙을 검증하기 위한 도메인 샘플**이다.
 
-특히 이번 버전의 핵심 차별점은 다음 세 가지다.
+특히 이번 버전의 핵심 차별점은 다음 네 가지다.
 1. `Stocker access port`를 별도 semantic role과 domain parent로 표현했다.
 2. Lift / Port / Stocker의 외형을 box placeholder보다 조금 더 현실적인 low-poly 구조로 바꿨다.
-3. cleanroom shell을 lightweight visual context로 추가하되, 편집 규칙은 여전히 geometry-agnostic metadata 중심으로 유지한다.
+3. Stocker에 내부 vertical carriage, top handoff hint, storage slot rhythm을 read-only visual hint로 반영했다.
+4. Transport/OHT를 별도 read-only reference로 추가해 ceiling logistics 문맥을 더 직접적으로 드러냈다.

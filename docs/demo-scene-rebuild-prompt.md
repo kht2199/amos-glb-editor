@@ -90,17 +90,19 @@
   - `portType = INOUT`
 
 ### 3) Read-only object
-- 최소 3개 포함
+- 최소 4개 포함
   - Bridge 1개
   - Rail 1개
   - Stocker 1개
+  - Transport 1개
 - 이 오브젝트들은 편집 대상이 아니라 **배경 문맥**이다.
 - 존재감은 있되, Lift/Port보다 강하게 보이면 안 된다.
 
 예시 의미:
 - `Bridge`: 연결 구조물
 - `Rail`: guideway / path reference
-- `Stocker`: storage body
+- `Stocker`: storage body + internal handoff/storage hint
+- `Transport`: compact OHT carrier reference
 
 ### 4) Cleanroom shell
 - floor
@@ -263,7 +265,7 @@
 목표는 반도체 FAB 전체를 사실적으로 재현하는 것이 아니라, Lift/Port 중심의 제약형 편집기에서 배치 편집, domain parent 복원, semantic role 표현을 검증하는 축약 샘플을 만드는 것이다.
 
 필수 요구사항:
-- Lift 2개, Port 4개, Read-only object 3개(Bridge/Rail/Stocker), cleanroom shell 포함
+- Lift 2개, Port 4개, Read-only object 4개(Bridge/Rail/Stocker/Transport), cleanroom shell 포함
 - Port는 Lift dock 3개 + Stocker access 1개
 - scene graph parent보다 domain parent가 중요하도록 metadata 중심 구조 유지
 - Lift/Port가 시각적 중심이어야 함

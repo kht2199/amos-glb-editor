@@ -55,6 +55,74 @@
 
 ---
 
+## 비교 참고용 구간 인덱스
+
+scene을 다시 만들거나 결과를 비교할 때, 전체 영상을 처음부터 끝까지 다 보지 않고도
+빠르게 확인할 수 있도록 **필요한 구간과 이유**를 따로 적어둔다.
+
+### 1) TSMC’s Automatic Material Handling System (AMHS)
+- URL: https://www.youtube.com/watch?v=K_B05zAMeAc
+- 우선 볼 구간
+  - **초반부 mainline rail 장면 전후**
+    - 왜 필요한가: overhead rail이 단선이 아니라 **병렬 lane / 곡선 turn / junction**으로 읽히는지 확인하기 좋다.
+  - **stocker/lift demo cell처럼 보이는 장면 전후**
+    - 왜 필요한가: 단순 OHT 라인만이 아니라, 중앙 vertical bay + 반복 storage level + side module 조합을 읽기 좋다.
+- 비교 시 체크 포인트
+  - rail이 바닥 lane처럼 보이지 않는가
+  - carrier가 작은 suspended unit처럼 보이는가
+  - vertical bay와 storage zone이 한 장면 안에서 같이 읽히는가
+
+### 2) Automated Material Handling Systems Solution (Semiconductor)
+- URL: https://www.youtube.com/watch?v=1_Bv9BJE2lI
+- 우선 볼 구간
+  - **약 0:35 전후**
+    - 왜 필요한가: tall stocker cabinet와 내부 vertical carriage 인상이 가장 빨리 잡힌다.
+  - **약 0:53 전후**
+    - 왜 필요한가: `OHT top interface -> vertical lift -> side storage slot` 흐름을 압축해서 읽기 좋다.
+- 비교 시 체크 포인트
+  - stocker가 창고 rack가 아니라 cleanroom cabinet처럼 보이는가
+  - 내부 carriage가 crane이 아니라 straight Z motion 장치처럼 보이는가
+  - top handoff와 side slot rhythm이 동시에 읽히는가
+
+### 3) AMHS for Semiconductor Fabrication Plant (Daifuku)
+- URL: https://www.youtube.com/watch?v=XKXZT-BBUEE
+- 우선 볼 구간
+  - **약 1:00 전후의 fab overview 장면**
+    - 왜 필요한가: OHT/rail이 장비보다 위 레이어의 ceiling logistics라는 점을 비교하기 가장 좋다.
+- 비교 시 체크 포인트
+  - OHT가 바닥 AGV처럼 보이지 않는가
+  - white process tool rows 위로 guideway가 지나가는가
+  - transport/rail이 upper-context infrastructure로 유지되는가
+
+### 4) Muratec Carrier Stocker / MoveLink Intelligent Stocker
+- URL
+  - https://www.muratec.net/cfa/products/stocker.html
+  - https://www.movelink.com/136.html
+- 우선 볼 포인트
+  - 제품 페이지의 대표 이미지 + 설명 텍스트
+    - 왜 필요한가: 영상만으로 놓치기 쉬운 **temporary storage / high-density slot / precise vertical handling** 의미를 보강한다.
+- 비교 시 체크 포인트
+  - storage density가 느껴지는가
+  - 정밀 자동화 cabinet 인상이 유지되는가
+  - 단순 건물/벽체가 아니라 cleanroom storage equipment로 읽히는가
+
+## 빠른 비교 순서 추천
+
+새 scene을 만들고 비교할 때는 아래 순서가 가장 효율적이다.
+
+1. **Automated Material Handling Systems Solution 약 0:35 전후**
+   - stocker body / 내부 carriage / top handoff 인상 확인
+2. **같은 영상 약 0:53 전후**
+   - handoff 흐름과 slot rhythm 확인
+3. **Daifuku 약 1:00 전후**
+   - OHT/rail이 upper context인지 확인
+4. **TSMC mainline/junction 장면**
+   - rail network가 너무 단순하거나 바닥 lane처럼 보이지 않는지 확인
+5. **Muratec / MoveLink 텍스트**
+   - storage semantics와 용어 해석 교차검증
+
+---
+
 ## 영상 기준으로 정리한 장비 형상
 
 ## 1) Stocker body
