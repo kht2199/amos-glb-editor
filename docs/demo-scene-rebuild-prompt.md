@@ -7,8 +7,8 @@
 ## 목적
 
 `glb-editor`의 demo scene을 다시 만든다.
-이 demo scene의 목적은 **반도체 FAB 전체를 사실적으로 재현하는 것**이 아니라,
-**Lift/Port 중심의 제약형 편집기에서 배치 편집, domain parent 복원, semantic role 표현**을 검증하는 것이다.
+이 demo scene의 목적은 반도체 FAB 전체를 사실적으로 재현하는 것이 아니라,
+**Lift/Port 중심의 제약형 편집기에서 배치 편집, domain parent 복원, semantic role 표현을 검증**하는 것이다.
 
 즉, 이 scene은 다음을 검증해야 한다.
 
@@ -109,6 +109,25 @@
 - rear wall 또는 유사한 배경 구조물
 
 하지만 이 구조는 **도메인 핵심 엔티티가 아니라 lightweight visual context**로 취급해야 한다.
+
+---
+
+## 실제 stocker/lift 동작 참고 해석
+
+실제/제품 소개 영상 기준으로 scene은 아래 특징을 따르면 결과가 안정적이다.
+
+- Stocker는 **높은 직육면체 cleanroom cabinet/tower**처럼 보여야 함
+- Stocker 내부에는 **반복적인 multi-level storage slot rhythm**이 보여야 함
+- 내부 transfer는 흔들리는 crane보다 **vertical lift carriage의 직선 Z 이동**으로 느껴져야 함
+- slot 입출고는 긴 다관절 팔보다 **짧은 horizontal handoff shelf / platform**이 더 자연스러움
+- overhead rail/OHT는 바닥 장비가 아니라 **상부 guideway 문맥**으로 보여야 함
+- stocker 상부에는 OHT에서 내부 lift로 이어지는 **top handoff 접점**이 보여야 하며, 전체 흐름은 한눈에 아래 순서로 읽혀야 함
+  - overhead arrival (ceiling rail context)
+  - top handoff (stocker 상부 접점)
+  - vertical alignment (internal lift Z 이동)
+  - short horizontal insert (slot 입출고)
+
+즉, 장면은 “위에서는 운반, 안에서는 수직 정렬, 슬롯에는 짧게 넣고 뺀다”가 읽히는 방향이 좋다.
 
 ---
 
@@ -248,8 +267,11 @@
 - Port는 Lift dock 3개 + Stocker access 1개
 - scene graph parent보다 domain parent가 중요하도록 metadata 중심 구조 유지
 - Lift/Port가 시각적 중심이어야 함
+- Stocker는 단순 박스보다 **높은 vertical storage body**로 읽혀야 함
+- Stocker read-only geometry에는 **white vertical lift carriage가 Z축으로 직선 이동**하는 듯한 시각적 인상이 포함되면 좋다. 이는 별도 Lift 엔티티를 추가하라는 뜻이 아니라, stocker access의 맥락을 설명하는 내부 표현이다. carriage 앞에는 **짧은 horizontal transfer shelf** 표현이 붙어 있는 것이 자연스러움
+- overhead rail/OHT는 바닥 교통수단이 아니라 **ceiling guideway context**로 보여야 함
 - cleanroom/building-like 배경 구조는 조금 더 보이게 반투명 처리
-- preview 초기 카메라는 정면 기준 45도 ISO 뷰이며, 바닥/천장 관계와 주요 Lift/Port가 즉시 읽혀야 함
+- preview 초기 카메라는 정면 기준 45도 ISO 뷰이며, 좌표계상 Z 높이 차와 주요 Lift/Port가 즉시 읽혀야 함
 - top-view 기반 편집기의 목적이 드러나야 함
 - geometry-agnostic editing 원칙 유지
 - export/import round-trip에서 metadata 유지가 중요하도록 설계
@@ -267,7 +289,8 @@
 
 주의사항:
 - 건물/벽/천장 구조가 주인공처럼 보이면 안 됨
-- preview가 세워진 장면처럼 느껴지면 안 됨
+- stocker 내부 동작을 swinging crane이나 긴 다관절 팔 중심으로 표현하지 말 것
+- OHT를 바닥 AGV처럼 표현하지 말 것
 - 이 scene은 full fab replica가 아니라 domain-aware editing sample이어야 함
 
 산출물:
