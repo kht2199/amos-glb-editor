@@ -440,6 +440,19 @@ function applyReadOnly(scene: THREE.Object3D, entity: ReadOnlyEntity) {
   }
 }
 
+export function buildAppliedScene(payload: {
+  pristineScene: THREE.Group
+  lifts: LiftEntity[]
+  ports: PortEntity[]
+  readonlyObjects: ReadOnlyEntity[]
+}) {
+  const scene = payload.pristineScene.clone(true)
+  for (const lift of payload.lifts) applyLift(scene, lift)
+  for (const port of payload.ports) applyPort(scene, port)
+  for (const readonlyObject of payload.readonlyObjects) applyReadOnly(scene, readonlyObject)
+  return scene
+}
+
 export async function exportGlb(payload: {
   pristineScene: THREE.Group
   lifts: LiftEntity[]
@@ -447,10 +460,7 @@ export async function exportGlb(payload: {
   readonlyObjects: ReadOnlyEntity[]
   animations: THREE.AnimationClip[]
 }) {
-  const scene = payload.pristineScene.clone(true)
-  for (const lift of payload.lifts) applyLift(scene, lift)
-  for (const port of payload.ports) applyPort(scene, port)
-  for (const readonlyObject of payload.readonlyObjects) applyReadOnly(scene, readonlyObject)
+  const scene = buildAppliedScene(payload)
 
   const exporter = new GLTFExporter()
   const arrayBuffer = await exporter.parseAsync(scene, {
