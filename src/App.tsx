@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { EmptyState } from './components/EmptyState'
 import { ExportFeedbackModal } from './components/ExportFeedbackModal'
 import { InspectorPanel } from './components/InspectorPanel'
+import { PreviewPanel } from './components/PreviewPanel'
 import { StatusBar } from './components/StatusBar'
 import { StructurePanel } from './components/StructurePanel'
 import { Toolbar } from './components/Toolbar'
@@ -75,7 +76,12 @@ export default function App() {
           <>
             <StructurePanel />
             <TopViewCanvas />
-            <InspectorPanel />
+            <div className="flex min-h-0 flex-col">
+              <div className="min-h-0 flex-1">
+                <InspectorPanel />
+              </div>
+              <PreviewPanel />
+            </div>
           </>
         ) : (
           <div className="col-span-3">

@@ -114,7 +114,7 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
           />
           <ToolButton icon={Layers3} disabled={disabled} active={snapEnabled} onClick={() => setSnapEnabled(!snapEnabled)}>Snap {snapEnabled ? 'ON' : 'OFF'}</ToolButton>
           <ToolButton icon={SearchCheck} disabled={disabled} onClick={runValidation}>Validate</ToolButton>
-          <ToolButton icon={Eye} disabled={disabled} onClick={() => setPreviewOpen(true)}>Preview</ToolButton>
+          <ToolButton icon={Eye} disabled={disabled} onClick={() => setPreviewOpen(true)}>Expand Preview</ToolButton>
         </ToolGroup>
       </div>
     </header>
