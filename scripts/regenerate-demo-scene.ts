@@ -35,6 +35,7 @@ async function main() {
     pristineScene: scene,
     lifts: bundle.lifts,
     ports: bundle.ports,
+    readonlyObjects: bundle.readonlyObjects,
     animations: [],
   })
 

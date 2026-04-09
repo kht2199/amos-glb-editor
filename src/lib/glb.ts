@@ -32,6 +32,7 @@ function detectObjectType(object: THREE.Object3D): DetectableObjectType | null {
   }
 
   const normalized = normalizeName(object)
+  if (normalized.includes('transport') || normalized.includes('oht') || normalized.includes('vehicle') || normalized.includes('carrier') || normalized.includes('shuttle')) return 'Transport'
   if (normalized.includes('loadport') || normalized.includes('load_port')) return 'Port'
   if (normalized.includes('port')) return 'Port'
   if (normalized.includes('access') || normalized.includes('handoff') || normalized.includes('dock')) return 'Port'
@@ -39,7 +40,6 @@ function detectObjectType(object: THREE.Object3D): DetectableObjectType | null {
   if (normalized.includes('bridge')) return 'Bridge'
   if (normalized.includes('rail') || normalized.includes('track')) return 'Rail'
   if (normalized.includes('stocker') || normalized.includes('storage') || normalized.includes('cabinet') || normalized.includes('shelf')) return 'Stocker'
-  if (normalized.includes('transport') || normalized.includes('oht') || normalized.includes('vehicle') || normalized.includes('carrier') || normalized.includes('shuttle')) return 'Transport'
   return null
 }
 

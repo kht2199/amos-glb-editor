@@ -18,6 +18,10 @@ const materials = {
   stockerShell: new THREE.MeshStandardMaterial({ color: '#cbd5e1', transparent: true, opacity: 0.5, roughness: 0.58, metalness: 0.1 }),
   stockerFrame: new THREE.MeshStandardMaterial({ color: '#64748b', transparent: true, opacity: 0.68, roughness: 0.6, metalness: 0.25 }),
   stockerWindow: new THREE.MeshStandardMaterial({ color: '#93c5fd', transparent: true, opacity: 0.16, roughness: 0.12, metalness: 0.02 }),
+  stockerCarriage: new THREE.MeshStandardMaterial({ color: '#60a5fa', roughness: 0.3, metalness: 0.2 }),
+  stockerBay: new THREE.MeshStandardMaterial({ color: '#334155', transparent: true, opacity: 0.72, roughness: 0.72, metalness: 0.14 }),
+  transportBody: new THREE.MeshStandardMaterial({ color: '#e2e8f0', transparent: true, opacity: 0.82, roughness: 0.42, metalness: 0.24 }),
+  transportAccent: new THREE.MeshStandardMaterial({ color: '#2563eb', roughness: 0.35, metalness: 0.18 }),
   cleanroomPanel: new THREE.MeshStandardMaterial({ color: '#f8fafc', transparent: true, opacity: 0.2, roughness: 0.95, metalness: 0.02 }),
   cleanroomGrid: new THREE.MeshStandardMaterial({ color: '#e2e8f0', transparent: true, opacity: 0.16, roughness: 0.9, metalness: 0.02 }),
   cleanroomColumn: new THREE.MeshStandardMaterial({ color: '#cbd5e1', transparent: true, opacity: 0.28, roughness: 0.78, metalness: 0.06 }),
@@ -184,11 +188,41 @@ function createStockerVisual(item: ReadOnlyEntity) {
   for (let index = 0; index < shelfCount; index += 1) {
     const z = 4 + index * ((item.height - 8) / Math.max(1, shelfCount - 1))
     addBox(group, new THREE.BoxGeometry(item.width - 8, item.depth - 8, 0.5), materials.stockerShell, 0, 0, z)
+    addBox(group, new THREE.BoxGeometry(item.width * 0.36, 4.6, 2.1), materials.stockerBay, item.width * 0.2, item.depth * 0.19, z + 1)
+    addBox(group, new THREE.BoxGeometry(item.width * 0.36, 4.6, 2.1), materials.stockerBay, item.width * 0.2, -item.depth * 0.19, z + 1)
   }
+
+  const guideOffsetX = -item.width * 0.22
+  addBox(group, new THREE.BoxGeometry(1.2, 2.2, item.height - 6), materials.stockerFrame, guideOffsetX - 2.3, 0, item.height / 2)
+  addBox(group, new THREE.BoxGeometry(1.2, 2.2, item.height - 6), materials.stockerFrame, guideOffsetX + 2.3, 0, item.height / 2)
+
+  const carriageZ = Math.min(item.height * 0.58, item.height - 7)
+  addBox(group, new THREE.BoxGeometry(7.2, item.depth * 0.42, 2.4), materials.stockerCarriage, guideOffsetX, 0, carriageZ)
+  addBox(group, new THREE.BoxGeometry(6.8, 2.4, 1.6), materials.stockerCarriage, guideOffsetX + 2.6, -item.depth * 0.24, carriageZ + 0.9)
+  addBox(group, new THREE.BoxGeometry(3.6, 1.2, 0.8), materials.transportAccent, guideOffsetX + 5.2, -item.depth * 0.24, carriageZ + 1.6)
+
+  addBox(group, new THREE.BoxGeometry(item.width * 0.52, 2.2, 1.6), materials.stockerFrame, 0, 0, item.height - 1.8)
+  addBox(group, new THREE.BoxGeometry(item.width * 0.38, 1.4, 1), materials.stockerCarriage, 0, 0, item.height - 0.6)
+  addBox(group, new THREE.BoxGeometry(2.2, 6.4, 1.2), materials.stockerFrame, 0, -item.depth * 0.34, item.height - 2)
 
   addBox(group, new THREE.BoxGeometry(item.width * 0.7, 2.6, 3.6), materials.stockerFrame, 0, -item.depth / 2 + 0.3, 5.6)
   addBox(group, new THREE.BoxGeometry(item.width * 0.52, 1.8, 2.4), materials.stockerShell, 0, -item.depth / 2 + 0.2, 7.8)
   addBox(group, new THREE.BoxGeometry(item.width * 0.58, 1.1, 1.2), materials.stockerFrame, 0, -item.depth / 2 + 2.2, 10.8)
+
+  return group
+}
+
+function createTransportVisual(item: ReadOnlyEntity) {
+  const group = new THREE.Group()
+  group.name = item.nodeName
+  group.position.set(item.position.x, item.position.y, item.position.z)
+  group.userData = meta(item.editorId, item.objectType, { entityId: item.id })
+
+  addBox(group, new THREE.BoxGeometry(item.width * 0.72, item.depth * 0.7, item.height * 0.34), materials.transportBody, 0, 0, item.height * 0.68)
+  addBox(group, new THREE.BoxGeometry(item.width * 0.52, item.depth * 0.32, item.height * 0.2), materials.transportAccent, 0, 0, item.height * 0.88)
+  addBox(group, new THREE.BoxGeometry(item.width * 0.16, item.depth * 0.16, item.height * 0.58), materials.transportBody, 0, 0, item.height * 0.34)
+  addBox(group, new THREE.BoxGeometry(item.width * 0.46, item.depth * 0.16, item.height * 0.12), materials.transportAccent, 0, 0, item.height * 0.1)
+  addBox(group, new THREE.BoxGeometry(item.width * 0.22, item.depth * 0.28, item.height * 0.12), materials.transportBody, 0, 0, item.height * 0.02)
 
   return group
 }
@@ -215,6 +249,7 @@ export function createDemoScene() {
     { id: 'bridge_01', editorId: 'bridge_01', label: 'Bridge 01', objectType: 'Bridge', nodeName: 'Bridge_01', position: { x: 0, y: -72, z: 0 }, width: 180, depth: 12, height: 10, readOnly: true, domainLabel: 'Overhead bridge frame' },
     { id: 'rail_01', editorId: 'rail_01', label: 'Rail 01', objectType: 'Rail', nodeName: 'Rail_01', position: { x: 0, y: 62, z: 0 }, width: 180, depth: 8, height: 8, readOnly: true, domainLabel: 'Ceiling guide rail' },
     { id: 'stocker_01', editorId: 'stocker_01', label: 'Stocker 01', objectType: 'Stocker', nodeName: 'Stocker_01', position: { x: 0, y: 92, z: 0 }, width: 34, depth: 26, height: 28, readOnly: true, domainLabel: 'Clean stocker cabinet' },
+    { id: 'transport_01', editorId: 'transport_01', label: 'Transport 01', objectType: 'Transport', nodeName: 'Transport_01', position: { x: 18, y: 62, z: 0 }, width: 18, depth: 10, height: 10, readOnly: true, domainLabel: 'Compact overhead carrier' },
   ]
 
   const ports: PortEntity[] = [
@@ -265,6 +300,8 @@ export function createDemoScene() {
       scene.add(createRailVisual(item))
     } else if (item.objectType === 'Stocker') {
       scene.add(createStockerVisual(item))
+    } else if (item.objectType === 'Transport') {
+      scene.add(createTransportVisual(item))
     }
   }
 
