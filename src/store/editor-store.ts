@@ -629,13 +629,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({ saveState: 'saved', statusMessage: 'Session saved' })
   },
   exportCurrentGlb: async () => {
-    const issues = get().runValidation().filter((issue) => issue.severity === 'error')
+    const state = get()
+    const exportDerived = deriveScene(state.appliedLifts, state.appliedPorts, state.appliedReadonlyObjects)
+    const issues = exportDerived.validationIssues.filter((issue) => issue.severity === 'error')
     if (issues.length) {
-      set({ exportFeedback: { status: 'blocked', message: 'Validation failed. Export blocked.' } })
+      set({ exportFeedback: { status: 'blocked', message: 'Applied scene validation failed. Export blocked.' } })
       return
     }
 
-    const state = get()
     if (!state.runtime.pristineScene || !state.fileName) {
       set({ exportFeedback: { status: 'error', message: 'No scene loaded.' } })
       return
@@ -645,7 +646,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     try {
       const previousUrl = get().exportFeedback.downloadUrl
       if (previousUrl) URL.revokeObjectURL(previousUrl)
-      const blob = await exportGlb({ pristineScene: state.runtime.pristineScene, lifts: state.draftLifts, ports: state.draftPorts, readonlyObjects: state.draftReadonlyObjects, animations: state.runtime.animations })
+      const blob = await exportGlb({ pristineScene: state.runtime.pristineScene, lifts: state.appliedLifts, ports: state.appliedPorts, readonlyObjects: state.appliedReadonlyObjects, animations: state.runtime.animations })
       const downloadUrl = URL.createObjectURL(blob)
       set({ exportFeedback: { status: 'success', message: 'Export completed', downloadUrl, fileName: state.fileName.replace(/\.glb$/i, '.edited.glb') } })
     } catch (error) {
