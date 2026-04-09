@@ -1,0 +1,105 @@
+# Demo Scene Ontology Tagging
+
+대상 기준:
+- 소스: `src/lib/demoScene.ts`
+- 샘플 출력: `samples/demo-scene.glb`
+
+이 문서는 현재 demo scene이 어떤 도메인 의도를 갖고 구성되어 있는지 정리한다.
+
+## Scene 개요
+현재 demo scene bundle은 다음으로 구성된다.
+
+- Lift 2개
+- Port 4개
+  - Lift dock port 3개
+  - Stocker access port 1개
+- Read-only object 3개
+  - Bridge 1개
+  - Rail 1개
+  - Stocker 1개
+- Cleanroom visual shell 1식
+  - floor / ceiling grid / column / rear wall
+
+이 장면은 FAB 전체 재현이 아니라,
+**Lift/Port 편집, domain parent 복원, semantic role 표현을 검증하기 위한 축약 샘플**이다.
+
+## 캐리어 흐름 관점의 해석
+현재 demo scene은 아래 구조를 단순화한 장면으로 본다.
+
+`Rail/Bridge guideway → Lift handoff port → Stocker access point / storage body`
+
+즉,
+- `Rail`, `Bridge`는 guideway 배경 구조
+- `Lift`는 편집 핵심 수직 이송 모듈
+- `Port`는 의미론적 역할을 가진 handoff / access point
+- `Stocker`는 저장 장치 본체
+- `Transport`/`OHT`는 현재 scene의 중심 오브젝트는 아니지만 타입·온톨로지 차원에서 유지되는 개념
+- cleanroom shell은 도메인 엔티티라기보다 lightweight visual context
+
+## 노드/엔티티 tagging 표
+| Entity | editorId | ontology class | editor entity | domain parent | 핵심 메타 | note |
+|---|---|---|---|---|---|---|
+| Lift A | `lift_a` | `VerticalTransfer.Lift` | Lift | - | `rotation=0`, `slotsPerFace=6` | editable lift |
+| Lift B | `lift_b` | `VerticalTransfer.Lift` | Lift | - | `rotation=90`, `slotsPerFace=6` | editable lift |
+| Port A-01 | `port_a_01` | `Interface.DockingPoint` | Port | `Lift(lift_a)` | `semanticRole=LIFT_DOCK`, `level=TOP`, `face=FRONT`, `slot=2`, `portType=IN` | lift 상단 전면 도킹 포인트 |
+| Port A-02 | `port_a_02` | `Interface.DockingPoint` | Port | `Lift(lift_a)` | `semanticRole=LIFT_DOCK`, `level=TOP`, `face=FRONT`, `slot=4`, `portType=OUT` | lift 상단 전면 도킹 포인트 |
+| Port B-01 | `port_b_01` | `Interface.DockingPoint` | Port | `Lift(lift_b)` | `semanticRole=LIFT_DOCK`, `level=BOTTOM`, `face=LEFT`, `slot=3`, `portType=INOUT` | lift 하단 좌측 도킹 포인트 |
+| Stocker Access 01 | `stocker_access_01` | `Interface.AccessPoint` | Port | `Stocker(stocker_01)` | `semanticRole=STOCKER_ACCESS`, `level=BOTTOM`, `face=FRONT`, `slot=1`, `portType=INOUT` | stocker 접근/인계 지점 |
+| Bridge 01 | `bridge_01` | `Guideway.Bridge` | Bridge | - | read-only | 배경 연결 구조 |
+| Rail 01 | `rail_01` | `Guideway.Rail` | Rail | - | read-only | transport path reference |
+| Stocker 01 | `stocker_01` | `Storage.Stocker` | Stocker | - | read-only | 저장 장치 본체 |
+| CleanroomShell | - | `Context.CleanroomShell` | visual context only | - | non-editable / non-domain | 천장 grid, floor, column, rear wall로 구성된 lightweight 시각 배경 |
+
+## domain parent 해석
+이 demo scene의 핵심은 `scene graph parent`보다 `domain parent`가 더 중요하다는 점이다.
+
+### Lift dock port
+- `port_a_01` → `domainParentType=Lift`, `domainParentId=lift_a`
+- `port_a_02` → `domainParentType=Lift`, `domainParentId=lift_a`
+- `port_b_01` → `domainParentType=Lift`, `domainParentId=lift_b`
+
+### Stocker access port
+- `stocker_access_01` → `domainParentType=Stocker`, `domainParentId=stocker_01`
+
+즉, 포트는 모두 같은 종류의 mesh처럼 보여도
+**어디에 소속된 포트인가를 domain metadata로 구분**해야 한다.
+
+## semantic role 해석
+현재 demo scene은 `Port.semanticRole`을 다음처럼 사용한다.
+
+- `LIFT_DOCK`
+  - Lift에 부착된 handoff / docking point
+- `STOCKER_ACCESS`
+  - Stocker 접근 / 인계 지점
+
+아직 demo에는 포함하지 않았지만 타입 차원에서는 아래도 열어두고 있다.
+- `TOOL_LOAD`
+- `BUFFER_HANDOFF`
+
+## 구현에 주는 의미
+### import
+- `editorMeta.objectType`를 1차 분류 기준으로 사용한다.
+- node 이름은 fallback 힌트일 뿐이다.
+- lift 외부 포트도 `domainParentId/domainParentType`로 복원해야 한다.
+
+### selection / inspector
+- Lift 선택 시 domain 관계를 기준으로 하위 포트를 보여줘야 한다.
+- Port inspector는 `semanticRole`, `domain parent`, `level`, `face`, `slot`, `portType`를 중심으로 다뤄야 한다.
+
+### validation
+- Lift 소속 포트는 `same lift + same level + same face + same slot` 충돌을 본다.
+- Lift 외부 포트는 `same domain parent + same level + same face + same slot` 규칙으로 확장 가능하다.
+
+### export
+- scene graph를 강제로 재계층화하지 않는다.
+- pristine clone 위에 domain diff를 적용하는 방식이 더 안전하다.
+- export 시 `objectType`, `domainParentId`, `domainParentType`, `semanticRole`, `face`, `level`, `slot`, `portType` 메타데이터를 유지하는 것이 중요하다.
+
+## 결론
+현재 demo scene은 반도체 FAB 전체를 정밀 재현한 샘플이 아니라,
+**Lift 중심 편집기에서 Port의 의미론적 역할과 부모 복원 규칙을 검증하기 위한 도메인 샘플**이다.
+
+특히 이번 버전의 핵심 차별점은 다음 세 가지다.
+1. `Stocker access port`를 별도 semantic role과 domain parent로 표현했다.
+2. Lift / Port / Stocker의 외형을 box placeholder보다 조금 더 현실적인 low-poly 구조로 바꿨다.
+3. cleanroom shell을 lightweight visual context로 추가하되, 편집 규칙은 여전히 geometry-agnostic metadata 중심으로 유지한다.
