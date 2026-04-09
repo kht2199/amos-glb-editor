@@ -1,10 +1,11 @@
 # GLB 로드 · 에디터 · 프리뷰 · 익스포트 흐름 정리
 
 이 문서는 현재 `glb-editor`에서 GLB가 로드된 뒤
-- 어떤 데이터가 store에 들어가고
-- 에디터와 프리뷰가 무엇을 기준으로 렌더링하며
-- 수정이 어디에 반영되고
+- 어떤 전처리를 거쳐 store에 들어가고
+- 중앙 편집 캔버스와 프리뷰 캔버스에는 무엇이 노출되며
+- 수정 시 어떤 데이터가 바뀌고 어떤 데이터는 그대로 남는지
 - export 시 어떤 장면을 기준으로 GLB를 다시 만드는지
+- 그리고 향후 더 명확한 구조로 바꾸려면 어떤 흐름이 좋은지
 를 코드 기준으로 정리한다.
 
 ---
@@ -289,9 +290,175 @@
 
 ---
 
-## 8. 현재 정리
+## 8. 작업 단위 플로우
 
-### 8.1 기존 구조 요약
+사용자 관점에서 보면 현재 파이프라인은 아래 순서로 이해하는 것이 가장 명확하다.
+
+### 8.1 Import / 전처리
+1. 사용자가 GLB를 연다.
+2. `loadFile(file)`가 `loadGlbFile(file)`를 호출한다.
+3. `GLTFLoader.parseAsync(buffer, '')`로 GLB를 메모리 scene으로 복원한다.
+4. 이 scene에서 다음 전처리를 한다.
+   - `workingScene = gltf.scene`
+   - `pristineScene = gltf.scene.clone(true)`
+   - scene traverse로 `Lift / Port / Bridge / Rail / Stocker / Transport`를 감지한다.
+   - 감지 결과를 편집용 entity 배열(`lifts / ports / readonlyObjects`)로 정규화한다.
+5. `initializeScene(...)`가 store를 초기화한다.
+
+즉 import 시점의 전처리는 **“GLB를 그대로 렌더만 하는 것”이 아니라, GLB를 읽은 뒤 편집 가능한 domain entity로 다시 해석하는 과정**이다.
+
+### 8.2 중앙 편집 캔버스 노출
+현재 중앙의 `TopViewCanvas`는 raw GLB mesh를 직접 보여주지 않는다.
+
+- source-of-truth: `lifts / ports / readonlyObjects`
+- 표현 방식: XY plane 기반 2D 편집 뷰
+- 역할:
+  - 선택
+  - Lift 이동
+  - Port 배치/스냅
+  - Z 필터링 시점의 평면 편집
+
+즉 중앙은 현재 **원본 GLB viewer가 아니라 entity editor**다.
+
+### 8.3 프리뷰 캔버스 노출
+현재 단순화 이후의 preview는 다음 흐름이다.
+
+- source-of-truth: `lifts / ports / readonlyObjects`
+- 표현 방식: 단순 proxy 3D geometry
+- 역할:
+  - 에디터 상태를 3D에서 대략 확인
+  - 원본 mesh fidelity 확인이 아니라 구조 확인
+
+즉 preview는 지금 **가벼운 3D 상태 확인용**이다.
+
+### 8.4 변경 시 동작
+사용자가 Lift/Port를 수정하면:
+1. 관련 action (`moveLift`, `updatePort`, `confirmAddPort` 등) 호출
+2. `applyMutation(...)` 실행
+3. store의 `lifts / ports / readonlyObjects` 갱신
+4. `deriveScene(...)`로
+   - port position 재계산
+   - validation 재계산
+   - collision 재계산
+5. history stack에 snapshot 저장
+6. 상태를 `unsaved`로 표시
+
+중요한 점:
+- 변경 즉시 바뀌는 것: **store 기반 editor / preview / validation 상태**
+- 변경 즉시 바뀌지 않는 것: **`runtime.workingScene` 원본 scene graph**
+
+### 8.5 Export 시 동작
+사용자가 Export를 누르면:
+1. `runValidation()` 실행
+2. error가 있으면 export 중단
+3. `runtime.pristineScene.clone(true)`로 export용 scene 생성
+4. 현재 store 상태를 반영
+   - `applyLift(scene, lift)`
+   - `applyPort(scene, port)`
+   - `applyReadOnly(scene, entity)`
+5. `GLTFExporter.parseAsync(..., { binary: true, animations })`
+6. `Blob(model/gltf-binary)` 생성
+7. 다운로드 URL 생성
+
+즉 export는 **편집 중 scene를 그대로 저장하는 방식이 아니라, 깨끗한 기준 장면에 현재 편집 결과를 다시 적용해 새 GLB를 만드는 방식**이다.
+
+---
+
+## 9. 사용자가 제안한 “중앙 작업 후 변경 적용 버튼” 구조 검토
+
+사용자 제안:
+- 초기에 GLB를 그대로 불러온다.
+- 중앙에서 작업한다.
+- `변경 적용` 트리거 버튼을 눌렀을 때 preview/export 기준 장면에 반영한다.
+
+이 아이디어는 꽤 좋다. 특히 현재 구조의 가장 큰 문제인 **편집용 상태와 runtime scene의 역할 혼선**을 줄이는 데 도움이 된다.
+
+### 9.1 왜 괜찮은가
+이 구조의 장점은 다음과 같다.
+
+#### A. source-of-truth가 더 분명해진다
+현재는
+- store entity
+- runtime scene
+이 같이 살아 있고, 수정 타이밍이 다르다.
+
+`변경 적용` 구조로 가면 아래처럼 분리하기 쉽다.
+- **원본 GLB scene**: import 직후의 기준 장면
+- **draft state**: 중앙 편집에서 바꾸는 임시 상태
+- **applied scene**: 버튼을 눌렀을 때만 다시 만드는 preview/export 기준 장면
+
+#### B. preview 의미가 더 명확해진다
+현재 preview가 “실시간 편집 반영 뷰인지, 원본 GLB 기반 3D 재구성인지”가 섞여 있었다.
+
+버튼 적용 구조로 바꾸면:
+- 중앙: draft 편집
+- 우측 preview: 마지막 적용본
+
+처럼 설명하기 쉬워진다.
+
+#### C. export와 preview를 같은 파이프라인으로 맞추기 쉽다
+가장 큰 장점은 여기다.
+
+현재 export는 이미
+- pristine scene clone
+- store 상태 적용
+이라는 재구성 방식을 쓴다.
+
+즉 `변경 적용` 버튼도 같은 파이프라인을 쓰면 된다.
+- `apply changes` → preview용 scene 재생성
+- `export` → 같은 재생성 로직으로 GLB 생성
+
+그러면 preview와 export가 같은 결과를 보게 된다.
+
+### 9.2 그냥 “원본 GLB를 중앙에서 직접 수정”은 비추천
+다만 제안을 그대로 해석해서 **중앙에서 raw GLB mesh를 직접 조작하는 구조**로 가는 것은 지금 기준으로는 비추천이다.
+
+이유:
+1. 현재 중앙 편집 UX는 XY plane 기반이라 entity 편집과 잘 맞는다.
+2. raw GLB mesh 직접 수정은 pick/transform/snap/slot inference가 더 복잡해진다.
+3. domain 규칙(`Lift`, `Port`, `slot`, `face`, `level`)은 mesh 편집보다 entity 편집에서 더 안정적이다.
+
+즉 추천은:
+- **중앙은 지금처럼 entity draft editor 유지**
+- **우측 preview는 apply 버튼 기준으로 갱신되는 applied scene/view**
+
+이다.
+
+### 9.3 추천 구조
+추천 아키텍처는 아래다.
+
+#### 1) Import
+- GLB 로드
+- `pristineScene` 보존
+- entity 추출
+- `draftEntities` 초기화
+- `appliedEntities`도 초기값으로 동일하게 생성
+
+#### 2) 중앙 편집
+- 사용자는 `draftEntities`만 수정
+- validation은 draft 기준으로 즉시 가능
+- 중앙 캔버스는 draft를 표현
+
+#### 3) 변경 적용 버튼
+- `draftEntities -> appliedEntities` 복사
+- `pristineScene.clone(true)`에 appliedEntities 반영
+- preview용 `appliedScene` 재생성
+
+#### 4) Export
+- `appliedEntities` 기준으로 export
+- 또는 export 직전 `draft != applied`면 “미적용 변경이 있음” 안내
+
+### 9.4 UX 관점에서 더 좋아지는 점
+- preview가 자꾸 흔들리지 않음
+- 사용자는 “지금 편집 중인 값”과 “적용된 결과”를 구분 가능
+- export 결과와 preview 결과가 일치하기 쉬움
+- 나중에 `Apply`, `Revert`, `Reset to imported GLB` 같은 버튼도 자연스럽게 붙일 수 있음
+
+---
+
+## 10. 현재 정리
+
+### 10.1 기존 구조 요약
 - **GLB 로드 후 두 갈래**
   - runtime scene (`workingScene`, `pristineScene`)
   - 편집 entity (`lifts`, `ports`, `readonlyObjects`)
@@ -299,12 +466,12 @@
 - **기존 preview는 workingScene 기반**
 - **export는 pristineScene clone + entity 반영 기반**
 
-### 8.2 공유 여부 요약
+### 10.2 공유 여부 요약
 - 초기 로드 직후에는 같은 GLB 출발점이라 사실상 연관됨
 - 하지만 편집 이후에는 완전 공유라고 보기 어려움
 - 특히 기존 preview와 editor는 같은 source-of-truth를 보지 않았다
 
-### 8.3 이번 단순화 방향
+### 10.3 이번 단순화 방향
 preview는 우선 다음 원칙으로 단순화한다.
 
 1. **preview의 source-of-truth를 store entity로 통일**
