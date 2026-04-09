@@ -110,10 +110,11 @@ function CameraRig({
     const heightSpan = Math.max(bounds.size.z, 60)
     const distance = Math.max(planarSpan * 0.95, 120)
 
+    camera.up.set(0, 0, 1)
     camera.position.set(
       target.x - distance * 0.42,
-      target.y + distance,
-      target.z + heightSpan * 1.1,
+      target.y - distance * 1.08,
+      target.z + heightSpan * 1.18,
     )
     camera.near = 0.1
     camera.far = Math.max(1600, distance * 12)
@@ -122,6 +123,7 @@ function CameraRig({
 
     const controls = controlsRef.current
     if (controls) {
+      controls.object.up.set(0, 0, 1)
       controls.target.copy(target)
       controls.update()
     }
