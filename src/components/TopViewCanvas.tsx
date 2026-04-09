@@ -53,11 +53,9 @@ export function TopViewCanvas() {
     readonlyObjects,
     selectedId,
     selectObject,
-    moveLift,
-    movePortByWorld,
+    moveEntity,
     visibilityMode,
     mode,
-    beginAddPort,
     collisionIndex,
     collisionIssues,
   } = useEditorStore(useShallow((state) => ({
@@ -66,11 +64,9 @@ export function TopViewCanvas() {
     readonlyObjects: state.draftReadonlyObjects,
     selectedId: state.selectedId,
     selectObject: state.selectObject,
-    moveLift: state.moveLift,
-    movePortByWorld: state.movePortByWorld,
+    moveEntity: state.moveEntity,
     visibilityMode: state.visibilityMode,
     mode: state.mode,
-    beginAddPort: state.beginAddPort,
     collisionIndex: state.collisionIndex,
     collisionIssues: state.collisionIssues,
   })))
@@ -124,8 +120,8 @@ export function TopViewCanvas() {
     if (!draggingId || !canvasRef.current) return
     const rect = canvasRef.current.getBoundingClientRect()
     const world = unproject(bounds, rect.width, rect.height, event.clientX - rect.left, event.clientY - rect.top)
-    if (lifts.some((lift) => lift.editorId === draggingId) && mode === 'moveLift') moveLift(draggingId, world.x, world.y)
-    else if (visiblePorts.some((port) => port.editorId === draggingId)) movePortByWorld(draggingId, world.x, world.y)
+    if (mode !== 'move') return
+    if ([...lifts, ...visiblePorts, ...readonlyObjects].some((entity) => entity.editorId === draggingId)) moveEntity(draggingId, world.x, world.y)
   }
 
   return (
@@ -135,7 +131,6 @@ export function TopViewCanvas() {
           <h2 className="font-semibold text-slate-100">XY Plane Editor</h2>
           <p className="text-xs text-slate-500">XY plane editing · lift-to-lift snap · port-to-nearest-lift attach</p>
         </div>
-        <button type="button" onClick={beginAddPort} className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-medium text-slate-200 hover:border-slate-500">Add Port Mode</button>
       </div>
 
       <div ref={canvasRef} className="editor-grid relative flex-1 overflow-hidden" onPointerMove={handlePointerMove} onPointerUp={() => setDraggingId(null)} onPointerLeave={() => setDraggingId(null)}>
@@ -167,10 +162,12 @@ export function TopViewCanvas() {
               role="button"
               tabIndex={0}
               onClick={() => selectObject(item.editorId)}
+              onPointerDown={(event) => { event.stopPropagation(); selectObject(item.editorId); if (mode === 'move') setDraggingId(item.editorId) }}
               className={cn(
                 'absolute rounded-xl border border-dashed bg-slate-700/15 text-[11px] text-slate-400',
                 colliding ? 'border-rose-500 bg-rose-500/10 text-rose-100' : 'border-slate-600',
                 selectedId === item.editorId && 'border-violet-400 bg-violet-500/10 text-violet-100',
+                mode === 'move' ? 'cursor-move' : 'cursor-default',
               )}
               style={{ left: center.x - (item.width * center.scale) / 2, top: center.y - (item.depth * center.scale) / 2, width: item.width * center.scale, height: Math.max(18, item.depth * center.scale) }}
             >
@@ -189,13 +186,13 @@ export function TopViewCanvas() {
               role="button"
               tabIndex={0}
               onClick={() => selectObject(lift.editorId)}
-              onPointerDown={(event) => { event.stopPropagation(); selectObject(lift.editorId); if (mode === 'moveLift') setDraggingId(lift.editorId) }}
+              onPointerDown={(event) => { event.stopPropagation(); selectObject(lift.editorId); if (mode === 'move') setDraggingId(lift.editorId) }}
               className={cn(
                 'absolute rounded-2xl border text-xs',
                 colliding ? 'border-rose-400 bg-rose-500/12 text-rose-50 shadow-[0_0_0_2px_rgba(251,113,133,0.25)]' : 'bg-blue-500/10 text-blue-100',
                 selectedId === lift.editorId ? 'shadow-[0_0_0_2px_rgba(191,219,254,0.4)]' : '',
                 !colliding && (selectedId === lift.editorId ? 'border-blue-300' : 'border-blue-500/40'),
-                mode === 'moveLift' ? 'cursor-move' : 'cursor-default',
+                mode === 'move' ? 'cursor-move' : 'cursor-default',
               )}
               style={{ left: center.x - (lift.width * center.scale) / 2, top: center.y - (lift.depth * center.scale) / 2, width: lift.width * center.scale, height: Math.max(32, lift.depth * center.scale), transform: `rotate(${-lift.rotation}deg)` }}
             >
@@ -217,10 +214,11 @@ export function TopViewCanvas() {
               type="button"
               aria-label={port.id}
               onClick={() => selectObject(port.editorId)}
-              onPointerDown={(event) => { event.stopPropagation(); selectObject(port.editorId); setDraggingId(port.editorId) }}
+              onPointerDown={(event) => { event.stopPropagation(); selectObject(port.editorId); if (mode === 'move') setDraggingId(port.editorId) }}
               className={cn(
                 'absolute flex h-5 min-w-5 items-center justify-center rounded-full border text-[10px] font-semibold uppercase transition',
                 colliding ? 'border-rose-400 bg-rose-500 text-white shadow-[0_0_0_2px_rgba(251,113,133,0.35)]' : selectedId === port.editorId ? 'border-orange-300 bg-orange-400 text-slate-950' : 'border-orange-400/60 bg-orange-500/15 text-orange-100 hover:bg-orange-500/30',
+                mode === 'move' ? 'cursor-move' : 'cursor-pointer',
               )}
               style={{ left: center.x - 12, top: center.y - 12, width: 24, height: 24 }}
             >

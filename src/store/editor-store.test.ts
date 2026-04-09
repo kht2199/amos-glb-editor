@@ -13,8 +13,8 @@ describe('editor store', () => {
 
     const lift = state.draftLifts[0]
     state.selectObject(lift.editorId)
-    state.setMode('moveLift')
-    state.moveLift(lift.editorId, 25, 35)
+    state.setMode('move')
+    state.moveEntity(lift.editorId, 25, 35)
 
     const next = useEditorStore.getState().draftLifts.find((item) => item.editorId === lift.editorId)
     expect(next?.position.x).toBe(25)
@@ -22,16 +22,21 @@ describe('editor store', () => {
     expect(useEditorStore.getState().saveState).toBe('unsaved')
   })
 
-  it('creates a new port from add-port draft', () => {
+  it('duplicates the selected port as a new draft port', () => {
     const state = useEditorStore.getState()
-    state.beginAddPort()
-    state.updateAddPortDraft({ id: 'port_new_01', slot: 2, face: 'LEFT', level: 'BOTTOM', portType: 'OUT' })
-    state.confirmAddPort()
+    const sourcePort = state.draftPorts.find((item) => !item.deleted && item.parentLiftId)
 
-    const created = useEditorStore.getState().draftPorts.find((item) => item.id === 'port_new_01')
+    expect(sourcePort).toBeTruthy()
+    state.selectObject(sourcePort!.editorId)
+    state.duplicateSelectedObject()
+
+    const next = useEditorStore.getState()
+    const created = next.draftPorts.find((item) => item.editorId === next.selectedId)
     expect(created).toBeTruthy()
     expect(created?.created).toBe(true)
-    expect(created?.face).toBe('LEFT')
+    expect(created?.id).toMatch(new RegExp(`^${sourcePort!.id}_copy_`))
+    expect(created?.editorId).not.toBe(sourcePort?.editorId)
+    expect(created?.slot).toBeGreaterThanOrEqual(sourcePort!.slot)
   })
 
   it('supports undo and redo for lift movement', () => {
@@ -61,6 +66,33 @@ describe('editor store', () => {
     const moved = useEditorStore.getState().draftPorts.find((port) => port.editorId === sourcePort!.editorId)
 
     expect(moved?.parentLiftId).toBe(targetLift.editorId)
+  })
+
+  it('moves readonly objects in move mode', () => {
+    const state = useEditorStore.getState()
+    const stocker = state.draftReadonlyObjects.find((item) => item.id === 'stocker_01')
+
+    expect(stocker).toBeTruthy()
+    state.selectObject(stocker!.editorId)
+    state.setMode('move')
+    state.moveEntity(stocker!.editorId, stocker!.position.x + 20, stocker!.position.y - 15)
+
+    const moved = useEditorStore.getState().draftReadonlyObjects.find((item) => item.editorId === stocker!.editorId)
+    expect(moved?.position.x).toBe(stocker!.position.x + 20)
+    expect(moved?.position.y).toBe(stocker!.position.y - 15)
+    expect(useEditorStore.getState().saveState).toBe('unsaved')
+  })
+
+  it('keeps a custom port z offset when face or slot changes', () => {
+    const state = useEditorStore.getState()
+    const port = state.draftPorts.find((item) => !item.deleted && item.parentLiftId)
+
+    expect(port).toBeTruthy()
+    state.updatePort(port!.editorId, { position: { ...port!.position, z: port!.position.z + 17 } })
+    state.updatePort(port!.editorId, { face: 'RIGHT', slot: 2 })
+
+    const updated = useEditorStore.getState().draftPorts.find((item) => item.editorId === port!.editorId)
+    expect(updated?.position.z).toBe(port!.position.z + 17)
   })
 
   it('reclassifies a readonly object into a lift', () => {

@@ -3,7 +3,7 @@ export type PortType = 'IN' | 'OUT' | 'INOUT'
 export type PortLevel = 'TOP' | 'BOTTOM'
 export type Face = 'FRONT' | 'BACK' | 'LEFT' | 'RIGHT'
 export type VisibilityMode = 'TOP_ONLY' | 'BOTTOM_ONLY'
-export type EditorMode = 'select' | 'moveLift' | 'addPort'
+export type EditorMode = 'select' | 'move'
 export type ValidationSeverity = 'error' | 'warning'
 export type DomainParentType = 'Lift' | 'Stocker' | 'Transport' | 'Bridge' | 'Rail'
 export type PortSemanticRole = 'LIFT_DOCK' | 'STOCKER_ACCESS' | 'TOOL_LOAD' | 'BUFFER_HANDOFF'
@@ -60,6 +60,7 @@ export interface PortEntity extends BaseEntity {
   created: boolean
   deleted?: boolean
   templateNodeName?: string
+  zOffset?: number
 }
 
 export interface ReadOnlyEntity extends BaseEntity {

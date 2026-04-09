@@ -2,34 +2,28 @@ import { Trash2 } from 'lucide-react'
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useEditorStore } from '../store/editor-store'
-import type { DomainParentType, Face, LiftEntity, ObjectKind, PortLevel, PortSemanticRole, PortType } from '../types'
+import type { Face, LiftEntity, ObjectKind, PortLevel, PortSemanticRole, PortType } from '../types'
 
 const FACE_OPTIONS: Face[] = ['FRONT', 'BACK', 'LEFT', 'RIGHT']
 const LEVEL_OPTIONS: PortLevel[] = ['TOP', 'BOTTOM']
 const LEVEL_LABELS: Record<PortLevel, string> = { TOP: 'Higher Z', BOTTOM: 'Lower Z' }
 const PORT_TYPE_OPTIONS: PortType[] = ['IN', 'OUT', 'INOUT']
 const PORT_ROLE_OPTIONS: PortSemanticRole[] = ['LIFT_DOCK', 'STOCKER_ACCESS', 'TOOL_LOAD', 'BUFFER_HANDOFF']
-const DOMAIN_PARENT_OPTIONS: DomainParentType[] = ['Lift', 'Stocker', 'Transport', 'Bridge', 'Rail']
 const OBJECT_TYPE_OPTIONS: ObjectKind[] = ['Lift', 'Port', 'Bridge', 'Rail', 'Stocker', 'Transport']
 const fieldClass = 'w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-blue-400'
-const primaryButton = 'rounded-xl bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400'
-const secondaryButton = 'rounded-xl border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:border-slate-500'
 const dangerButton = 'inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm font-medium text-rose-100 hover:bg-rose-500/20'
 
 export function InspectorPanel() {
-  const { selectedId, draftLifts, draftPorts, draftReadonlyObjects, updateLift, updatePort, setObjectType, deletePort, addPortDraft, updateAddPortDraft, confirmAddPort, cancelAddPort, validationIssues } = useEditorStore(useShallow((state) => ({
+  const { selectedId, draftLifts, draftPorts, draftReadonlyObjects, updateLift, updatePort, updateReadonlyObject, setObjectType, deletePort, validationIssues } = useEditorStore(useShallow((state) => ({
     selectedId: state.selectedId,
     draftLifts: state.draftLifts,
     draftPorts: state.draftPorts,
     draftReadonlyObjects: state.draftReadonlyObjects,
     updateLift: state.updateLift,
     updatePort: state.updatePort,
+    updateReadonlyObject: state.updateReadonlyObject,
     setObjectType: state.setObjectType,
     deletePort: state.deletePort,
-    addPortDraft: state.addPortDraft,
-    updateAddPortDraft: state.updateAddPortDraft,
-    confirmAddPort: state.confirmAddPort,
-    cancelAddPort: state.cancelAddPort,
     validationIssues: state.validationIssues,
   })))
 
@@ -46,28 +40,7 @@ export function InspectorPanel() {
       </div>
 
       <div className="scrollbar-thin flex-1 overflow-y-auto p-4 text-sm">
-        {addPortDraft ? (
-          <section className="space-y-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4">
-            <h3 className="font-semibold text-emerald-100">Add Port Mode</h3>
-            <Field label="Port ID"><input className={fieldClass} value={addPortDraft.id} onChange={(event) => updateAddPortDraft({ id: event.target.value })} /></Field>
-            <Field label="Parent Lift"><select className={fieldClass} value={addPortDraft.parentLiftId} onChange={(event) => updateAddPortDraft({ parentLiftId: event.target.value })}>{draftLifts.map((lift) => <option key={lift.editorId} value={lift.editorId}>{lift.id}</option>)}</select></Field>
-            <DoubleField>
-              <Field label="Level"><select className={fieldClass} value={addPortDraft.level} onChange={(event) => updateAddPortDraft({ level: event.target.value as PortLevel })}>{LEVEL_OPTIONS.map((option) => <option key={option} value={option}>{LEVEL_LABELS[option]}</option>)}</select></Field>
-              <Field label="Type"><select className={fieldClass} value={addPortDraft.portType} onChange={(event) => updateAddPortDraft({ portType: event.target.value as PortType })}>{PORT_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
-            </DoubleField>
-            <DoubleField>
-              <Field label="Semantic Role"><select className={fieldClass} value={addPortDraft.semanticRole} onChange={(event) => updateAddPortDraft({ semanticRole: event.target.value as PortSemanticRole })}>{PORT_ROLE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
-              <Field label="Domain Parent"><select className={fieldClass} value={addPortDraft.domainParentType} onChange={(event) => updateAddPortDraft({ domainParentType: event.target.value as DomainParentType })}>{DOMAIN_PARENT_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
-            </DoubleField>
-            <DoubleField>
-              <Field label="Face"><select className={fieldClass} value={addPortDraft.face} onChange={(event) => updateAddPortDraft({ face: event.target.value as Face })}>{FACE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
-              <Field label="Slot"><input className={fieldClass} type="number" min={1} value={addPortDraft.slot} onChange={(event) => updateAddPortDraft({ slot: Number(event.target.value) || 1 })} /></Field>
-            </DoubleField>
-            <div className="flex gap-2 pt-1"><button type="button" className={primaryButton} onClick={confirmAddPort}>Confirm Add</button><button type="button" className={secondaryButton} onClick={cancelAddPort}>Cancel</button></div>
-          </section>
-        ) : null}
-
-        {!selectedLift && !selectedPort && !selectedReadonly && !addPortDraft ? <div className="rounded-2xl border border-dashed border-slate-700 p-4 text-slate-400"><p className="font-medium text-slate-200">선택된 객체가 없습니다.</p><p className="mt-2 text-sm leading-6">Lift 또는 Port를 선택하면 우측에서 속성을 수정할 수 있습니다.</p></div> : null}
+        {!selectedLift && !selectedPort && !selectedReadonly ? <div className="rounded-2xl border border-dashed border-slate-700 p-4 text-slate-400"><p className="font-medium text-slate-200">선택된 객체가 없습니다.</p><p className="mt-2 text-sm leading-6">객체를 선택하면 우측에서 속성과 좌표를 수정할 수 있습니다.</p></div> : null}
 
         {selectedLift ? (
           <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
@@ -124,11 +97,16 @@ export function InspectorPanel() {
 
         {selectedReadonly ? (
           <section className="space-y-3 rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4">
-            <HeaderBadge title={selectedReadonly.id} badge={`${selectedReadonly.objectType} · RO`} />
+            <HeaderBadge title={selectedReadonly.id} badge={selectedReadonly.objectType} />
             <Field label="Object Type"><select aria-label="Object Type" className={fieldClass} value={selectedReadonly.objectType} onChange={(event) => setObjectType(selectedReadonly.editorId, event.target.value as ObjectKind)}>{OBJECT_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
-            <Field label="ID"><input className={fieldClass} value={selectedReadonly.id} disabled /></Field>
-            <Field label="Position"><input className={fieldClass} value={`X ${selectedReadonly.position.x} · Y ${selectedReadonly.position.y} · Z ${selectedReadonly.position.z}`} disabled /></Field>
-            <p className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-3 py-2 text-sm text-violet-100">이 객체는 읽기 전용입니다. 선택 및 조회만 가능합니다.</p>
+            <Field label="ID"><input className={fieldClass} value={selectedReadonly.id} onChange={(event) => updateReadonlyObject(selectedReadonly.editorId, { id: event.target.value, nodeName: event.target.value })} /></Field>
+            <DoubleField>
+              <NumberField label="X" value={selectedReadonly.position.x} onChange={(value) => updateReadonlyObject(selectedReadonly.editorId, { position: { ...selectedReadonly.position, x: value } })} />
+              <NumberField label="Y" value={selectedReadonly.position.y} onChange={(value) => updateReadonlyObject(selectedReadonly.editorId, { position: { ...selectedReadonly.position, y: value } })} />
+            </DoubleField>
+            <NumberField label="Z" value={selectedReadonly.position.z} onChange={(value) => updateReadonlyObject(selectedReadonly.editorId, { position: { ...selectedReadonly.position, z: value } })} />
+            <p className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-3 py-2 text-sm text-violet-100">이 객체도 Move 모드와 Inspector에서 좌표를 조정할 수 있습니다.</p>
+            <IssueList issues={issues} />
           </section>
         ) : null}
       </div>

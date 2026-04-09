@@ -25,7 +25,6 @@ beforeEach(() => {
     statusMessage: 'No file loaded',
     exportFeedback: { status: 'idle' },
     runtime: { workingScene: null, pristineScene: null, animations: [] },
-    addPortDraft: null,
     collisionIssues: [],
     collisionIndex: {},
     history: [],

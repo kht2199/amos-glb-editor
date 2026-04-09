@@ -8,16 +8,11 @@ import { computePortPosition, findNearestLift, inferFaceAndSlot, snapLiftToNeigh
 import { validateEntities } from '../lib/validation'
 import type {
   CollisionIssue,
-  DomainParentType,
   EditorMode,
   EditorSnapshot,
-  Face,
   LiftEntity,
   ObjectKind,
   PortEntity,
-  PortLevel,
-  PortSemanticRole,
-  PortType,
   ReadOnlyEntity,
   SerializableSession,
   ValidationIssue,
@@ -29,18 +24,6 @@ interface ExportFeedback {
   message?: string
   downloadUrl?: string
   fileName?: string
-}
-
-interface AddPortDraft {
-  parentLiftId: string
-  domainParentId: string
-  domainParentType: DomainParentType
-  level: PortLevel
-  face: Face
-  slot: number
-  id: string
-  portType: PortType
-  semanticRole: PortSemanticRole
 }
 
 interface SceneRuntime {
@@ -70,7 +53,6 @@ interface EditorState {
   statusMessage: string
   exportFeedback: ExportFeedback
   runtime: SceneRuntime
-  addPortDraft: AddPortDraft | null
   history: EditorSnapshot[]
   future: EditorSnapshot[]
   canUndo: boolean
@@ -84,17 +66,16 @@ interface EditorState {
   setSnapEnabled: (enabled: boolean) => void
   setValidationOpen: (open: boolean) => void
   setPreviewOpen: (open: boolean) => void
+  moveEntity: (editorId: string, x: number, y: number) => void
   moveLift: (editorId: string, x: number, y: number) => void
   rotateLift: (editorId: string) => void
   updateLift: (editorId: string, patch: Partial<LiftEntity>) => void
   updatePort: (editorId: string, patch: Partial<PortEntity>) => void
+  updateReadonlyObject: (editorId: string, patch: Partial<ReadOnlyEntity>) => void
   setObjectType: (editorId: string, objectType: ObjectKind) => void
+  duplicateSelectedObject: () => void
   movePortByWorld: (editorId: string, x: number, y: number) => void
   deletePort: (editorId: string) => void
-  beginAddPort: () => void
-  updateAddPortDraft: (patch: Partial<AddPortDraft>) => void
-  confirmAddPort: () => void
-  cancelAddPort: () => void
   applyDraftChanges: () => void
   revertDraftChanges: () => void
   runValidation: () => ValidationIssue[]
@@ -137,7 +118,7 @@ function hydratePortPositions(lifts: LiftEntity[], ports: PortEntity[]) {
     if (!lift || port.deleted) return port
     return {
       ...port,
-      position: computePortPosition(lift, port.face, port.slot, port.level),
+      position: computePortPosition(lift, port.face, port.slot, port.level, port.zOffset ?? 0),
     }
   })
 }
@@ -146,34 +127,128 @@ function withUpdatedPortPosition(lifts: LiftEntity[], port: PortEntity) {
   if (port.domainParentType !== 'Lift' || !port.parentLiftId) return port
   const lift = lifts.find((item) => item.editorId === port.parentLiftId)
   if (!lift || port.deleted) return port
+  const basePosition = computePortPosition(lift, port.face, port.slot, port.level)
+  const zOffset = port.zOffset ?? (port.position.z - basePosition.z)
   return {
     ...port,
-    position: computePortPosition(lift, port.face, port.slot, port.level),
+    zOffset,
+    position: computePortPosition(lift, port.face, port.slot, port.level, zOffset),
   }
 }
 
-function makeAddPortDraft(lifts: LiftEntity[], selectedId: string | null): AddPortDraft | null {
-  const lift = lifts.find((item) => item.editorId === selectedId) ?? lifts[0]
-  if (!lift) return null
-  return {
-    parentLiftId: lift.editorId,
-    domainParentId: lift.editorId,
-    domainParentType: 'Lift',
-    level: 'TOP',
-    face: 'FRONT',
-    slot: 1,
-    id: `port_${crypto.randomUUID().slice(0, 8)}`,
-    portType: 'IN',
-    semanticRole: 'LIFT_DOCK',
-  }
+function moveReadonlyEntity(state: EditorState, editorId: string, x: number, y: number) {
+  const target = state.draftReadonlyObjects.find((item) => item.editorId === editorId)
+  if (!target) return state
+  const draftReadonlyObjects = state.draftReadonlyObjects.map((item) => item.editorId === editorId
+    ? { ...item, position: { ...item.position, x, y } }
+    : item)
+  return applyMutation(state, { draftReadonlyObjects, selectedId: editorId }, `${target.objectType} moved`)
 }
 
 const READONLY_OBJECT_TYPES: ReadOnlyEntity['objectType'][] = ['Bridge', 'Rail', 'Stocker', 'Transport']
 
 type SceneEntity = LiftEntity | PortEntity | ReadOnlyEntity
 
+const DUPLICATE_OFFSET = 20
+
 function isReadonlyObjectType(objectType: ObjectKind): objectType is ReadOnlyEntity['objectType'] {
   return READONLY_OBJECT_TYPES.includes(objectType as ReadOnlyEntity['objectType'])
+}
+
+function makeDuplicateId(baseId: string, existingIds: Set<string>) {
+  const sanitizedBase = baseId.trim() || 'object'
+  let index = 1
+  let candidate = `${sanitizedBase}_copy_${String(index).padStart(2, '0')}`
+  while (existingIds.has(candidate)) {
+    index += 1
+    candidate = `${sanitizedBase}_copy_${String(index).padStart(2, '0')}`
+  }
+  return candidate
+}
+
+function nextAvailablePortSlot(ports: PortEntity[], port: PortEntity) {
+  const occupied = new Set(
+    ports
+      .filter((item) => !item.deleted
+        && item.parentLiftId === port.parentLiftId
+        && item.domainParentType === port.domainParentType
+        && item.domainParentId === port.domainParentId
+        && item.face === port.face
+        && item.level === port.level)
+      .map((item) => item.slot),
+  )
+  let slot = Math.max(1, port.slot)
+  while (occupied.has(slot)) slot += 1
+  return slot
+}
+
+function duplicateSceneEntity(state: EditorState) {
+  const sourceId = state.selectedId
+  if (!sourceId) return state
+
+  const sourceLift = state.draftLifts.find((item) => item.editorId === sourceId)
+  if (sourceLift) {
+    const nextId = makeDuplicateId(sourceLift.id, new Set([...state.draftLifts, ...state.draftPorts, ...state.draftReadonlyObjects].map((item) => item.id)))
+    const duplicatedLift: LiftEntity = {
+      ...structuredClone(sourceLift),
+      id: nextId,
+      editorId: crypto.randomUUID(),
+      label: nextId,
+      nodeName: nextId,
+      position: { ...sourceLift.position, x: sourceLift.position.x + DUPLICATE_OFFSET, y: sourceLift.position.y + DUPLICATE_OFFSET },
+    }
+    return applyMutation(state, {
+      draftLifts: [...state.draftLifts, duplicatedLift],
+      selectedId: duplicatedLift.editorId,
+      mode: 'select',
+    }, 'Lift duplicated')
+  }
+
+  const sourcePort = state.draftPorts.find((item) => item.editorId === sourceId && !item.deleted)
+  if (sourcePort) {
+    const nextId = makeDuplicateId(sourcePort.id, new Set([...state.draftLifts, ...state.draftPorts, ...state.draftReadonlyObjects].map((item) => item.id)))
+    const duplicatedPortBase: PortEntity = {
+      ...structuredClone(sourcePort),
+      id: nextId,
+      editorId: crypto.randomUUID(),
+      label: nextId,
+      nodeName: nextId,
+      created: true,
+      deleted: false,
+    }
+    const duplicatedPort = sourcePort.parentLiftId
+      ? withUpdatedPortPosition(state.draftLifts, {
+        ...duplicatedPortBase,
+        slot: nextAvailablePortSlot(state.draftPorts, duplicatedPortBase),
+      })
+      : {
+        ...duplicatedPortBase,
+        position: { ...sourcePort.position, x: sourcePort.position.x + DUPLICATE_OFFSET, y: sourcePort.position.y + DUPLICATE_OFFSET },
+      }
+
+    return applyMutation(state, {
+      draftPorts: [...state.draftPorts, duplicatedPort],
+      selectedId: duplicatedPort.editorId,
+      mode: 'select',
+    }, 'Port duplicated')
+  }
+
+  const sourceReadonly = state.draftReadonlyObjects.find((item) => item.editorId === sourceId)
+  if (!sourceReadonly) return state
+  const nextId = makeDuplicateId(sourceReadonly.id, new Set([...state.draftLifts, ...state.draftPorts, ...state.draftReadonlyObjects].map((item) => item.id)))
+  const duplicatedReadonly: ReadOnlyEntity = {
+    ...structuredClone(sourceReadonly),
+    id: nextId,
+    editorId: crypto.randomUUID(),
+    label: nextId,
+    nodeName: nextId,
+    position: { ...sourceReadonly.position, x: sourceReadonly.position.x + DUPLICATE_OFFSET, y: sourceReadonly.position.y + DUPLICATE_OFFSET },
+  }
+  return applyMutation(state, {
+    draftReadonlyObjects: [...state.draftReadonlyObjects, duplicatedReadonly],
+    selectedId: duplicatedReadonly.editorId,
+    mode: 'select',
+  }, `${sourceReadonly.objectType} duplicated`)
 }
 
 function makeLiftFromEntity(entity: SceneEntity): LiftEntity {
@@ -403,7 +478,6 @@ function initializeScene(bundle: { fileName: string; lifts: LiftEntity[]; ports:
     exportFeedback: { status: 'idle' as const },
     saveState: 'saved' as const,
     statusMessage,
-    addPortDraft: null,
     hasPendingChanges: false,
     ...historyState([], []),
   }
@@ -411,7 +485,7 @@ function initializeScene(bundle: { fileName: string; lifts: LiftEntity[]; ports:
 
 function applyMutation(
   state: EditorState,
-  nextScene: Partial<Pick<EditorState, 'draftLifts' | 'draftPorts' | 'draftReadonlyObjects' | 'visibilityMode' | 'selectedId' | 'mode' | 'addPortDraft'>>,
+  nextScene: Partial<Pick<EditorState, 'draftLifts' | 'draftPorts' | 'draftReadonlyObjects' | 'visibilityMode' | 'selectedId' | 'mode'>>,
   statusMessage = 'Unsaved changes',
 ) {
   const draftLifts = nextScene.draftLifts ?? state.draftLifts
@@ -437,7 +511,6 @@ function applyMutation(
     visibilityMode,
     selectedId: nextScene.selectedId ?? state.selectedId,
     mode: nextScene.mode ?? state.mode,
-    addPortDraft: nextScene.addPortDraft ?? state.addPortDraft,
     validationIssues: derived.validationIssues,
     collisionIssues: derived.collisionIssues,
     collisionIndex: derived.collisionIndex,
@@ -468,7 +541,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   statusMessage: 'No file loaded',
   exportFeedback: { status: 'idle' },
   runtime: { workingScene: null, pristineScene: null, animations: [] },
-  addPortDraft: null,
   history: [],
   future: [],
   canUndo: false,
@@ -491,21 +563,43 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     ))
   },
   selectObject: (editorId) => set({ selectedId: editorId }),
-  setMode: (mode) => set((state) => ({
-    mode,
-    addPortDraft: mode === 'addPort' ? state.addPortDraft ?? makeAddPortDraft(state.draftLifts, state.selectedId) : null,
-  })),
+  setMode: (mode) => set({ mode }),
   setVisibilityMode: (visibilityMode) => set({ visibilityMode }),
   setSnapEnabled: (snapEnabled) => set({ snapEnabled }),
   setValidationOpen: (isValidationOpen) => set({ isValidationOpen }),
   setPreviewOpen: (isPreviewOpen) => set({ isPreviewOpen }),
-  moveLift: (editorId, x, y) => set((state) => {
-    const target = state.draftLifts.find((lift) => lift.editorId === editorId)
-    if (!target) return state
-    const snapped = snapLiftToNeighbors(target, x, y, state.draftLifts.filter((lift) => lift.editorId !== editorId), state.snapEnabled)
-    const draftLifts = state.draftLifts.map((lift) => lift.editorId === editorId ? { ...lift, position: { ...lift.position, x: snapped.x, y: snapped.y } } : lift)
-    return applyMutation(state, { draftLifts }, 'Lift moved')
+  moveEntity: (editorId, x, y) => set((state) => {
+    if (state.draftLifts.some((lift) => lift.editorId === editorId)) {
+      const target = state.draftLifts.find((lift) => lift.editorId === editorId)
+      if (!target) return state
+      const snapped = snapLiftToNeighbors(target, x, y, state.draftLifts.filter((lift) => lift.editorId !== editorId), state.snapEnabled)
+      const draftLifts = state.draftLifts.map((lift) => lift.editorId === editorId ? { ...lift, position: { ...lift.position, x: snapped.x, y: snapped.y } } : lift)
+      return applyMutation(state, { draftLifts, selectedId: editorId }, 'Lift moved')
+    }
+
+    if (state.draftPorts.some((port) => port.editorId === editorId)) {
+      const target = state.draftPorts.find((port) => port.editorId === editorId)
+      if (!target) return state
+      const nextLift = findNearestLift(state.draftLifts, x, y)
+      if (!nextLift) return state
+      const inferred = inferFaceAndSlot(nextLift, { ...target, position: { ...target.position, x, y } })
+      const draftPorts = state.draftPorts.map((port) => port.editorId === editorId ? withUpdatedPortPosition(state.draftLifts, {
+        ...port,
+        parentLiftId: nextLift.editorId,
+        domainParentId: nextLift.editorId,
+        domainParentType: 'Lift',
+        semanticRole: 'LIFT_DOCK',
+        face: inferred.face,
+        slot: inferred.slot,
+      }) : port)
+      return applyMutation(state, { draftPorts, selectedId: editorId }, `Port snapped to ${nextLift.id}`)
+    }
+
+    return moveReadonlyEntity(state, editorId, x, y)
   }),
+  moveLift: (editorId, x, y) => {
+    get().moveEntity(editorId, x, y)
+  },
   rotateLift: (editorId) => set((state) => {
     const draftLifts = state.draftLifts.map((lift) => lift.editorId === editorId ? { ...lift, rotation: (((lift.rotation + 90) % 360) as 0 | 90 | 180 | 270) } : lift)
     return applyMutation(state, { draftLifts }, 'Lift rotated')
@@ -515,71 +609,30 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     return applyMutation(state, { draftLifts }, 'Lift updated')
   }),
   updatePort: (editorId, patch) => set((state) => {
-    const draftPorts = state.draftPorts.map((port) => port.editorId === editorId ? withUpdatedPortPosition(state.draftLifts, { ...port, ...patch }) : port)
+    const draftPorts = state.draftPorts.map((port) => port.editorId === editorId
+      ? withUpdatedPortPosition(state.draftLifts, {
+        ...port,
+        ...patch,
+        position: patch.position ? { ...port.position, ...patch.position } : port.position,
+      })
+      : port)
     return applyMutation(state, { draftPorts }, 'Port updated')
   }),
-  setObjectType: (editorId, objectType) => set((state) => convertSceneEntity(state, editorId, objectType)),
-  movePortByWorld: (editorId, x, y) => set((state) => {
-    const target = state.draftPorts.find((port) => port.editorId === editorId)
-    if (!target) return state
-
-    const nextLift = findNearestLift(state.draftLifts, x, y)
-    if (!nextLift) return state
-
-    const inferred = inferFaceAndSlot(nextLift, { ...target, position: { ...target.position, x, y } })
-    const draftPorts = state.draftPorts.map((port) => port.editorId === editorId ? withUpdatedPortPosition(state.draftLifts, {
-      ...port,
-      parentLiftId: nextLift.editorId,
-      domainParentId: nextLift.editorId,
-      domainParentType: 'Lift',
-      semanticRole: 'LIFT_DOCK',
-      face: inferred.face,
-      slot: inferred.slot,
-    }) : port)
-
-    return applyMutation(state, { draftPorts, selectedId: editorId }, `Port snapped to ${nextLift.id}`)
+  updateReadonlyObject: (editorId, patch) => set((state) => {
+    const draftReadonlyObjects = state.draftReadonlyObjects.map((entity) => entity.editorId === editorId
+      ? { ...entity, ...patch, position: patch.position ? { ...entity.position, ...patch.position } : entity.position }
+      : entity)
+    return applyMutation(state, { draftReadonlyObjects }, 'Object updated')
   }),
+  setObjectType: (editorId, objectType) => set((state) => convertSceneEntity(state, editorId, objectType)),
+  duplicateSelectedObject: () => set((state) => duplicateSceneEntity(state)),
+  movePortByWorld: (editorId, x, y) => {
+    get().moveEntity(editorId, x, y)
+  },
   deletePort: (editorId) => set((state) => applyMutation(state, {
     draftPorts: state.draftPorts.map((port) => port.editorId === editorId ? { ...port, deleted: true } : port),
     selectedId: state.selectedId === editorId ? null : state.selectedId,
   }, 'Port deleted')),
-  beginAddPort: () => set((state) => ({ mode: 'addPort', addPortDraft: makeAddPortDraft(state.draftLifts, state.selectedId) })),
-  updateAddPortDraft: (patch) => set((state) => ({ addPortDraft: state.addPortDraft ? { ...state.addPortDraft, ...patch } : null })),
-  confirmAddPort: () => set((state) => {
-    const draft = state.addPortDraft
-    const lift = draft ? state.draftLifts.find((item) => item.editorId === draft.parentLiftId) : null
-    if (!draft || !lift) return state
-
-    const port: PortEntity = withUpdatedPortPosition(state.draftLifts, {
-      id: draft.id,
-      editorId: crypto.randomUUID(),
-      label: draft.id,
-      objectType: 'Port',
-      nodeName: draft.id,
-      parentLiftId: draft.parentLiftId,
-      domainParentId: draft.domainParentId,
-      domainParentType: draft.domainParentType,
-      semanticRole: draft.semanticRole,
-      portType: draft.portType,
-      level: draft.level,
-      face: draft.face,
-      slot: draft.slot,
-      position: computePortPosition(lift, draft.face, draft.slot, draft.level),
-      width: 8,
-      depth: 8,
-      height: 8,
-      created: true,
-      templateNodeName: 'Port_Template',
-    })
-
-    return applyMutation(state, {
-      draftPorts: [...state.draftPorts, port],
-      selectedId: port.editorId,
-      mode: 'select',
-      addPortDraft: null,
-    }, 'Port created')
-  }),
-  cancelAddPort: () => set({ mode: 'select', addPortDraft: null }),
   applyDraftChanges: () => set((state) => {
     if (!state.hasPendingChanges) return state
     return {
@@ -603,7 +656,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       draftReadonlyObjects,
       selectedId: resolveSelectedId(state.selectedId, draftLifts, derived.ports, draftReadonlyObjects),
       mode: 'select',
-      addPortDraft: null,
       validationIssues: derived.validationIssues,
       collisionIssues: derived.collisionIssues,
       collisionIndex: derived.collisionIndex,

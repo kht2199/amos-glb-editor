@@ -1,4 +1,4 @@
-import { Check, Eye, FileDown, FileUp, Layers3, Move, Plus, Redo2, RefreshCcw, RotateCw, Save, SearchCheck, Undo2 } from 'lucide-react'
+import { Check, Copy, Eye, FileDown, FileUp, Layers3, Move, Redo2, RefreshCcw, RotateCw, Save, SearchCheck, Undo2 } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { computeVisibilityPivot, visibilityModeToggleLabel } from '../lib/visibilityMode'
 import { cn } from '../lib/utils'
@@ -11,7 +11,7 @@ interface ToolbarProps {
 
 const modeButtons: Array<{ id: EditorMode; label: string; icon: typeof Move }> = [
   { id: 'select', label: 'Select', icon: Layers3 },
-  { id: 'moveLift', label: 'Move Lift', icon: Move },
+  { id: 'move', label: 'Move', icon: Move },
 ]
 
 export function Toolbar({ onOpenFile }: ToolbarProps) {
@@ -34,7 +34,7 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
     setSnapEnabled,
     setPreviewOpen,
     rotateLift,
-    beginAddPort,
+    duplicateSelectedObject,
     runValidation,
     saveSession,
     exportCurrentGlb,
@@ -61,7 +61,7 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
     setSnapEnabled: state.setSnapEnabled,
     setPreviewOpen: state.setPreviewOpen,
     rotateLift: state.rotateLift,
-    beginAddPort: state.beginAddPort,
+    duplicateSelectedObject: state.duplicateSelectedObject,
     runValidation: state.runValidation,
     saveSession: state.saveSession,
     exportCurrentGlb: state.exportCurrentGlb,
@@ -113,7 +113,7 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
               {button.label}
             </ToolButton>
           ))}
-          <ToolButton icon={Plus} disabled={disabled} onClick={beginAddPort}>Add Port</ToolButton>
+          <ToolButton icon={Copy} disabled={disabled || !selectedId} onClick={duplicateSelectedObject}>Duplicate</ToolButton>
           <ToolButton icon={RotateCw} disabled={!selectedLift} onClick={() => selectedLift && rotateLift(selectedLift.editorId)}>Rotate 90°</ToolButton>
         </ToolGroup>
 

@@ -44,10 +44,12 @@ export default function App() {
         useEditorStore.getState().setPreviewOpen(true)
       }
       if (event.key.toLowerCase() === 'v' && fileName) useEditorStore.getState().setMode('select')
-      if (event.key.toLowerCase() === 'm' && fileName) useEditorStore.getState().setMode('moveLift')
-      if (event.key.toLowerCase() === 'a' && fileName) useEditorStore.getState().beginAddPort()
+      if (event.key.toLowerCase() === 'm' && fileName) useEditorStore.getState().setMode('move')
+      if (event.key.toLowerCase() === 'd' && fileName) {
+        event.preventDefault()
+        useEditorStore.getState().duplicateSelectedObject()
+      }
       if (event.key === 'Escape') {
-        useEditorStore.getState().cancelAddPort()
         useEditorStore.getState().setPreviewOpen(false)
       }
     }
