@@ -630,6 +630,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
   exportCurrentGlb: async () => {
     const state = get()
+    if (state.hasPendingChanges) {
+      set({ exportFeedback: { status: 'blocked', message: 'Draft changes are pending. Apply or revert them before export.' } })
+      return
+    }
     const exportDerived = deriveScene(state.appliedLifts, state.appliedPorts, state.appliedReadonlyObjects)
     const issues = exportDerived.validationIssues.filter((issue) => issue.severity === 'error')
     if (issues.length) {

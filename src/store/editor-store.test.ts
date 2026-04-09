@@ -126,4 +126,17 @@ describe('editor store', () => {
     expect(next.canUndo).toBe(false)
     expect(next.canRedo).toBe(false)
   })
+
+  it('blocks export while draft changes are still pending', async () => {
+    const state = useEditorStore.getState()
+    const lift = state.draftLifts[0]
+
+    state.moveLift(lift.editorId, lift.position.x + 15, lift.position.y)
+    expect(useEditorStore.getState().hasPendingChanges).toBe(true)
+
+    await useEditorStore.getState().exportCurrentGlb()
+
+    expect(useEditorStore.getState().exportFeedback.status).toBe('blocked')
+    expect(useEditorStore.getState().exportFeedback.message).toMatch(/Apply or revert/i)
+  })
 })
