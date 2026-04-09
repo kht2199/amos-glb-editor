@@ -155,7 +155,7 @@ Apply는 이 문서에서 가장 중요한 단계다.
 #### 처리 순서
 1. Apply 요청
 2. 현재 draft 기준 validation 수행
-3. 심각한 error가 있으면 apply 차단 가능
+3. 현재 구현은 validation 결과를 표시하지만, apply 자체를 validation으로 차단하지는 않는다.
 4. `draft* -> applied*` 복사
 5. `hasPendingChanges = false`
 
@@ -180,7 +180,10 @@ preview는 applied만 본다.
 - `appliedPorts`
 - `appliedReadonlyObjects`
 
-또는 필요 시:
+현재 구현은 `pristineScene` 재구성 뷰가 아니라,
+`applied*`를 읽어 그리는 **proxy preview scene**을 사용한다.
+
+향후 필요하면:
 - `pristineScene.clone(true) + appliedEntities`로 재구성한 결과
 
 #### 역할
@@ -191,7 +194,8 @@ preview는 applied만 본다.
 #### 원칙
 - preview는 draft를 무조건 실시간 반영하지 않는다.
 - preview는 Apply 이후 결과만 보여준다.
-- preview 생성 파이프라인은 가능하면 export 파이프라인과 맞춘다.
+- 현재는 applied entity 기반 proxy view를 사용하고,
+  export만 `pristineScene.clone(true)` 기반 재구성을 사용한다.
 
 즉 preview는 **실시간 작업 스케치 뷰**가 아니라
 **적용된 결과 확인 뷰**다.
@@ -271,16 +275,17 @@ Apply를 경계로 두면:
 ## 5. 추천 UI와 상태 표시
 
 ### 5.1 버튼
-- `Apply changes` — 새로 추가 필요
-- `Revert draft` — 새로 추가 필요
-- `Reset to imported GLB` — 새로 추가 필요
-- `Export GLB` — 현재 존재, applied 기준으로 정렬 필요
+- `Apply` — 구현됨, draft를 applied 기준으로 승격
+- `Revert` — 구현됨, applied 상태로 draft 복원
+- `Reset to imported GLB` — 아직 미구현
+- `Export GLB` — 구현됨, applied 기준 export, pending draft가 있으면 차단
 
 ### 5.2 상태 표시
-- `Draft modified · not applied` — 새로 추가 필요
-- `Applied preview is up to date` — 새로 추가 필요
-- `Validation failed · apply blocked` — 새로 추가 필요
-- `Export ready` — 기존 export feedback과 연결 가능
+- 상단 pill: `fileName · DRAFT PENDING|DRAFT SYNCED · SAVED|UNSAVED`
+- 하단 status: `Save: Saved|Not saved`, `Draft: Pending|Synced`
+- preview label: `applied preview · draft pending|draft synced`
+- `Validation failed · apply blocked` — 아직 미구현
+- `Export ready / blocked / success` — export feedback modal과 연결
 
 ---
 
@@ -296,15 +301,24 @@ Apply를 경계로 두면:
 - draft 검증
 - applied 반영
 - pending 상태 해제
+- validation 차단은 아직 미구현
 
 ### 6.3 Preview를 applied 기준으로 정리
 - draft 실시간 반영 제거
 - Apply 이후만 갱신
-- export와 같은 재구성 경로 사용 우선
+- 현재는 applied entity 기반 proxy preview
+- export와 동일한 pristineScene 재구성 경로는 추후 검토
 
 ### 6.4 Export를 applied 기준으로 정리
 - pending draft가 있으면 경고
 - applied만 export
+
+### 6.5 Save 의미 분리
+- `Save`는 localStorage에 현재 draft 작업 상태를 저장하는 의미다.
+- `Apply`는 preview/export 기준 상태를 갱신하는 의미다.
+- 두 상태는 분리되므로 `DRAFT SYNCED`와 `UNSAVED`가 동시에 존재할 수 있다.
+- 현재 Save는 `draftLifts / draftPorts / draftReadonlyObjects`와 UI 옵션을 저장한다.
+- `pristineScene`과 animation/runtime은 직렬화하지 않으므로, Save는 GLB 원본 복원 기능과 동일하지 않다.
 
 ---
 
