@@ -1,4 +1,4 @@
-import { Eye, FileDown, FileUp, Layers3, Move, Plus, Redo2, RotateCw, Save, SearchCheck, Undo2 } from 'lucide-react'
+import { Check, Eye, FileDown, FileUp, Layers3, Move, Plus, Redo2, RefreshCcw, RotateCw, Save, SearchCheck, Undo2 } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { computeVisibilityPivot, visibilityModeToggleLabel } from '../lib/visibilityMode'
 import { cn } from '../lib/utils'
@@ -24,6 +24,7 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
     visibilityMode,
     snapEnabled,
     saveState,
+    hasPendingChanges,
     validationIssues,
     collisionIssues,
     canUndo,
@@ -37,6 +38,8 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
     runValidation,
     saveSession,
     exportCurrentGlb,
+    applyDraftChanges,
+    revertDraftChanges,
     undo,
     redo,
   } = useEditorStore(useShallow((state) => ({
@@ -48,6 +51,7 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
     visibilityMode: state.visibilityMode,
     snapEnabled: state.snapEnabled,
     saveState: state.saveState,
+    hasPendingChanges: state.hasPendingChanges,
     validationIssues: state.validationIssues,
     collisionIssues: state.collisionIssues,
     canUndo: state.canUndo,
@@ -61,6 +65,8 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
     runValidation: state.runValidation,
     saveSession: state.saveSession,
     exportCurrentGlb: state.exportCurrentGlb,
+    applyDraftChanges: state.applyDraftChanges,
+    revertDraftChanges: state.revertDraftChanges,
     undo: state.undo,
     redo: state.redo,
   })))
@@ -79,7 +85,7 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
         </div>
         <div className="flex items-center gap-3 text-xs">
           <div className="rounded-full border border-slate-700 px-3 py-1 text-slate-300">
-            {fileName ?? 'No file loaded'} · {saveState.toUpperCase()}
+            {fileName ?? 'No file loaded'} · {saveState.toUpperCase()} · {hasPendingChanges ? 'DRAFT PENDING' : 'APPLIED'}
           </div>
           <div className={cn('rounded-full border px-3 py-1', errorCount ? 'border-rose-500/40 text-rose-100' : 'border-emerald-500/30 text-emerald-100')}>
             Errors {errorCount} · Collisions {collisionIssues.length}
@@ -92,6 +98,8 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
           <ToolButton icon={FileUp} onClick={onOpenFile}>Open GLB</ToolButton>
           <ToolButton icon={Save} disabled={disabled} onClick={saveSession}>Save</ToolButton>
           <ToolButton icon={FileDown} disabled={disabled} onClick={() => void exportCurrentGlb()}>Export GLB</ToolButton>
+          <ToolButton icon={Check} disabled={disabled || !hasPendingChanges} onClick={applyDraftChanges}>Apply</ToolButton>
+          <ToolButton icon={RefreshCcw} disabled={disabled || !hasPendingChanges} onClick={revertDraftChanges}>Revert</ToolButton>
         </ToolGroup>
 
         <ToolGroup title="History">
