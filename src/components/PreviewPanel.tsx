@@ -4,8 +4,9 @@ import { useEditorStore } from '../store/editor-store'
 import { PreviewSceneCanvas } from './PreviewSceneCanvas'
 
 export function PreviewPanel() {
-  const { fileName, isPreviewOpen, selectedId, setPreviewOpen } = useEditorStore(useShallow((state) => ({
+  const { fileName, hasPendingChanges, isPreviewOpen, selectedId, setPreviewOpen } = useEditorStore(useShallow((state) => ({
     fileName: state.fileName,
+    hasPendingChanges: state.hasPendingChanges,
     isPreviewOpen: state.isPreviewOpen,
     selectedId: state.selectedId,
     setPreviewOpen: state.setPreviewOpen,
@@ -18,7 +19,7 @@ export function PreviewPanel() {
       <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
         <div>
           <h2 className="text-sm font-semibold text-slate-100">Live Preview</h2>
-          <p className="mt-1 text-xs text-slate-400">Selected {selectedId ?? 'None'} · store-based simplified preview · XYZ gizmo</p>
+          <p className="mt-1 text-xs text-slate-400">Selected {selectedId ?? 'None'} · applied preview · {hasPendingChanges ? 'draft pending' : 'draft synced'} · XYZ gizmo</p>
         </div>
         <button
           type="button"
