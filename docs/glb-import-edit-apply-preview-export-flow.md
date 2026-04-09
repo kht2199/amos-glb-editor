@@ -179,26 +179,36 @@ preview는 applied만 본다.
 - `appliedLifts`
 - `appliedPorts`
 - `appliedReadonlyObjects`
+- `pristineScene`
 
-현재 구현은 `pristineScene` 재구성 뷰가 아니라,
-`applied*`를 읽어 그리는 **proxy preview scene**을 사용한다.
-
-향후 필요하면:
-- `pristineScene.clone(true) + appliedEntities`로 재구성한 결과
+preview는 export와 동일하게,
+`pristineScene.clone(true)`에 applied 상태를 반영해 만든
+**재구성 scene**을 렌더한다.
 
 #### 역할
 - 마지막 적용본의 3D 확인
 - export 결과와 동일한 기준 유지
 - 중앙 편집 중 흔들리는 임시 상태와 분리
 
+#### 처리 순서
+1. preview가 필요해짐
+2. `pristineScene.clone(true)` 생성
+3. applied 상태 반영
+   - `applyLift(...)`
+   - `applyPort(...)`
+   - `applyReadOnly(...)`
+4. 재구성된 scene을 preview canvas에 마운트
+
 #### 원칙
 - preview는 draft를 무조건 실시간 반영하지 않는다.
 - preview는 Apply 이후 결과만 보여준다.
-- 현재는 applied entity 기반 proxy view를 사용하고,
-  export만 `pristineScene.clone(true)` 기반 재구성을 사용한다.
+- preview와 export는 **같은 applied 기준 + 같은 재구성 경로**를 공유한다.
+- 차이는 최종 출력 형태뿐이다.
+  - preview: Canvas 렌더
+  - export: GLB binary 생성
 
 즉 preview는 **실시간 작업 스케치 뷰**가 아니라
-**적용된 결과 확인 뷰**다.
+**적용된 결과를 export와 같은 경로로 확인하는 뷰**다.
 
 ---
 
@@ -221,6 +231,7 @@ export는 applied 기준으로만 진행한다.
 
 #### 핵심 원칙
 - preview와 export는 같은 기준을 본다.
+- preview와 export는 같은 재구성 경로를 공유한다.
 - export는 draft가 아니라 applied 결과를 내보낸다.
 
 ---
@@ -306,8 +317,8 @@ Apply를 경계로 두면:
 ### 6.3 Preview를 applied 기준으로 정리
 - draft 실시간 반영 제거
 - Apply 이후만 갱신
-- 현재는 applied entity 기반 proxy preview
-- export와 동일한 pristineScene 재구성 경로는 추후 검토
+- preview는 `pristineScene.clone(true)` 기반 재구성 scene 사용
+- export와 preview가 동일한 scene 재구성 함수를 공유하도록 정리
 
 ### 6.4 Export를 applied 기준으로 정리
 - pending draft가 있으면 경고
@@ -330,7 +341,7 @@ Apply를 경계로 두면:
 
 이 구조를 따르면:
 - 원본 / 편집 중 / 적용 결과의 역할이 분리되고
-- preview 의미가 명확해지며
+- preview가 export와 같은 결과를 확인하는 의미로 명확해지며
 - export 기준이 안정되고
 - 현재의 preview 혼선을 구조적으로 줄일 수 있다.
 
