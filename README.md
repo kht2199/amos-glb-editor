@@ -1,4 +1,4 @@
-# threejs-object-editor
+# glb-editor
 
 반도체 FAB 물류/장비 구조 GLB를 웹에서 읽고, `Lift`와 `Port`를 중심으로 다시 배치·검증·재export하기 위한 제약형 에디터입니다.
 
