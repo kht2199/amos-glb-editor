@@ -10,22 +10,26 @@ function meta(id: string, objectType: string, extra: Record<string, unknown> = {
 
 const materials = {
   liftFrame: new THREE.MeshStandardMaterial({ color: '#d8dee9', roughness: 0.58, metalness: 0.18 }),
-  liftCage: new THREE.MeshPhysicalMaterial({ color: '#bfdbfe', transparent: true, opacity: 0.18, roughness: 0.08, metalness: 0.05, transmission: 0.35, clearcoat: 0.7, clearcoatRoughness: 0.12 }),
+  liftCage: new THREE.MeshPhysicalMaterial({ color: '#bfdbfe', transparent: true, opacity: 0.14, roughness: 0.08, metalness: 0.05, transmission: 0.35, clearcoat: 0.7, clearcoatRoughness: 0.12 }),
   liftCarriage: new THREE.MeshStandardMaterial({ color: '#60a5fa', roughness: 0.34, metalness: 0.18 }),
   liftAccent: new THREE.MeshStandardMaterial({ color: '#1d4ed8', roughness: 0.42, metalness: 0.22 }),
-  bridge: new THREE.MeshStandardMaterial({ color: '#94a3b8', transparent: true, opacity: 0.5, roughness: 0.7, metalness: 0.18 }),
-  rail: new THREE.MeshStandardMaterial({ color: '#64748b', transparent: true, opacity: 0.58, roughness: 0.62, metalness: 0.3 }),
-  stockerShell: new THREE.MeshStandardMaterial({ color: '#cbd5e1', transparent: true, opacity: 0.5, roughness: 0.58, metalness: 0.1 }),
-  stockerFrame: new THREE.MeshStandardMaterial({ color: '#64748b', transparent: true, opacity: 0.68, roughness: 0.6, metalness: 0.25 }),
-  stockerWindow: new THREE.MeshStandardMaterial({ color: '#93c5fd', transparent: true, opacity: 0.16, roughness: 0.12, metalness: 0.02 }),
-  stockerCarriage: new THREE.MeshStandardMaterial({ color: '#60a5fa', roughness: 0.3, metalness: 0.2 }),
-  stockerBay: new THREE.MeshStandardMaterial({ color: '#334155', transparent: true, opacity: 0.72, roughness: 0.72, metalness: 0.14 }),
-  transportBody: new THREE.MeshStandardMaterial({ color: '#e2e8f0', transparent: true, opacity: 0.82, roughness: 0.42, metalness: 0.24 }),
-  transportAccent: new THREE.MeshStandardMaterial({ color: '#2563eb', roughness: 0.35, metalness: 0.18 }),
-  cleanroomPanel: new THREE.MeshStandardMaterial({ color: '#f8fafc', transparent: true, opacity: 0.2, roughness: 0.95, metalness: 0.02 }),
-  cleanroomGrid: new THREE.MeshStandardMaterial({ color: '#e2e8f0', transparent: true, opacity: 0.16, roughness: 0.9, metalness: 0.02 }),
-  cleanroomColumn: new THREE.MeshStandardMaterial({ color: '#cbd5e1', transparent: true, opacity: 0.28, roughness: 0.78, metalness: 0.06 }),
-  cleanroomSupport: new THREE.MeshStandardMaterial({ color: '#cfd8e3', transparent: true, opacity: 0.24, roughness: 0.82, metalness: 0.08 }),
+  liftGuide: new THREE.MeshStandardMaterial({ color: '#cbd5e1', emissive: '#334155', emissiveIntensity: 0.28, roughness: 0.36, metalness: 0.18 }),
+  liftBandTop: new THREE.MeshStandardMaterial({ color: '#67e8f9', transparent: true, opacity: 0.55, emissive: '#0e7490', emissiveIntensity: 0.95, roughness: 0.26, metalness: 0.08 }),
+  liftBandBottom: new THREE.MeshStandardMaterial({ color: '#fdba74', transparent: true, opacity: 0.55, emissive: '#c2410c', emissiveIntensity: 0.95, roughness: 0.28, metalness: 0.08 }),
+  liftBandNeutral: new THREE.MeshStandardMaterial({ color: '#e2e8f0', transparent: true, opacity: 0.28, roughness: 0.32, metalness: 0.06 }),
+  bridge: new THREE.MeshStandardMaterial({ color: '#94a3b8', transparent: true, opacity: 0.28, roughness: 0.7, metalness: 0.18 }),
+  rail: new THREE.MeshStandardMaterial({ color: '#64748b', transparent: true, opacity: 0.32, roughness: 0.62, metalness: 0.3 }),
+  stockerShell: new THREE.MeshStandardMaterial({ color: '#cbd5e1', transparent: true, opacity: 0.24, roughness: 0.58, metalness: 0.1 }),
+  stockerFrame: new THREE.MeshStandardMaterial({ color: '#64748b', transparent: true, opacity: 0.34, roughness: 0.6, metalness: 0.25 }),
+  stockerWindow: new THREE.MeshStandardMaterial({ color: '#93c5fd', transparent: true, opacity: 0.1, roughness: 0.12, metalness: 0.02 }),
+  stockerCarriage: new THREE.MeshStandardMaterial({ color: '#60a5fa', transparent: true, opacity: 0.4, roughness: 0.3, metalness: 0.2 }),
+  stockerBay: new THREE.MeshStandardMaterial({ color: '#334155', transparent: true, opacity: 0.28, roughness: 0.72, metalness: 0.14 }),
+  transportBody: new THREE.MeshStandardMaterial({ color: '#e2e8f0', transparent: true, opacity: 0.4, roughness: 0.42, metalness: 0.24 }),
+  transportAccent: new THREE.MeshStandardMaterial({ color: '#2563eb', transparent: true, opacity: 0.46, roughness: 0.35, metalness: 0.18 }),
+  cleanroomPanel: new THREE.MeshStandardMaterial({ color: '#f8fafc', transparent: true, opacity: 0.1, roughness: 0.95, metalness: 0.02 }),
+  cleanroomGrid: new THREE.MeshStandardMaterial({ color: '#e2e8f0', transparent: true, opacity: 0.08, roughness: 0.9, metalness: 0.02 }),
+  cleanroomColumn: new THREE.MeshStandardMaterial({ color: '#cbd5e1', transparent: true, opacity: 0.14, roughness: 0.78, metalness: 0.06 }),
+  cleanroomSupport: new THREE.MeshStandardMaterial({ color: '#cfd8e3', transparent: true, opacity: 0.12, roughness: 0.82, metalness: 0.08 }),
 }
 
 function addBox(parent: THREE.Object3D, geometry: THREE.BoxGeometry, material: THREE.Material, x: number, y: number, z: number) {
@@ -97,6 +101,12 @@ function createLiftVisual(lift: LiftEntity) {
     animation: lift.animation,
   })
 
+  const isPrimaryLift = lift.editorId === 'lift_a'
+  const lowerBandZ = 2.2
+  const upperBandZ = lift.height - 2.2
+  const bandMaterialTop = isPrimaryLift ? materials.liftBandTop : materials.liftBandNeutral
+  const bandMaterialBottom = isPrimaryLift ? materials.liftBandBottom : materials.liftBandNeutral
+
   addBox(group, new THREE.BoxGeometry(lift.width, lift.depth, 1.2), materials.liftAccent, 0, 0, 0.6)
   addBox(group, new THREE.BoxGeometry(lift.width * 0.92, lift.depth * 0.82, 1.2), materials.liftFrame, 0, 0, lift.height - 0.6)
 
@@ -121,6 +131,12 @@ function createLiftVisual(lift: LiftEntity) {
   addBox(group, new THREE.BoxGeometry(2.6, lift.depth * 0.68, lift.height - 3.2), materials.liftFrame, lift.width * 0.18, 0, lift.height / 2)
   addBox(group, new THREE.BoxGeometry(1.4, lift.depth * 0.64, lift.height - 5), materials.liftAccent, -lift.width * 0.18, 0, lift.height / 2)
   addBox(group, new THREE.BoxGeometry(1.4, lift.depth * 0.64, lift.height - 5), materials.liftAccent, lift.width * 0.18, 0, lift.height / 2)
+  addBox(group, new THREE.BoxGeometry(4.4, lift.depth * 0.26, lift.height - 4.4), materials.liftGuide, 0, 0, lift.height / 2)
+
+  addBox(group, new THREE.BoxGeometry(lift.width * 0.86, lift.depth * 0.9, 1.1), bandMaterialBottom, 0, 0, lowerBandZ)
+  addBox(group, new THREE.BoxGeometry(lift.width * 0.86, lift.depth * 0.9, 1.1), bandMaterialTop, 0, 0, upperBandZ)
+  addBox(group, new THREE.BoxGeometry(lift.width * 0.52, 3.4, 1.4), bandMaterialBottom, 0, -lift.depth / 2 + 1.7, lowerBandZ + 0.4)
+  addBox(group, new THREE.BoxGeometry(lift.width * 0.52, 3.4, 1.4), bandMaterialTop, 0, -lift.depth / 2 + 1.7, upperBandZ + 0.4)
 
   const carriageZ = Math.min(lift.height * 0.58, Math.max(7, lift.animation.maxZ * 0.5 + 4))
   addBox(group, new THREE.BoxGeometry(lift.width * 0.54, lift.depth * 0.54, 2.8), materials.liftCarriage, 0, 0, carriageZ)
@@ -132,6 +148,12 @@ function createLiftVisual(lift: LiftEntity) {
   addBox(group, new THREE.BoxGeometry(1, 1, lift.height - carriageZ - 0.8), materials.liftFrame, -lift.width * 0.08, 0, carriageZ + (lift.height - carriageZ - 0.8) / 2)
   addBox(group, new THREE.BoxGeometry(1, 1, lift.height - carriageZ - 0.8), materials.liftFrame, lift.width * 0.08, 0, carriageZ + (lift.height - carriageZ - 0.8) / 2)
   addBox(group, new THREE.BoxGeometry(lift.width * 0.26, 1.2, 1.2), materials.liftAccent, 0, 0, lift.height - 1.6)
+
+  if (isPrimaryLift) {
+    addBox(group, new THREE.BoxGeometry(3.8, 3.8, lift.height - 3.2), materials.liftGuide, 0, lift.depth * 0.24, lift.height / 2)
+    addBox(group, new THREE.BoxGeometry(12, 2.4, 0.9), bandMaterialTop, 0, -lift.depth / 2 + 1.2, upperBandZ + 1.2)
+    addBox(group, new THREE.BoxGeometry(12, 2.4, 0.9), bandMaterialBottom, 0, -lift.depth / 2 + 1.2, lowerBandZ + 1.2)
+  }
 
   return group
 }
