@@ -18,7 +18,7 @@ export function PreviewPanel() {
       <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
         <div>
           <h2 className="text-sm font-semibold text-slate-100">Live Preview</h2>
-          <p className="mt-1 text-xs text-slate-400">Selected {selectedId ?? 'None'} · read-only orbit view</p>
+          <p className="mt-1 text-xs text-slate-400">Selected {selectedId ?? 'None'} · read-only orbit view · XYZ gizmo</p>
         </div>
         <button
           type="button"

@@ -1,4 +1,4 @@
-import { Environment, Grid, OrbitControls } from '@react-three/drei'
+import { Environment, GizmoHelper, GizmoViewport, Grid, OrbitControls } from '@react-three/drei'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { useEditorStore } from '../store/editor-store'
@@ -64,6 +64,9 @@ export function PreviewSceneCanvas({ scene }: { scene: THREE.Group }) {
       <Grid args={[400, 400]} cellColor="#1e293b" sectionColor="#334155" position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]} />
       <AnimatedScene scene={scene} />
       <Environment preset="city" />
+      <GizmoHelper alignment="bottom-right" margin={[88, 88]} renderPriority={2}>
+        <GizmoViewport axisColors={['#ef4444', '#22c55e', '#3b82f6']} labelColor="#e2e8f0" />
+      </GizmoHelper>
       <OrbitControls
         ref={controlsRef}
         makeDefault
