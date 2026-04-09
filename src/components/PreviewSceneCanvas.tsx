@@ -35,22 +35,16 @@ function CameraRig({ scene, controlsRef }: { scene: THREE.Group; controlsRef: { 
     const center = bounds.getCenter(new THREE.Vector3())
     const size = bounds.getSize(new THREE.Vector3())
     const planarSpan = Math.max(size.x, size.y, 120)
-    const liftFocus = new THREE.Vector3(center.x, center.y + planarSpan * 0.08, center.z + Math.max(size.z * 0.35, 10))
-    const horizontalDistance = planarSpan * 0.78
-    const verticalDistance = planarSpan * 0.9
+    const distance = planarSpan * 0.92
 
-    camera.position.set(
-      liftFocus.x + horizontalDistance * 0.72,
-      liftFocus.y + horizontalDistance,
-      liftFocus.z + verticalDistance,
-    )
+    camera.position.set(center.x, center.y + distance, center.z + distance)
     camera.near = 0.1
     camera.far = Math.max(1200, planarSpan * 8)
     camera.updateProjectionMatrix()
 
     const controls = controlsRef.current
     if (controls) {
-      controls.target.copy(liftFocus)
+      controls.target.copy(center)
       controls.update()
     }
   }, [camera, controlsRef, scene])
@@ -75,8 +69,8 @@ export function PreviewSceneCanvas({ scene }: { scene: THREE.Group }) {
         makeDefault
         minDistance={80}
         maxDistance={420}
-        minPolarAngle={Math.PI / 5}
-        maxPolarAngle={Math.PI / 2.05}
+        minPolarAngle={Math.PI / 6}
+        maxPolarAngle={Math.PI / 2.5}
       />
     </Canvas>
   )
