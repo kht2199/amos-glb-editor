@@ -39,7 +39,7 @@ export function InspectorPanel() {
   const issues = useMemo(() => validationIssues.filter((issue) => issue.targetId === selectedId), [selectedId, validationIssues])
 
   return (
-    <aside className="flex h-full flex-col border-l border-slate-800 bg-slate-950/40">
+    <aside className="flex min-h-[280px] flex-col border-t border-slate-800 bg-slate-950/40 lg:h-full lg:min-h-0 lg:border-t-0 lg:border-l">
       <div className="border-b border-slate-800 p-4">
         <h2 className="text-sm font-semibold text-slate-100">Inspector</h2>
         <p className="mt-1 text-xs text-slate-500">Selection-aware editing with inline rules.</p>
@@ -145,7 +145,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function DoubleField({ children }: { children: React.ReactNode }) {
-  return <div className="grid grid-cols-2 gap-3">{children}</div>
+  return <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{children}</div>
 }
 
 function NumberField({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {

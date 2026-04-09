@@ -35,7 +35,7 @@ export function StructurePanel() {
   }, [filter, draftLifts, query, draftReadonlyObjects, visiblePorts])
 
   return (
-    <aside className="flex h-full flex-col border-r border-slate-800 bg-slate-950/40">
+    <aside className="flex max-h-[40vh] min-h-[280px] flex-col border-b border-slate-800 bg-slate-950/40 lg:h-full lg:max-h-none lg:min-h-0 lg:border-b-0 lg:border-r">
       <div className="border-b border-slate-800 p-4">
         <h2 className="mb-3 text-sm font-semibold text-slate-200">Structure</h2>
         <label className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-300">

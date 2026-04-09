@@ -129,7 +129,7 @@ export function TopViewCanvas() {
   }
 
   return (
-    <section className="relative flex h-full flex-col bg-slate-950/30">
+    <section className="relative flex min-h-[52dvh] flex-col bg-slate-950/30 lg:h-full lg:min-h-0">
       <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3 text-sm text-slate-300">
         <div>
           <h2 className="font-semibold text-slate-100">XY Plane Editor</h2>

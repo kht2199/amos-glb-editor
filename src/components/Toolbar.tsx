@@ -78,13 +78,13 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
 
   return (
     <header className="border-b border-slate-800 bg-slate-950/80 px-4 py-3 backdrop-blur">
-      <div className="mb-3 flex items-center justify-between gap-4">
+      <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
         <div>
           <h1 className="text-lg font-semibold text-slate-50">Three.js Object Editor</h1>
           <p className="text-xs text-slate-400">Lift / Port constrained editor · React + TypeScript + R3F</p>
         </div>
-        <div className="flex items-center gap-3 text-xs">
-          <div className="rounded-full border border-slate-700 px-3 py-1 text-slate-300">
+        <div className="flex flex-wrap items-center gap-2 text-xs lg:gap-3">
+          <div className="max-w-full rounded-full border border-slate-700 px-3 py-1 text-slate-300">
             {fileName ?? 'No file loaded'} · {hasPendingChanges ? 'DRAFT PENDING' : 'DRAFT SYNCED'} · {saveState === 'saved' ? 'SAVED' : 'UNSAVED'}
           </div>
           <div className={cn('rounded-full border px-3 py-1', errorCount ? 'border-rose-500/40 text-rose-100' : 'border-emerald-500/30 text-emerald-100')}>
@@ -93,7 +93,7 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 overflow-x-auto pb-1 lg:overflow-visible lg:pb-0">
         <ToolGroup title="File">
           <ToolButton icon={FileUp} onClick={onOpenFile}>Open GLB</ToolButton>
           <ToolButton icon={Save} disabled={disabled} onClick={saveSession}>Save</ToolButton>
@@ -138,7 +138,7 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
 
 function ToolGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2 rounded-2xl border border-slate-800 bg-slate-900/70 p-2">
+    <div className="flex min-w-max flex-wrap items-center gap-2 rounded-2xl border border-slate-800 bg-slate-900/70 p-2 lg:min-w-0">
       <span className="px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{title}</span>
       {children}
     </div>

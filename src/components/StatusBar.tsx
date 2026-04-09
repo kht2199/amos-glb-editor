@@ -22,14 +22,14 @@ export function StatusBar() {
   const visibilityPivot = computeVisibilityPivot(ports, lifts)
 
   return (
-    <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 bg-slate-950/80 px-4 py-2 text-xs text-slate-400">
-      <div className="flex flex-wrap items-center gap-3">
+    <footer className="flex flex-col gap-2 border-t border-slate-800 bg-slate-950/80 px-4 py-2 text-xs text-slate-400 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between lg:gap-3">
+      <div className="flex min-w-0 flex-wrap items-center gap-3">
         <span>Save: <strong className="text-slate-200">{saveState === 'saved' ? 'Saved' : 'Not saved'}</strong></span>
         <span>Draft: <strong className="text-slate-200">{hasPendingChanges ? 'Pending' : 'Synced'}</strong></span>
         <span>Selected: <strong className="text-slate-200">{selected?.id ?? 'None'}</strong></span>
         <span>Coordinates: <strong className="text-slate-200">{selected ? `X ${selected.position.x} · Y ${selected.position.y} · Z ${selected.position.z}` : '-'}</strong></span>
       </div>
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex min-w-0 flex-wrap items-center gap-3">
         <span>Snap: <strong className="text-slate-200">{snapEnabled ? 'ON' : 'OFF'}</strong></span>
         <span>View: <strong className="text-slate-200">{visibilityModeLabel(visibilityMode, visibilityPivot)}</strong></span>
         <span>Issues: <strong className="text-slate-200">{validationIssues.length}</strong></span>

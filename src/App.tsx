@@ -71,12 +71,12 @@ export default function App() {
 
       <Toolbar onOpenFile={() => fileInputRef.current?.click()} />
 
-      <main className="relative grid flex-1 grid-cols-[300px_minmax(0,1fr)_360px] overflow-hidden">
+      <main className="relative flex flex-1 flex-col overflow-auto lg:grid lg:grid-cols-[300px_minmax(0,1fr)_360px] lg:overflow-hidden">
         {fileName ? (
           <>
             <StructurePanel />
             <TopViewCanvas />
-            <div className="flex min-h-0 flex-col">
+            <div className="flex min-h-0 flex-col lg:min-h-0">
               <div className="min-h-0 flex-1">
                 <InspectorPanel />
               </div>
@@ -84,7 +84,7 @@ export default function App() {
             </div>
           </>
         ) : (
-          <div className="col-span-3">
+          <div className="lg:col-span-3">
             <EmptyState onOpenFile={() => fileInputRef.current?.click()} onOpenDemo={openDemoScene} />
           </div>
         )}
