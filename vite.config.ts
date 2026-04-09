@@ -6,7 +6,13 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     host: '0.0.0.0',
-    port: 5173,
+    port: 5175,
+    strictPort: true,
+  },
+  preview: {
+    host: '0.0.0.0',
+    port: 4175,
+    strictPort: true,
   },
   test: {
     environment: 'jsdom',
