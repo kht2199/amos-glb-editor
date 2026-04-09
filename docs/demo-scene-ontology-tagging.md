@@ -41,6 +41,7 @@
 - `Stocker`는 저장 장치 본체이며, 내부 carriage / slot rhythm / top handoff hint를 read-only geometry로 읽을 수 있음
 - `Transport`/`OHT`는 현재 scene의 중심 오브젝트가 아니라 ceiling logistics를 암시하는 read-only reference
 - cleanroom shell은 도메인 엔티티라기보다 lightweight visual context
+- 시각 표현은 현실 복제보다 **upper/lower 구분과 vertical transfer 가독성**을 우선할 수 있음
 
 ## 노드/엔티티 tagging 표
 | Entity | editorId | ontology class | editor entity | domain parent | 핵심 메타 | note |
@@ -107,9 +108,10 @@
 현재 demo scene은 반도체 FAB 전체를 정밀 재현한 샘플이 아니라,
 **층간 Lift 중심 편집기에서 상부/하부 Port의 의미론적 역할과 부모 복원 규칙을 검증하기 위한 도메인 샘플**이다.
 
-특히 이번 버전의 핵심 차별점은 다음 다섯 가지다.
+특히 이번 버전의 핵심 차별점은 다음 여섯 가지다.
 1. `lift_a`에 상부 포트와 하부 포트를 함께 두어 **inter-floor handoff pair**를 한 눈에 읽히게 했다.
-2. `Stocker access port`를 별도 semantic role과 domain parent로 표현했다.
-3. Lift / Port / Stocker의 외형을 box placeholder보다 조금 더 현실적인 low-poly 구조로 바꿨다.
-4. Stocker에 내부 vertical carriage, top handoff hint, storage slot rhythm을 read-only visual hint로 반영했다.
-5. Transport/OHT를 별도 read-only reference로 추가하되, ceiling logistics의 보조 문맥으로 후순위에 뒀다.
+2. 상부/하부 포트는 색과 프레임 실루엣을 분리해, 현실보다 설명적이더라도 즉시 구분되게 했다.
+3. 메인 lift는 vertical shaft / landing band / guide column을 강조해 층간 장비로 읽히게 했다.
+4. `Stocker access port`를 별도 semantic role과 domain parent로 표현했다.
+5. Stocker / Rail / Transport는 ghosted context geometry로 남겨 보조 문맥 역할에 머물게 했다.
+6. Preview 조명과 재질 대비를 조정해 dark schematic 느낌을 줄였다.

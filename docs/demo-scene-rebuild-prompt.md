@@ -159,6 +159,7 @@
 권장 해석:
 - cleanroom panel / rear wall / ceiling grid / support는 불투명보다 낮은 opacity 사용
 - stocker, bridge, rail도 필요하면 핵심 엔티티보다 약하게 보이도록 채도나 명도를 조정 가능
+- stocker / rail / transport는 **ghosted context geometry**처럼 읽히게 하고, 주연과 경쟁하지 않도록 저채도·저발광을 유지
 
 ### 3) Preview 카메라
 - preview 초기 카메라는 **정면 기준 45도 ISO 뷰**여야 함
@@ -167,7 +168,18 @@
 - Lift/Port가 cleanroom shell, wall, ceiling grid 같은 배경 구조물에 가려진 상태로 시작하면 안 됨
 - orbit은 가능하되, initial pose는 top view 기반 편집기의 확장 preview처럼 보여야 함
 
-### 4) 탑뷰 편집 중심성 유지
+### 4) 시각적 구분 우선 표현
+- 이 demo scene은 **현실 재현보다 즉시 구분 가능한 시각 언어**를 우선할 수 있다.
+- 상부 포트와 하부 포트는 색과 실루엣이 분명히 달라야 한다.
+- 권장 예시:
+  - upper port: cyan / blue 계열 + upward chevron frame
+  - lower port: amber / orange 계열 + downward dock frame
+- 단, 두 포트는 완전히 다른 메시 패밀리가 아니라 **같은 계열의 기본 볼륨 위에 구분용 프레임/장식이 추가된 형태**가 좋다.
+- 메인 inter-floor lift는 단순 박스보다 **밝은 vertical shaft + high/low landing band + central guide column**으로 읽히는 편이 낫다.
+- 포트 앞에는 실제보다 과장되더라도 **handoff shelf / plate**를 두어 인계 지점을 설명적으로 보여줄 수 있다.
+- level 차이는 얇은 horizontal band / translucent plane으로 강조할 수 있다.
+
+### 5) 탑뷰 편집 중심성 유지
 - 제품의 본질은 top view 기반 배치 편집
 - preview가 화려한 3D showcase처럼 느껴지면 안 됨
 - scene 구성과 카메라는 **배치 편집을 더 잘 이해시키는 보조 수단**이어야 함
