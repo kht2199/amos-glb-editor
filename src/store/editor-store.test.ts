@@ -80,4 +80,50 @@ describe('editor store', () => {
     expect(next.draftReadonlyObjects.some((item) => item.editorId === stocker!.editorId)).toBe(false)
     expect(next.selectedId).toBe(stocker!.editorId)
   })
+
+  it('applies draft changes into applied state and clears pending history', () => {
+    const state = useEditorStore.getState()
+    const lift = state.draftLifts[0]
+    const originalApplied = state.appliedLifts.find((item) => item.editorId === lift.editorId)
+
+    state.moveLift(lift.editorId, lift.position.x + 55, lift.position.y)
+    const moved = useEditorStore.getState().draftLifts.find((item) => item.editorId === lift.editorId)
+    expect(moved).toBeTruthy()
+    expect(moved?.position.x).not.toBe(originalApplied?.position.x)
+    expect(useEditorStore.getState().hasPendingChanges).toBe(true)
+    expect(useEditorStore.getState().canUndo).toBe(true)
+
+    state.applyDraftChanges()
+
+    const next = useEditorStore.getState()
+    const applied = next.appliedLifts.find((item) => item.editorId === lift.editorId)
+    const currentDraft = next.draftLifts.find((item) => item.editorId === lift.editorId)
+    expect(next.hasPendingChanges).toBe(false)
+    expect(applied?.position.x).toBe(moved?.position.x)
+    expect(currentDraft?.position.x).toBe(moved?.position.x)
+    expect(next.canUndo).toBe(false)
+    expect(next.canRedo).toBe(false)
+  })
+
+  it('reverts draft changes back to the applied state', () => {
+    const state = useEditorStore.getState()
+    const lift = state.draftLifts[0]
+    const originalApplied = state.appliedLifts.find((item) => item.editorId === lift.editorId)
+
+    state.moveLift(lift.editorId, lift.position.x + 70, lift.position.y)
+    const moved = useEditorStore.getState().draftLifts.find((item) => item.editorId === lift.editorId)
+    expect(moved?.position.x).not.toBe(originalApplied?.position.x)
+    expect(useEditorStore.getState().hasPendingChanges).toBe(true)
+
+    state.revertDraftChanges()
+
+    const next = useEditorStore.getState()
+    const reverted = next.draftLifts.find((item) => item.editorId === lift.editorId)
+    const applied = next.appliedLifts.find((item) => item.editorId === lift.editorId)
+    expect(next.hasPendingChanges).toBe(false)
+    expect(reverted?.position.x).toBe(originalApplied?.position.x)
+    expect(applied?.position.x).toBe(originalApplied?.position.x)
+    expect(next.canUndo).toBe(false)
+    expect(next.canRedo).toBe(false)
+  })
 })

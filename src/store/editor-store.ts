@@ -95,6 +95,8 @@ interface EditorState {
   updateAddPortDraft: (patch: Partial<AddPortDraft>) => void
   confirmAddPort: () => void
   cancelAddPort: () => void
+  applyDraftChanges: () => void
+  revertDraftChanges: () => void
   runValidation: () => ValidationIssue[]
   saveSession: () => void
   exportCurrentGlb: () => Promise<void>
@@ -360,6 +362,24 @@ function historyState(history: EditorSnapshot[], future: EditorSnapshot[]) {
   }
 }
 
+function sameSceneEntityLists<T>(left: T[], right: T[]) {
+  return JSON.stringify(left) === JSON.stringify(right)
+}
+
+function hasPendingSceneChanges(state: Pick<EditorState, 'draftLifts' | 'draftPorts' | 'draftReadonlyObjects' | 'appliedLifts' | 'appliedPorts' | 'appliedReadonlyObjects'>) {
+  return !sameSceneEntityLists(state.draftLifts, state.appliedLifts)
+    || !sameSceneEntityLists(state.draftPorts, state.appliedPorts)
+    || !sameSceneEntityLists(state.draftReadonlyObjects, state.appliedReadonlyObjects)
+}
+
+function resolveSelectedId(selectedId: string | null, lifts: LiftEntity[], ports: PortEntity[], readonlyObjects: ReadOnlyEntity[]) {
+  if (!selectedId) return null
+  const exists = lifts.some((item) => item.editorId === selectedId)
+    || ports.some((item) => item.editorId === selectedId)
+    || readonlyObjects.some((item) => item.editorId === selectedId)
+  return exists ? selectedId : null
+}
+
 function initializeScene(bundle: { fileName: string; lifts: LiftEntity[]; ports: PortEntity[]; readonlyObjects: ReadOnlyEntity[] }, runtime: SceneRuntime, statusMessage: string) {
   const derived = deriveScene(bundle.lifts, bundle.ports, bundle.readonlyObjects)
   return {
@@ -400,6 +420,14 @@ function applyMutation(
   const draftPortsSource = nextScene.draftPorts ?? state.draftPorts
   const derived = deriveScene(draftLifts, draftPortsSource, draftReadonlyObjects)
   const history = [...state.history, createSnapshot(state)].slice(-50)
+  const hasPendingChanges = hasPendingSceneChanges({
+    draftLifts,
+    draftPorts: derived.ports,
+    draftReadonlyObjects,
+    appliedLifts: state.appliedLifts,
+    appliedPorts: state.appliedPorts,
+    appliedReadonlyObjects: state.appliedReadonlyObjects,
+  })
 
   return {
     ...state,
@@ -413,7 +441,7 @@ function applyMutation(
     validationIssues: derived.validationIssues,
     collisionIssues: derived.collisionIssues,
     collisionIndex: derived.collisionIndex,
-    hasPendingChanges: true,
+    hasPendingChanges,
     ...markUnsaved(statusMessage),
     ...historyState(history, []),
   }
@@ -552,6 +580,38 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }, 'Port created')
   }),
   cancelAddPort: () => set({ mode: 'select', addPortDraft: null }),
+  applyDraftChanges: () => set((state) => {
+    if (!state.hasPendingChanges) return state
+    return {
+      appliedLifts: structuredClone(state.draftLifts),
+      appliedPorts: structuredClone(state.draftPorts),
+      appliedReadonlyObjects: structuredClone(state.draftReadonlyObjects),
+      hasPendingChanges: false,
+      statusMessage: 'Draft changes applied',
+      ...historyState([], []),
+    }
+  }),
+  revertDraftChanges: () => set((state) => {
+    if (!state.hasPendingChanges) return state
+    const draftLifts = structuredClone(state.appliedLifts)
+    const draftReadonlyObjects = structuredClone(state.appliedReadonlyObjects)
+    const derived = deriveScene(draftLifts, structuredClone(state.appliedPorts), draftReadonlyObjects)
+    return {
+      ...state,
+      draftLifts,
+      draftPorts: derived.ports,
+      draftReadonlyObjects,
+      selectedId: resolveSelectedId(state.selectedId, draftLifts, derived.ports, draftReadonlyObjects),
+      mode: 'select',
+      addPortDraft: null,
+      validationIssues: derived.validationIssues,
+      collisionIssues: derived.collisionIssues,
+      collisionIndex: derived.collisionIndex,
+      hasPendingChanges: false,
+      statusMessage: 'Draft changes reverted',
+      ...historyState([], []),
+    }
+  }),
   runValidation: () => {
     const state = get()
     const issues = state.validationIssues
@@ -613,7 +673,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       validationIssues: derived.validationIssues,
       collisionIssues: derived.collisionIssues,
       collisionIndex: derived.collisionIndex,
-      hasPendingChanges: true,
+      hasPendingChanges: hasPendingSceneChanges({
+        draftLifts: snapshot.draftLifts,
+        draftPorts: derived.ports,
+        draftReadonlyObjects: snapshot.draftReadonlyObjects,
+        appliedLifts: state.appliedLifts,
+        appliedPorts: state.appliedPorts,
+        appliedReadonlyObjects: state.appliedReadonlyObjects,
+      }),
       statusMessage: 'Undo applied',
       saveState: 'unsaved',
       ...historyState(nextHistory, future),
@@ -635,7 +702,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       validationIssues: derived.validationIssues,
       collisionIssues: derived.collisionIssues,
       collisionIndex: derived.collisionIndex,
-      hasPendingChanges: true,
+      hasPendingChanges: hasPendingSceneChanges({
+        draftLifts: snapshot.draftLifts,
+        draftPorts: derived.ports,
+        draftReadonlyObjects: snapshot.draftReadonlyObjects,
+        appliedLifts: state.appliedLifts,
+        appliedPorts: state.appliedPorts,
+        appliedReadonlyObjects: state.appliedReadonlyObjects,
+      }),
       statusMessage: 'Redo applied',
       saveState: 'unsaved',
       ...historyState(history, futureTail),
