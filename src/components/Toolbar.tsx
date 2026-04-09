@@ -85,7 +85,7 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
         </div>
         <div className="flex items-center gap-3 text-xs">
           <div className="rounded-full border border-slate-700 px-3 py-1 text-slate-300">
-            {fileName ?? 'No file loaded'} · {saveState.toUpperCase()} · {hasPendingChanges ? 'DRAFT PENDING' : 'APPLIED'}
+            {fileName ?? 'No file loaded'} · {hasPendingChanges ? 'DRAFT PENDING' : 'DRAFT SYNCED'} · {saveState === 'saved' ? 'SAVED' : 'UNSAVED'}
           </div>
           <div className={cn('rounded-full border px-3 py-1', errorCount ? 'border-rose-500/40 text-rose-100' : 'border-emerald-500/30 text-emerald-100')}>
             Errors {errorCount} · Collisions {collisionIssues.length}

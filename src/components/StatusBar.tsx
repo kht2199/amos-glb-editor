@@ -24,8 +24,8 @@ export function StatusBar() {
   return (
     <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 bg-slate-950/80 px-4 py-2 text-xs text-slate-400">
       <div className="flex flex-wrap items-center gap-3">
-        <span>Status: <strong className="text-slate-200">{saveState === 'saved' ? 'Saved' : 'Unsaved changes'}</strong></span>
-        <span>Draft: <strong className="text-slate-200">{hasPendingChanges ? 'Pending apply' : 'Applied sync'}</strong></span>
+        <span>Save: <strong className="text-slate-200">{saveState === 'saved' ? 'Saved' : 'Not saved'}</strong></span>
+        <span>Draft: <strong className="text-slate-200">{hasPendingChanges ? 'Pending' : 'Synced'}</strong></span>
         <span>Selected: <strong className="text-slate-200">{selected?.id ?? 'None'}</strong></span>
         <span>Coordinates: <strong className="text-slate-200">{selected ? `X ${selected.position.x} · Y ${selected.position.y} · Z ${selected.position.z}` : '-'}</strong></span>
       </div>

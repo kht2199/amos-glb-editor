@@ -44,6 +44,6 @@ describe('App', () => {
     expect(screen.getByText('GLB 파일을 열어 작업을 시작하세요.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Load Demo Scene' }))
     expect(await screen.findByText('Three.js Object Editor')).toBeInTheDocument()
-    expect(screen.getByText(/demo-scene\.glb\s*·\s*SAVED\s*·\s*APPLIED/i)).toBeInTheDocument()
+    expect(screen.getByText(/demo-scene\.glb\s*·\s*DRAFT SYNCED\s*·\s*SAVED/i)).toBeInTheDocument()
   })
 })
