@@ -8,9 +8,12 @@ beforeEach(() => {
   localStorage.clear()
   useEditorStore.setState({
     fileName: null,
-    lifts: [],
-    ports: [],
-    readonlyObjects: [],
+    draftLifts: [],
+    draftPorts: [],
+    draftReadonlyObjects: [],
+    appliedLifts: [],
+    appliedPorts: [],
+    appliedReadonlyObjects: [],
     selectedId: null,
     visibilityMode: 'TOP_ONLY',
     mode: 'select',
@@ -23,6 +26,13 @@ beforeEach(() => {
     exportFeedback: { status: 'idle' },
     runtime: { workingScene: null, pristineScene: null, animations: [] },
     addPortDraft: null,
+    collisionIssues: [],
+    collisionIndex: {},
+    history: [],
+    future: [],
+    canUndo: false,
+    canRedo: false,
+    hasPendingChanges: false,
   })
 })
 

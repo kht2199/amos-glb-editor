@@ -92,9 +92,9 @@ export interface SerializableSession {
 }
 
 export interface EditorSnapshot {
-  lifts: LiftEntity[]
-  ports: PortEntity[]
-  readonlyObjects: ReadOnlyEntity[]
+  draftLifts: LiftEntity[]
+  draftPorts: PortEntity[]
+  draftReadonlyObjects: ReadOnlyEntity[]
   visibilityMode: VisibilityMode
 }
 

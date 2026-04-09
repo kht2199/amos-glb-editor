@@ -42,8 +42,8 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
   } = useEditorStore(useShallow((state) => ({
     fileName: state.fileName,
     selectedId: state.selectedId,
-    lifts: state.lifts,
-    ports: state.ports,
+    lifts: state.draftLifts,
+    ports: state.draftPorts,
     mode: state.mode,
     visibilityMode: state.visibilityMode,
     snapEnabled: state.snapEnabled,

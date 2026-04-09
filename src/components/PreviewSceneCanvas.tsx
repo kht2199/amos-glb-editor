@@ -161,9 +161,9 @@ function PortProxy({ port, selected }: { port: PortEntity; selected: boolean }) 
 
 function PreviewProxyScene() {
   const { lifts, ports, readonlyObjects, selectedId } = useEditorStore(useShallow((state) => ({
-    lifts: state.lifts,
-    ports: state.ports,
-    readonlyObjects: state.readonlyObjects,
+    lifts: state.draftLifts,
+    ports: state.draftPorts,
+    readonlyObjects: state.draftReadonlyObjects,
     selectedId: state.selectedId,
   })))
 
@@ -179,9 +179,9 @@ function PreviewProxyScene() {
 export function PreviewSceneCanvas() {
   const controlsRef = useRef<any>(null)
   const { lifts, ports, readonlyObjects, selectedId } = useEditorStore(useShallow((state) => ({
-    lifts: state.lifts,
-    ports: state.ports,
-    readonlyObjects: state.readonlyObjects,
+    lifts: state.draftLifts,
+    ports: state.draftPorts,
+    readonlyObjects: state.draftReadonlyObjects,
     selectedId: state.selectedId,
   })))
 

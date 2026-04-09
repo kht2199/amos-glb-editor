@@ -5,8 +5,8 @@ import { useEditorStore } from '../store/editor-store'
 export function StatusBar() {
   const { selectedId, lifts, ports, snapEnabled, visibilityMode, statusMessage, validationIssues, collisionIssues, saveState, canUndo, canRedo } = useEditorStore(useShallow((state) => ({
     selectedId: state.selectedId,
-    lifts: state.lifts,
-    ports: state.ports,
+    lifts: state.draftLifts,
+    ports: state.draftPorts,
     snapEnabled: state.snapEnabled,
     visibilityMode: state.visibilityMode,
     statusMessage: state.statusMessage,

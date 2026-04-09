@@ -51,9 +51,12 @@ interface SceneRuntime {
 
 interface EditorState {
   fileName: string | null
-  lifts: LiftEntity[]
-  ports: PortEntity[]
-  readonlyObjects: ReadOnlyEntity[]
+  draftLifts: LiftEntity[]
+  draftPorts: PortEntity[]
+  draftReadonlyObjects: ReadOnlyEntity[]
+  appliedLifts: LiftEntity[]
+  appliedPorts: PortEntity[]
+  appliedReadonlyObjects: ReadOnlyEntity[]
   selectedId: string | null
   visibilityMode: VisibilityMode
   mode: EditorMode
@@ -72,6 +75,7 @@ interface EditorState {
   future: EditorSnapshot[]
   canUndo: boolean
   canRedo: boolean
+  hasPendingChanges: boolean
   openDemoScene: () => void
   loadFile: (file: File) => Promise<void>
   selectObject: (editorId: string | null) => void
@@ -108,18 +112,18 @@ function markUnsaved(message = 'Unsaved changes') {
 
 function cloneSnapshot(snapshot: EditorSnapshot): EditorSnapshot {
   return {
-    lifts: structuredClone(snapshot.lifts),
-    ports: structuredClone(snapshot.ports),
-    readonlyObjects: structuredClone(snapshot.readonlyObjects),
+    draftLifts: structuredClone(snapshot.draftLifts),
+    draftPorts: structuredClone(snapshot.draftPorts),
+    draftReadonlyObjects: structuredClone(snapshot.draftReadonlyObjects),
     visibilityMode: snapshot.visibilityMode,
   }
 }
 
-function createSnapshot(state: Pick<EditorState, 'lifts' | 'ports' | 'readonlyObjects' | 'visibilityMode'>): EditorSnapshot {
+function createSnapshot(state: Pick<EditorState, 'draftLifts' | 'draftPorts' | 'draftReadonlyObjects' | 'visibilityMode'>): EditorSnapshot {
   return cloneSnapshot({
-    lifts: state.lifts,
-    ports: state.ports,
-    readonlyObjects: state.readonlyObjects,
+    draftLifts: state.draftLifts,
+    draftPorts: state.draftPorts,
+    draftReadonlyObjects: state.draftReadonlyObjects,
     visibilityMode: state.visibilityMode,
   })
 }
@@ -269,47 +273,47 @@ function makePortFromEntity(entity: SceneEntity, lifts: LiftEntity[]): PortEntit
 }
 
 function convertSceneEntity(state: EditorState, editorId: string, objectType: ObjectKind) {
-  const lift = state.lifts.find((item) => item.editorId === editorId)
-  const port = state.ports.find((item) => item.editorId === editorId)
-  const readonlyObject = state.readonlyObjects.find((item) => item.editorId === editorId)
+  const lift = state.draftLifts.find((item) => item.editorId === editorId)
+  const port = state.draftPorts.find((item) => item.editorId === editorId)
+  const readonlyObject = state.draftReadonlyObjects.find((item) => item.editorId === editorId)
   const source = lift ?? port ?? readonlyObject
 
   if (!source || source.objectType === objectType) {
     if (readonlyObject && isReadonlyObjectType(objectType) && readonlyObject.objectType !== objectType) {
       return applyMutation(state, {
-        readonlyObjects: state.readonlyObjects.map((item) => item.editorId === editorId ? { ...item, objectType } : item),
+        draftReadonlyObjects: state.draftReadonlyObjects.map((item) => item.editorId === editorId ? { ...item, objectType } : item),
         selectedId: editorId,
       }, `Object type updated to ${objectType}`)
     }
     return state
   }
 
-  const lifts = state.lifts.filter((item) => item.editorId !== editorId)
-  const ports = state.ports.filter((item) => item.editorId !== editorId)
-  const readonlyObjects = state.readonlyObjects.filter((item) => item.editorId !== editorId)
+  const draftLifts = state.draftLifts.filter((item) => item.editorId !== editorId)
+  const draftPorts = state.draftPorts.filter((item) => item.editorId !== editorId)
+  const draftReadonlyObjects = state.draftReadonlyObjects.filter((item) => item.editorId !== editorId)
 
   if (objectType === 'Lift') {
     return applyMutation(state, {
-      lifts: [...lifts, makeLiftFromEntity(source)],
-      ports,
-      readonlyObjects,
+      draftLifts: [...draftLifts, makeLiftFromEntity(source)],
+      draftPorts,
+      draftReadonlyObjects,
       selectedId: editorId,
     }, 'Object reclassified as Lift')
   }
 
   if (objectType === 'Port') {
     return applyMutation(state, {
-      lifts,
-      ports: [...ports, makePortFromEntity(source, state.lifts)],
-      readonlyObjects,
+      draftLifts,
+      draftPorts: [...draftPorts, makePortFromEntity(source, state.draftLifts)],
+      draftReadonlyObjects,
       selectedId: editorId,
     }, 'Object reclassified as Port')
   }
 
   return applyMutation(state, {
-    lifts,
-    ports,
-    readonlyObjects: [...readonlyObjects, makeReadonlyFromEntity(source, objectType)],
+    draftLifts,
+    draftPorts,
+    draftReadonlyObjects: [...draftReadonlyObjects, makeReadonlyFromEntity(source, objectType)],
     selectedId: editorId,
   }, `Object reclassified as ${objectType}`)
 }
@@ -320,9 +324,9 @@ function serializableSession(state: EditorState): SerializableSession | null {
     fileName: state.fileName,
     visibilityMode: state.visibilityMode,
     snapEnabled: state.snapEnabled,
-    lifts: state.lifts,
-    ports: state.ports,
-    readonlyObjects: state.readonlyObjects,
+    lifts: state.draftLifts,
+    ports: state.draftPorts,
+    readonlyObjects: state.draftReadonlyObjects,
   }
 }
 
@@ -360,9 +364,12 @@ function initializeScene(bundle: { fileName: string; lifts: LiftEntity[]; ports:
   const derived = deriveScene(bundle.lifts, bundle.ports, bundle.readonlyObjects)
   return {
     fileName: bundle.fileName,
-    lifts: bundle.lifts,
-    ports: derived.ports,
-    readonlyObjects: bundle.readonlyObjects,
+    draftLifts: bundle.lifts,
+    draftPorts: derived.ports,
+    draftReadonlyObjects: bundle.readonlyObjects,
+    appliedLifts: structuredClone(bundle.lifts),
+    appliedPorts: structuredClone(derived.ports),
+    appliedReadonlyObjects: structuredClone(bundle.readonlyObjects),
     selectedId: null,
     mode: 'select' as const,
     visibilityMode: 'TOP_ONLY' as const,
@@ -377,27 +384,28 @@ function initializeScene(bundle: { fileName: string; lifts: LiftEntity[]; ports:
     saveState: 'saved' as const,
     statusMessage,
     addPortDraft: null,
+    hasPendingChanges: false,
     ...historyState([], []),
   }
 }
 
 function applyMutation(
   state: EditorState,
-  nextScene: Partial<Pick<EditorState, 'lifts' | 'ports' | 'readonlyObjects' | 'visibilityMode' | 'selectedId' | 'mode' | 'addPortDraft'>>,
+  nextScene: Partial<Pick<EditorState, 'draftLifts' | 'draftPorts' | 'draftReadonlyObjects' | 'visibilityMode' | 'selectedId' | 'mode' | 'addPortDraft'>>,
   statusMessage = 'Unsaved changes',
 ) {
-  const lifts = nextScene.lifts ?? state.lifts
-  const readonlyObjects = nextScene.readonlyObjects ?? state.readonlyObjects
+  const draftLifts = nextScene.draftLifts ?? state.draftLifts
+  const draftReadonlyObjects = nextScene.draftReadonlyObjects ?? state.draftReadonlyObjects
   const visibilityMode = nextScene.visibilityMode ?? state.visibilityMode
-  const portsSource = nextScene.ports ?? state.ports
-  const derived = deriveScene(lifts, portsSource, readonlyObjects)
+  const draftPortsSource = nextScene.draftPorts ?? state.draftPorts
+  const derived = deriveScene(draftLifts, draftPortsSource, draftReadonlyObjects)
   const history = [...state.history, createSnapshot(state)].slice(-50)
 
   return {
     ...state,
-    lifts,
-    ports: derived.ports,
-    readonlyObjects,
+    draftLifts,
+    draftPorts: derived.ports,
+    draftReadonlyObjects,
     visibilityMode,
     selectedId: nextScene.selectedId ?? state.selectedId,
     mode: nextScene.mode ?? state.mode,
@@ -405,6 +413,7 @@ function applyMutation(
     validationIssues: derived.validationIssues,
     collisionIssues: derived.collisionIssues,
     collisionIndex: derived.collisionIndex,
+    hasPendingChanges: true,
     ...markUnsaved(statusMessage),
     ...historyState(history, []),
   }
@@ -412,9 +421,12 @@ function applyMutation(
 
 export const useEditorStore = create<EditorState>((set, get) => ({
   fileName: null,
-  lifts: [],
-  ports: [],
-  readonlyObjects: [],
+  draftLifts: [],
+  draftPorts: [],
+  draftReadonlyObjects: [],
+  appliedLifts: [],
+  appliedPorts: [],
+  appliedReadonlyObjects: [],
   selectedId: null,
   visibilityMode: 'TOP_ONLY',
   mode: 'select',
@@ -433,6 +445,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   future: [],
   canUndo: false,
   canRedo: false,
+  hasPendingChanges: false,
   openDemoScene: () => {
     const demo = createDemoScene()
     set(initializeScene(
@@ -452,41 +465,41 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   selectObject: (editorId) => set({ selectedId: editorId }),
   setMode: (mode) => set((state) => ({
     mode,
-    addPortDraft: mode === 'addPort' ? state.addPortDraft ?? makeAddPortDraft(state.lifts, state.selectedId) : null,
+    addPortDraft: mode === 'addPort' ? state.addPortDraft ?? makeAddPortDraft(state.draftLifts, state.selectedId) : null,
   })),
   setVisibilityMode: (visibilityMode) => set({ visibilityMode }),
   setSnapEnabled: (snapEnabled) => set({ snapEnabled }),
   setValidationOpen: (isValidationOpen) => set({ isValidationOpen }),
   setPreviewOpen: (isPreviewOpen) => set({ isPreviewOpen }),
   moveLift: (editorId, x, y) => set((state) => {
-    const target = state.lifts.find((lift) => lift.editorId === editorId)
+    const target = state.draftLifts.find((lift) => lift.editorId === editorId)
     if (!target) return state
-    const snapped = snapLiftToNeighbors(target, x, y, state.lifts.filter((lift) => lift.editorId !== editorId), state.snapEnabled)
-    const lifts = state.lifts.map((lift) => lift.editorId === editorId ? { ...lift, position: { ...lift.position, x: snapped.x, y: snapped.y } } : lift)
-    return applyMutation(state, { lifts }, 'Lift moved')
+    const snapped = snapLiftToNeighbors(target, x, y, state.draftLifts.filter((lift) => lift.editorId !== editorId), state.snapEnabled)
+    const draftLifts = state.draftLifts.map((lift) => lift.editorId === editorId ? { ...lift, position: { ...lift.position, x: snapped.x, y: snapped.y } } : lift)
+    return applyMutation(state, { draftLifts }, 'Lift moved')
   }),
   rotateLift: (editorId) => set((state) => {
-    const lifts = state.lifts.map((lift) => lift.editorId === editorId ? { ...lift, rotation: (((lift.rotation + 90) % 360) as 0 | 90 | 180 | 270) } : lift)
-    return applyMutation(state, { lifts }, 'Lift rotated')
+    const draftLifts = state.draftLifts.map((lift) => lift.editorId === editorId ? { ...lift, rotation: (((lift.rotation + 90) % 360) as 0 | 90 | 180 | 270) } : lift)
+    return applyMutation(state, { draftLifts }, 'Lift rotated')
   }),
   updateLift: (editorId, patch) => set((state) => {
-    const lifts = state.lifts.map((lift) => lift.editorId === editorId ? { ...lift, ...patch, animation: { ...lift.animation, ...(patch.animation ?? {}) } } : lift)
-    return applyMutation(state, { lifts }, 'Lift updated')
+    const draftLifts = state.draftLifts.map((lift) => lift.editorId === editorId ? { ...lift, ...patch, animation: { ...lift.animation, ...(patch.animation ?? {}) } } : lift)
+    return applyMutation(state, { draftLifts }, 'Lift updated')
   }),
   updatePort: (editorId, patch) => set((state) => {
-    const ports = state.ports.map((port) => port.editorId === editorId ? withUpdatedPortPosition(state.lifts, { ...port, ...patch }) : port)
-    return applyMutation(state, { ports }, 'Port updated')
+    const draftPorts = state.draftPorts.map((port) => port.editorId === editorId ? withUpdatedPortPosition(state.draftLifts, { ...port, ...patch }) : port)
+    return applyMutation(state, { draftPorts }, 'Port updated')
   }),
   setObjectType: (editorId, objectType) => set((state) => convertSceneEntity(state, editorId, objectType)),
   movePortByWorld: (editorId, x, y) => set((state) => {
-    const target = state.ports.find((port) => port.editorId === editorId)
+    const target = state.draftPorts.find((port) => port.editorId === editorId)
     if (!target) return state
 
-    const nextLift = findNearestLift(state.lifts, x, y)
+    const nextLift = findNearestLift(state.draftLifts, x, y)
     if (!nextLift) return state
 
     const inferred = inferFaceAndSlot(nextLift, { ...target, position: { ...target.position, x, y } })
-    const ports = state.ports.map((port) => port.editorId === editorId ? withUpdatedPortPosition(state.lifts, {
+    const draftPorts = state.draftPorts.map((port) => port.editorId === editorId ? withUpdatedPortPosition(state.draftLifts, {
       ...port,
       parentLiftId: nextLift.editorId,
       domainParentId: nextLift.editorId,
@@ -496,20 +509,20 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       slot: inferred.slot,
     }) : port)
 
-    return applyMutation(state, { ports, selectedId: editorId }, `Port snapped to ${nextLift.id}`)
+    return applyMutation(state, { draftPorts, selectedId: editorId }, `Port snapped to ${nextLift.id}`)
   }),
   deletePort: (editorId) => set((state) => applyMutation(state, {
-    ports: state.ports.map((port) => port.editorId === editorId ? { ...port, deleted: true } : port),
+    draftPorts: state.draftPorts.map((port) => port.editorId === editorId ? { ...port, deleted: true } : port),
     selectedId: state.selectedId === editorId ? null : state.selectedId,
   }, 'Port deleted')),
-  beginAddPort: () => set((state) => ({ mode: 'addPort', addPortDraft: makeAddPortDraft(state.lifts, state.selectedId) })),
+  beginAddPort: () => set((state) => ({ mode: 'addPort', addPortDraft: makeAddPortDraft(state.draftLifts, state.selectedId) })),
   updateAddPortDraft: (patch) => set((state) => ({ addPortDraft: state.addPortDraft ? { ...state.addPortDraft, ...patch } : null })),
   confirmAddPort: () => set((state) => {
     const draft = state.addPortDraft
-    const lift = draft ? state.lifts.find((item) => item.editorId === draft.parentLiftId) : null
+    const lift = draft ? state.draftLifts.find((item) => item.editorId === draft.parentLiftId) : null
     if (!draft || !lift) return state
 
-    const port: PortEntity = withUpdatedPortPosition(state.lifts, {
+    const port: PortEntity = withUpdatedPortPosition(state.draftLifts, {
       id: draft.id,
       editorId: crypto.randomUUID(),
       label: draft.id,
@@ -532,7 +545,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     })
 
     return applyMutation(state, {
-      ports: [...state.ports, port],
+      draftPorts: [...state.draftPorts, port],
       selectedId: port.editorId,
       mode: 'select',
       addPortDraft: null,
@@ -572,7 +585,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     try {
       const previousUrl = get().exportFeedback.downloadUrl
       if (previousUrl) URL.revokeObjectURL(previousUrl)
-      const blob = await exportGlb({ pristineScene: state.runtime.pristineScene, lifts: state.lifts, ports: state.ports, readonlyObjects: state.readonlyObjects, animations: state.runtime.animations })
+      const blob = await exportGlb({ pristineScene: state.runtime.pristineScene, lifts: state.draftLifts, ports: state.draftPorts, readonlyObjects: state.draftReadonlyObjects, animations: state.runtime.animations })
       const downloadUrl = URL.createObjectURL(blob)
       set({ exportFeedback: { status: 'success', message: 'Export completed', downloadUrl, fileName: state.fileName.replace(/\.glb$/i, '.edited.glb') } })
     } catch (error) {
@@ -589,17 +602,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const nextHistory = state.history.slice(0, -1)
     const future = [createSnapshot(state), ...state.future].slice(0, 50)
     const snapshot = cloneSnapshot(previous)
-    const derived = deriveScene(snapshot.lifts, snapshot.ports, snapshot.readonlyObjects)
+    const derived = deriveScene(snapshot.draftLifts, snapshot.draftPorts, snapshot.draftReadonlyObjects)
 
     return {
       ...state,
-      lifts: snapshot.lifts,
-      ports: derived.ports,
-      readonlyObjects: snapshot.readonlyObjects,
+      draftLifts: snapshot.draftLifts,
+      draftPorts: derived.ports,
+      draftReadonlyObjects: snapshot.draftReadonlyObjects,
       visibilityMode: snapshot.visibilityMode,
       validationIssues: derived.validationIssues,
       collisionIssues: derived.collisionIssues,
       collisionIndex: derived.collisionIndex,
+      hasPendingChanges: true,
       statusMessage: 'Undo applied',
       saveState: 'unsaved',
       ...historyState(nextHistory, future),
@@ -610,17 +624,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (!next) return state
     const history = [...state.history, createSnapshot(state)].slice(-50)
     const snapshot = cloneSnapshot(next)
-    const derived = deriveScene(snapshot.lifts, snapshot.ports, snapshot.readonlyObjects)
+    const derived = deriveScene(snapshot.draftLifts, snapshot.draftPorts, snapshot.draftReadonlyObjects)
 
     return {
       ...state,
-      lifts: snapshot.lifts,
-      ports: derived.ports,
-      readonlyObjects: snapshot.readonlyObjects,
+      draftLifts: snapshot.draftLifts,
+      draftPorts: derived.ports,
+      draftReadonlyObjects: snapshot.draftReadonlyObjects,
       visibilityMode: snapshot.visibilityMode,
       validationIssues: derived.validationIssues,
       collisionIssues: derived.collisionIssues,
       collisionIndex: derived.collisionIndex,
+      hasPendingChanges: true,
       statusMessage: 'Redo applied',
       saveState: 'unsaved',
       ...historyState(history, futureTail),

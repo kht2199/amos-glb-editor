@@ -17,11 +17,11 @@ const secondaryButton = 'rounded-xl border border-slate-700 px-3 py-2 text-sm te
 const dangerButton = 'inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm font-medium text-rose-100 hover:bg-rose-500/20'
 
 export function InspectorPanel() {
-  const { selectedId, lifts, ports, readonlyObjects, updateLift, updatePort, setObjectType, deletePort, addPortDraft, updateAddPortDraft, confirmAddPort, cancelAddPort, validationIssues } = useEditorStore(useShallow((state) => ({
+  const { selectedId, draftLifts, draftPorts, draftReadonlyObjects, updateLift, updatePort, setObjectType, deletePort, addPortDraft, updateAddPortDraft, confirmAddPort, cancelAddPort, validationIssues } = useEditorStore(useShallow((state) => ({
     selectedId: state.selectedId,
-    lifts: state.lifts,
-    ports: state.ports,
-    readonlyObjects: state.readonlyObjects,
+    draftLifts: state.draftLifts,
+    draftPorts: state.draftPorts,
+    draftReadonlyObjects: state.draftReadonlyObjects,
     updateLift: state.updateLift,
     updatePort: state.updatePort,
     setObjectType: state.setObjectType,
@@ -33,9 +33,9 @@ export function InspectorPanel() {
     validationIssues: state.validationIssues,
   })))
 
-  const selectedLift = lifts.find((item) => item.editorId === selectedId) ?? null
-  const selectedPort = ports.find((item) => item.editorId === selectedId && !item.deleted) ?? null
-  const selectedReadonly = readonlyObjects.find((item) => item.editorId === selectedId) ?? null
+  const selectedLift = draftLifts.find((item) => item.editorId === selectedId) ?? null
+  const selectedPort = draftPorts.find((item) => item.editorId === selectedId && !item.deleted) ?? null
+  const selectedReadonly = draftReadonlyObjects.find((item) => item.editorId === selectedId) ?? null
   const issues = useMemo(() => validationIssues.filter((issue) => issue.targetId === selectedId), [selectedId, validationIssues])
 
   return (
@@ -50,7 +50,7 @@ export function InspectorPanel() {
           <section className="space-y-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4">
             <h3 className="font-semibold text-emerald-100">Add Port Mode</h3>
             <Field label="Port ID"><input className={fieldClass} value={addPortDraft.id} onChange={(event) => updateAddPortDraft({ id: event.target.value })} /></Field>
-            <Field label="Parent Lift"><select className={fieldClass} value={addPortDraft.parentLiftId} onChange={(event) => updateAddPortDraft({ parentLiftId: event.target.value })}>{lifts.map((lift) => <option key={lift.editorId} value={lift.editorId}>{lift.id}</option>)}</select></Field>
+            <Field label="Parent Lift"><select className={fieldClass} value={addPortDraft.parentLiftId} onChange={(event) => updateAddPortDraft({ parentLiftId: event.target.value })}>{draftLifts.map((lift) => <option key={lift.editorId} value={lift.editorId}>{lift.id}</option>)}</select></Field>
             <DoubleField>
               <Field label="Level"><select className={fieldClass} value={addPortDraft.level} onChange={(event) => updateAddPortDraft({ level: event.target.value as PortLevel })}>{LEVEL_OPTIONS.map((option) => <option key={option} value={option}>{LEVEL_LABELS[option]}</option>)}</select></Field>
               <Field label="Type"><select className={fieldClass} value={addPortDraft.portType} onChange={(event) => updateAddPortDraft({ portType: event.target.value as PortType })}>{PORT_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>

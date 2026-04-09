@@ -61,9 +61,9 @@ export function TopViewCanvas() {
     collisionIndex,
     collisionIssues,
   } = useEditorStore(useShallow((state) => ({
-    lifts: state.lifts,
-    ports: state.ports,
-    readonlyObjects: state.readonlyObjects,
+    lifts: state.draftLifts,
+    ports: state.draftPorts,
+    readonlyObjects: state.draftReadonlyObjects,
     selectedId: state.selectedId,
     selectObject: state.selectObject,
     moveLift: state.moveLift,

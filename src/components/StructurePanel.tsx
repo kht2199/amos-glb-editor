@@ -10,29 +10,29 @@ const FILTERS: Array<'All' | ObjectKind> = ['All', 'Lift', 'Port', 'Rail', 'Brid
 export function StructurePanel() {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<'All' | ObjectKind>('All')
-  const { lifts, ports, readonlyObjects, selectedId, selectObject, collisionIndex, validationIssues } = useEditorStore(useShallow((state) => ({
-    lifts: state.lifts,
-    ports: state.ports,
-    readonlyObjects: state.readonlyObjects,
+  const { draftLifts, draftPorts, draftReadonlyObjects, selectedId, selectObject, collisionIndex, validationIssues } = useEditorStore(useShallow((state) => ({
+    draftLifts: state.draftLifts,
+    draftPorts: state.draftPorts,
+    draftReadonlyObjects: state.draftReadonlyObjects,
     selectedId: state.selectedId,
     selectObject: state.selectObject,
     collisionIndex: state.collisionIndex,
     validationIssues: state.validationIssues,
   })))
 
-  const visiblePorts = ports.filter((port) => !port.deleted)
-  const floatingPorts = visiblePorts.filter((port) => !port.parentLiftId || !lifts.some((lift) => lift.editorId === port.parentLiftId))
+  const visiblePorts = draftPorts.filter((port) => !port.deleted)
+  const floatingPorts = visiblePorts.filter((port) => !port.parentLiftId || !draftLifts.some((lift) => lift.editorId === port.parentLiftId))
   const issueCount = (editorId: string) => (collisionIndex[editorId]?.length ?? 0) + validationIssues.filter((issue) => issue.targetId === editorId).length
 
   const filtered = useMemo(() => {
     const text = query.trim().toLowerCase()
     const match = (value: string) => !text || value.toLowerCase().includes(text)
     return {
-      lifts: lifts.filter((lift) => (filter === 'All' || filter === 'Lift') && match(lift.id)),
+      lifts: draftLifts.filter((lift) => (filter === 'All' || filter === 'Lift') && match(lift.id)),
       ports: visiblePorts.filter((port) => (filter === 'All' || filter === 'Port') && match(port.id)),
-      readonlyObjects: readonlyObjects.filter((item) => (filter === 'All' || filter === item.objectType) && match(item.id)),
+      readonlyObjects: draftReadonlyObjects.filter((item) => (filter === 'All' || filter === item.objectType) && match(item.id)),
     }
-  }, [filter, lifts, query, readonlyObjects, visiblePorts])
+  }, [filter, draftLifts, query, draftReadonlyObjects, visiblePorts])
 
   return (
     <aside className="flex h-full flex-col border-r border-slate-800 bg-slate-950/40">
