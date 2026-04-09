@@ -6,6 +6,7 @@ import type { DomainParentType, Face, LiftEntity, ObjectKind, PortLevel, PortSem
 
 const FACE_OPTIONS: Face[] = ['FRONT', 'BACK', 'LEFT', 'RIGHT']
 const LEVEL_OPTIONS: PortLevel[] = ['TOP', 'BOTTOM']
+const LEVEL_LABELS: Record<PortLevel, string> = { TOP: 'Higher Z', BOTTOM: 'Lower Z' }
 const PORT_TYPE_OPTIONS: PortType[] = ['IN', 'OUT', 'INOUT']
 const PORT_ROLE_OPTIONS: PortSemanticRole[] = ['LIFT_DOCK', 'STOCKER_ACCESS', 'TOOL_LOAD', 'BUFFER_HANDOFF']
 const DOMAIN_PARENT_OPTIONS: DomainParentType[] = ['Lift', 'Stocker', 'Transport', 'Bridge', 'Rail']
@@ -51,7 +52,7 @@ export function InspectorPanel() {
             <Field label="Port ID"><input className={fieldClass} value={addPortDraft.id} onChange={(event) => updateAddPortDraft({ id: event.target.value })} /></Field>
             <Field label="Parent Lift"><select className={fieldClass} value={addPortDraft.parentLiftId} onChange={(event) => updateAddPortDraft({ parentLiftId: event.target.value })}>{lifts.map((lift) => <option key={lift.editorId} value={lift.editorId}>{lift.id}</option>)}</select></Field>
             <DoubleField>
-              <Field label="Level"><select className={fieldClass} value={addPortDraft.level} onChange={(event) => updateAddPortDraft({ level: event.target.value as PortLevel })}>{LEVEL_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
+              <Field label="Level"><select className={fieldClass} value={addPortDraft.level} onChange={(event) => updateAddPortDraft({ level: event.target.value as PortLevel })}>{LEVEL_OPTIONS.map((option) => <option key={option} value={option}>{LEVEL_LABELS[option]}</option>)}</select></Field>
               <Field label="Type"><select className={fieldClass} value={addPortDraft.portType} onChange={(event) => updateAddPortDraft({ portType: event.target.value as PortType })}>{PORT_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
             </DoubleField>
             <DoubleField>
@@ -103,7 +104,7 @@ export function InspectorPanel() {
             <Field label="ID"><input className={fieldClass} value={selectedPort.id} onChange={(event) => updatePort(selectedPort.editorId, { id: event.target.value, nodeName: event.target.value })} /></Field>
             <Field label="Domain Parent"><input className={fieldClass} value={`${selectedPort.domainParentType} · ${selectedPort.domainParentId}`} disabled /></Field>
             <DoubleField>
-              <Field label="Level"><select className={fieldClass} value={selectedPort.level} onChange={(event) => updatePort(selectedPort.editorId, { level: event.target.value as PortLevel })}>{LEVEL_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
+              <Field label="Level"><select className={fieldClass} value={selectedPort.level} onChange={(event) => updatePort(selectedPort.editorId, { level: event.target.value as PortLevel })}>{LEVEL_OPTIONS.map((option) => <option key={option} value={option}>{LEVEL_LABELS[option]}</option>)}</select></Field>
               <Field label="Type"><select className={fieldClass} value={selectedPort.portType} onChange={(event) => updatePort(selectedPort.editorId, { portType: event.target.value as PortType })}>{PORT_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
             </DoubleField>
             <Field label="Semantic Role"><select className={fieldClass} value={selectedPort.semanticRole} onChange={(event) => updatePort(selectedPort.editorId, { semanticRole: event.target.value as PortSemanticRole })}>{PORT_ROLE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>

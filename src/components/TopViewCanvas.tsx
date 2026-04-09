@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
+import { computeVisibilityPivot, matchesVisibilityMode, visibilityModeLabel } from '../lib/visibilityMode'
 import { cn, round } from '../lib/utils'
 import { useEditorStore } from '../store/editor-store'
 import type { LiftEntity, PortEntity, ReadOnlyEntity } from '../types'
@@ -74,9 +75,10 @@ export function TopViewCanvas() {
     collisionIssues: state.collisionIssues,
   })))
 
+  const visibilityPivot = useMemo(() => computeVisibilityPivot(ports, lifts), [ports, lifts])
   const visiblePorts = useMemo(
-    () => ports.filter((port) => !port.deleted && (visibilityMode === 'TOP_ONLY' ? port.level === 'TOP' : port.level === 'BOTTOM')),
-    [ports, visibilityMode],
+    () => ports.filter((port) => !port.deleted && matchesVisibilityMode(port, visibilityMode, visibilityPivot)),
+    [ports, visibilityMode, visibilityPivot],
   )
   const bounds = useMemo(() => computeBounds(lifts, visiblePorts, readonlyObjects), [lifts, readonlyObjects, visiblePorts])
   const visibleEntities = useMemo(() => Object.fromEntries([...lifts, ...visiblePorts, ...readonlyObjects].map((entity) => [entity.editorId, entity] as const)), [lifts, readonlyObjects, visiblePorts])
@@ -130,14 +132,14 @@ export function TopViewCanvas() {
     <section className="relative flex h-full flex-col bg-slate-950/30">
       <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3 text-sm text-slate-300">
         <div>
-          <h2 className="font-semibold text-slate-100">Top View Editor</h2>
+          <h2 className="font-semibold text-slate-100">XY Plane Editor</h2>
           <p className="text-xs text-slate-500">XY plane editing · lift-to-lift snap · port-to-nearest-lift attach</p>
         </div>
         <button type="button" onClick={beginAddPort} className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-medium text-slate-200 hover:border-slate-500">Add Port Mode</button>
       </div>
 
       <div ref={canvasRef} className="editor-grid relative flex-1 overflow-hidden" onPointerMove={handlePointerMove} onPointerUp={() => setDraggingId(null)} onPointerLeave={() => setDraggingId(null)}>
-        <div className="absolute left-4 top-4 rounded-lg border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs text-slate-400">{visibilityMode} · {mode}{collisionIssues.length ? ` · collisions ${collisionIssues.length}` : ''}</div>
+        <div className="absolute left-4 top-4 rounded-lg border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs text-slate-400">{visibilityModeLabel(visibilityMode, visibilityPivot)} · {mode}{collisionIssues.length ? ` · collisions ${collisionIssues.length}` : ''}</div>
 
         {collisionConnections.length > 0 && (
           <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true">

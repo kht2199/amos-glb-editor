@@ -1,5 +1,6 @@
 import { Eye, FileDown, FileUp, Layers3, Move, Plus, Redo2, RotateCw, Save, SearchCheck, Undo2 } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
+import { computeVisibilityPivot, visibilityModeToggleLabel } from '../lib/visibilityMode'
 import { cn } from '../lib/utils'
 import { useEditorStore } from '../store/editor-store'
 import type { EditorMode, VisibilityMode } from '../types'
@@ -18,6 +19,7 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
     fileName,
     selectedId,
     lifts,
+    ports,
     mode,
     visibilityMode,
     snapEnabled,
@@ -41,6 +43,7 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
     fileName: state.fileName,
     selectedId: state.selectedId,
     lifts: state.lifts,
+    ports: state.ports,
     mode: state.mode,
     visibilityMode: state.visibilityMode,
     snapEnabled: state.snapEnabled,
@@ -65,6 +68,7 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
   const selectedLift = lifts.find((lift) => lift.editorId === selectedId)
   const disabled = !fileName
   const errorCount = validationIssues.filter((issue) => issue.severity === 'error').length
+  const visibilityPivot = computeVisibilityPivot(ports, lifts)
 
   return (
     <header className="border-b border-slate-800 bg-slate-950/80 px-4 py-3 backdrop-blur">
@@ -107,7 +111,10 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
 
         <ToolGroup title="View & Validate">
           <SegmentedToggle<VisibilityMode>
-            options={[{ label: 'TOP_ONLY', value: 'TOP_ONLY' }, { label: 'BOTTOM_ONLY', value: 'BOTTOM_ONLY' }]}
+            options={[
+              { label: visibilityModeToggleLabel('TOP_ONLY', visibilityPivot), value: 'TOP_ONLY' },
+              { label: visibilityModeToggleLabel('BOTTOM_ONLY', visibilityPivot), value: 'BOTTOM_ONLY' },
+            ]}
             value={visibilityMode}
             onChange={setVisibilityMode}
             disabled={disabled}

@@ -76,7 +76,7 @@ export function StructurePanel() {
                           {port.id}
                           {portIssues > 0 && <AlertTriangle className="h-3.5 w-3.5 text-rose-300" />}
                         </span>
-                        <span className="text-[11px] uppercase tracking-wide text-slate-500">{port.level}{portIssues > 0 ? ` · ${portIssues}` : ''}</span>
+                        <span className="text-[11px] uppercase tracking-wide text-slate-500">Z {port.position.z}{portIssues > 0 ? ` · ${portIssues}` : ''}</span>
                       </button>
                     )
                   })}
