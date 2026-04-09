@@ -1,6 +1,6 @@
 # GLB Import → Edit → Apply → Preview → Export 권장 흐름
 
-이 문서는 `glb-editor`의 **권장 상태 분리 구조**를 정의한다.
+이 문서는 `glb-editor`의 **권장 상태 분리 구조와 편집 흐름**을 정의한다.
 
 핵심 원칙은 단순하다.
 
@@ -8,13 +8,21 @@
 - **중앙 편집 상태**는 draft로 관리한다.
 - **우측 preview와 export 기준**은 applied로 관리한다.
 - **Apply 버튼**이 draft와 applied 사이의 경계가 된다.
+- 새 오브젝트 생성의 기본은 **타입 전용 추가가 아니라 선택된 오브젝트 복사(`Duplicate`)**다.
+- 높이 표현은 `TOP/BOTTOM` enum이 아니라 **실제 Z 위치 수정**으로 다룬다.
 
-즉 이 문서의 목적은 현재 구현 설명이 아니라,
+즉 이 문서의 목적은 현재 구현 설명을 나열하는 것이 아니라,
 **앞으로 맞춰갈 기준 흐름**을 분명히 정하는 것이다.
 
 ---
 
 ## 1. 권장 상태 모델
+
+먼저 구분할 점이 있다.
+
+- **현재 구현**은 `draftLifts / draftPorts / draftReadonlyObjects`처럼 타입별 배열을 유지한다.
+- **이 문서의 목표 방향**은 여러 `objectType`을 하나의 공통 오브젝트 편집 흐름으로 다루는 것이다.
+- 따라서 아래 타입별 계층 설명은 현재 구현과의 연결을 위한 과도기 표기이며, 장기적으로는 `draftObjects / appliedObjects` 같은 통합 모델로 수렴할 수 있다.
 
 ### 1.1 원본 계층
 - `fileName`
@@ -26,23 +34,32 @@
 - preview 재생성과 export의 출발점이 된다.
 
 ### 1.2 draft 계층
-- `draftLifts`
-- `draftPorts`
-- `draftReadonlyObjects`
+> 현재 구현(과도기) 기준
+> - `draftLifts`
+> - `draftPorts`
+> - `draftReadonlyObjects`
 
 역할:
 - 중앙 편집 캔버스가 직접 사용하는 작업 상태
 - 사용자의 편집 중간 결과
 - 아직 preview/export에 적용되지 않은 상태
 
+메모:
+- 현재 구현은 타입별 배열로 분리되어 있지만, 문서 기준의 방향은 **scene object 전반을 같은 편집 모델로 다루는 것**이다.
+- 따라서 `draftLifts / draftPorts / draftReadonlyObjects`는 과도기 구조로 볼 수 있으며, 장기적으로는 통합된 object 계층으로 수렴할 수 있다.
+
 ### 1.3 applied 계층
-- `appliedLifts`
-- `appliedPorts`
-- `appliedReadonlyObjects`
+> 현재 구현(과도기) 기준
+> - `appliedLifts`
+> - `appliedPorts`
+> - `appliedReadonlyObjects`
 
 역할:
 - Apply 버튼을 통해 반영된 안정 상태
 - preview와 export가 공통으로 참조하는 상태
+
+메모:
+- applied 계층 역시 현재 구현에서는 타입별 배열로 분리되어 있으나, 편집 원칙 자체는 **objectType이 다른 여러 오브젝트를 동일한 흐름으로 다루는 것**이다.
 
 ### 1.4 파생 상태
 - `validationIssues`
@@ -69,6 +86,8 @@
 4. 원본 계층, draft 계층, applied 계층을 초기화한다.
 
 #### 상세 단계
+> 현재 구현(과도기) 기준으로는 타입별 감지/정규화 경로를 사용한다.
+
 1. `loadFile(file)` 호출
 2. `GLTFLoader.parseAsync(buffer, '')`로 scene 복원
 3. `pristineScene = gltf.scene.clone(true)`로 원본 기준 보존
@@ -83,13 +102,13 @@
    - `lifts`
    - `ports`
    - `readonlyObjects`
-6. Port parent, slot, face, level 같은 편집 단위 해석
+6. objectType, transform, parent 관계, 기타 metadata 같은 편집 단위 해석
 7. `draft*`와 `applied*`를 동일한 초기값으로 세팅
 8. `hasPendingChanges = false`
 
 #### 이 단계의 의미
 - GLB는 raw mesh 그대로 편집하는 입력이 아니라,
-  **편집 가능한 domain entity로 해석되는 입력 원본**이다.
+  **편집 가능한 object/entity로 해석되는 입력 원본**이다.
 - import 직후에는 draft와 applied가 같으므로 중앙과 preview 결과도 같은 상태에서 출발한다.
 
 ---
@@ -107,14 +126,21 @@
 - 선택
 - 이동
 - 회전
-- 포트 추가/삭제
-- 포트 스냅
+- 복사(`Duplicate`)
 - 속성 수정
-- Z/visibility 기반 편집
+- 관계 수정
+- Z 직접 수정 기반 편집
+
+#### 현재 구현 메모
+- `Move` 모드는 Lift 전용이 아니라 Lift / Port / 배경 구조물 전체의 XY 이동 모드다.
+- 배경 구조물(`Bridge / Rail / Stocker / Transport`)도 draft/applied entity로 유지되며 Inspector에서 X / Y / Z를 직접 수정할 수 있다.
+- 현재 코드에는 Port 관련 전용 로직이 남아 있을 수 있으나, 문서 기준의 목표 방향은 **오브젝트 복사 + objectType/metadata 수정 중심 흐름**이다.
+- 높이 차이는 단계 전환이 아니라 **Z 좌표 직접 수정**으로 표현한다.
 
 #### 표현 원칙
 - XY plane 중심의 편집 친화 표현
 - raw GLB fidelity 확인보다 구조/관계 편집 우선
+- 특정 타입 전용 추가 모드보다 **공통 오브젝트 편집 UX**를 우선
 
 즉 중앙 캔버스는 **draft entity editor**다.
 
@@ -127,7 +153,7 @@
 #### 처리 순서
 1. 사용자 입력 발생
 2. draft entity 갱신
-3. port position 재계산
+3. 필요 시 관계/metadata 재계산
 4. validation 재계산
 5. collision 재계산
 6. history stack 기록
@@ -135,6 +161,11 @@
 
 #### 중요한 원칙
 이 단계에서는 preview/export 기준 상태를 자동으로 바꾸지 않는다.
+
+추가 메모:
+- 새 오브젝트 생성의 기본 진입점은 `Add Port` 같은 타입 전용 액션이 아니라 **선택된 오브젝트 복사(`Duplicate`)**다.
+- 복사 후에는 위치를 조정하고, 필요하면 Inspector에서 `objectType`과 metadata를 수정한다.
+- Port는 여러 objectType 중 하나이며, 특별한 생성 진입점을 제품 중심에 두지 않는다.
 
 즉:
 - 중앙 = 지금 편집 중인 상태
@@ -194,9 +225,7 @@ preview는 export와 동일하게,
 1. preview가 필요해짐
 2. `pristineScene.clone(true)` 생성
 3. applied 상태 반영
-   - `applyLift(...)`
-   - `applyPort(...)`
-   - `applyReadOnly(...)`
+   - 현재 구현(과도기) 기준: `applyLift(...)`, `applyPort(...)`, `applyReadOnly(...)`
 4. 재구성된 scene을 preview canvas에 마운트
 
 #### 원칙
@@ -210,6 +239,9 @@ preview는 export와 동일하게,
 즉 preview는 **실시간 작업 스케치 뷰**가 아니라
 **적용된 결과를 export와 같은 경로로 확인하는 뷰**다.
 
+추가 메모:
+- preview는 XYZ gizmo와 Z-up 기준을 유지한다.
+
 ---
 
 ### 2.6 Export
@@ -218,7 +250,7 @@ export는 applied 기준으로만 진행한다.
 
 #### 처리 순서
 1. export 요청
-2. `hasPendingChanges === true`면 안내
+2. `hasPendingChanges === true`면 export를 차단하고 안내
    - 예: 미적용 변경이 있으니 Apply 후 export 하라고 안내
 3. `pristineScene.clone(true)` 생성
 4. applied 상태 반영
@@ -257,8 +289,8 @@ Apply를 경계로 두면:
 
 ### 3.3 중앙 편집 UX를 유지할 수 있다
 이 프로젝트의 중심은 raw mesh 편집이 아니라
-`Lift / Port / slot / face / level / semanticRole` 같은
-**domain entity 편집**이다.
+`objectType / metadata / transform / 관계` 같은
+**domain-aware object 편집**이다.
 
 그래서 중앙은 계속 entity editor로 두는 편이 맞다.
 
@@ -269,9 +301,9 @@ Apply를 경계로 두면:
 겉보기엔 단순해 보이지만, 현재 목적에는 잘 맞지 않는다.
 
 ### 이유
-1. 이 프로젝트의 핵심은 mesh editor보다 domain editor에 가깝다.
-2. 포트 스냅, slot 추론, level/face 편집은 entity 모델이 더 안정적이다.
-3. validation/collision 계산도 entity 구조가 더 명확하다.
+1. 이 프로젝트의 핵심은 mesh editor보다 domain-aware object editor에 가깝다.
+2. 관계 수정, metadata 유지, validation/collision 계산은 entity 모델이 더 안정적이다.
+3. Duplicate 기반 생성도 raw mesh 직접 수정보다 entity 흐름 위에서 다루는 편이 안전하다.
 4. XY plane 중심의 작업 UX와도 더 잘 맞는다.
 
 즉 추천은:
@@ -289,6 +321,7 @@ Apply를 경계로 두면:
 - `Apply` — 구현됨, draft를 applied 기준으로 승격
 - `Revert` — 구현됨, applied 상태로 draft 복원
 - `Reset to imported GLB` — 아직 미구현
+- `Duplicate` — 목표 UX, 선택된 오브젝트를 복사해 새 작업 시작점 생성
 - `Export GLB` — 구현됨, applied 기준 export, pending draft가 있으면 차단
 
 ### 5.2 상태 표시
@@ -337,11 +370,12 @@ Apply를 경계로 두면:
 
 이 문서의 권장 구조는 한 줄로 요약하면 다음과 같다.
 
-> **GLB는 import 시 entity로 해석하고, 중앙은 draft를 편집하며, Apply 버튼으로 applied를 만들고, preview와 export는 applied 기준으로 통일한다.**
+> **GLB는 import 시 entity로 해석하고, 중앙은 draft를 편집하며, 새 오브젝트 생성은 Duplicate를 기본으로 하고, Apply 버튼으로 applied를 만들고, preview와 export는 applied 기준으로 통일한다.**
 
 이 구조를 따르면:
 - 원본 / 편집 중 / 적용 결과의 역할이 분리되고
 - preview가 export와 같은 결과를 확인하는 의미로 명확해지며
+- 일반 오브젝트 편집 흐름이 일관되고
 - export 기준이 안정되고
 - 현재의 preview 혼선을 구조적으로 줄일 수 있다.
 
@@ -353,12 +387,16 @@ Apply를 경계로 두면:
 
 - `loadGlbFile(file)`
 - `pristineScene`
-- entity 정규화 (`lifts / ports / readonlyObjects`)
+- entity 정규화 (`lifts / ports / readonlyObjects`) — 현재 구현(과도기) 기준
 - `deriveScene(...)`
-- `applyLift(...)`
-- `applyPort(...)`
-- `applyReadOnly(...)`
+- `applyLift(...)` — 현재 구현(과도기) 기준
+- `applyPort(...)` — 현재 구현(과도기) 기준
+- `applyReadOnly(...)` — 현재 구현(과도기) 기준
 - `exportGlb(...)`
 
+메모:
+- `applyLift / applyPort / applyReadOnly` 같은 분리 함수는 현재 구현과 연결되는 과도기 구조다.
+- 장기적으로는 공통 object 계층에 맞춰 `applyObject(...)` 같은 통합 경로로 수렴할 수 있다.
+
 즉 전면 재작성보다,
-**상태 분리와 Apply 경계 추가**가 우선이다.
+**상태 분리와 Apply 경계 유지 + 생성 UX와 Z 편집 개념 정리**가 우선이다.
