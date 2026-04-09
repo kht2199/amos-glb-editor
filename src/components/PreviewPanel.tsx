@@ -4,21 +4,21 @@ import { useEditorStore } from '../store/editor-store'
 import { PreviewSceneCanvas } from './PreviewSceneCanvas'
 
 export function PreviewPanel() {
-  const { isPreviewOpen, runtime, selectedId, setPreviewOpen } = useEditorStore(useShallow((state) => ({
+  const { fileName, isPreviewOpen, selectedId, setPreviewOpen } = useEditorStore(useShallow((state) => ({
+    fileName: state.fileName,
     isPreviewOpen: state.isPreviewOpen,
-    runtime: state.runtime,
     selectedId: state.selectedId,
     setPreviewOpen: state.setPreviewOpen,
   })))
 
-  if (!runtime.workingScene || isPreviewOpen) return null
+  if (!fileName || isPreviewOpen) return null
 
   return (
     <section className="flex h-[320px] min-h-[280px] flex-col border-l border-t border-slate-800 bg-slate-950/65">
       <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
         <div>
           <h2 className="text-sm font-semibold text-slate-100">Live Preview</h2>
-          <p className="mt-1 text-xs text-slate-400">Selected {selectedId ?? 'None'} · read-only orbit view · XYZ gizmo</p>
+          <p className="mt-1 text-xs text-slate-400">Selected {selectedId ?? 'None'} · store-based simplified preview · XYZ gizmo</p>
         </div>
         <button
           type="button"
@@ -30,7 +30,7 @@ export function PreviewPanel() {
         </button>
       </div>
       <div className="min-h-0 flex-1">
-        <PreviewSceneCanvas scene={runtime.workingScene} />
+        <PreviewSceneCanvas />
       </div>
     </section>
   )
