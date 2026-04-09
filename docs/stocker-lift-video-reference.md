@@ -6,6 +6,11 @@
 목적은 완전한 실사 재현이 아니라,
 **영상에서 반복적으로 보이는 장비의 형상·축 방향·handoff 순서**를 scene 생성 프롬프트에 반영하는 것이다.
 
+추가 기준:
+- 현재 demo scene의 주연은 **층간 리프트와 상부/하부 포트 관계**다.
+- 따라서 fab-wide OHT overview 장면은 보조 참고로만 쓰고,
+- **upper port / lower port / vertical transfer**를 읽을 수 있는 장면을 우선 참고한다.
+
 ---
 
 ## 참고한 자료
@@ -31,6 +36,9 @@
 
 ### 3) AMHS for Semiconductor Fabrication Plant (Daifuku)
 - URL: https://www.youtube.com/watch?v=XKXZT-BBUEE
+- 용도 주의
+  - 이 영상은 **층간 리프트 자체**보다 fab-wide OHT/guideway 문맥 참고용에 가깝다.
+  - 따라서 upper/lower port 비교의 주 기준으로 삼기보다, rail/transport를 얼마나 보조적으로 둘지 판단할 때 사용한다.
 - 관찰 포인트
   - 대규모 fab를 내려다보는 장면에서 **rows of white process tools** 위로 **overhead transport line**이 지나감
   - mainline OHT는 바닥 장비 사이를 다니는 AGV가 아니라 **상부 guideway를 따라 이동하는 ceiling logistics**로 표현됨
@@ -65,7 +73,7 @@ scene을 다시 만들거나 결과를 비교할 때, 전체 영상을 처음부
 - 우선 볼 구간
   - **초반부 mainline rail 장면 전후**
     - 왜 필요한가: overhead rail이 단선이 아니라 **병렬 lane / 곡선 turn / junction**으로 읽히는지 확인하기 좋다.
-  - **stocker/lift demo cell처럼 보이는 장면 전후**
+  - **중반부 stocker/lift demo cell처럼 보이는 장면 전후**
     - 왜 필요한가: 단순 OHT 라인만이 아니라, 중앙 vertical bay + 반복 storage level + side module 조합을 읽기 좋다.
 - 비교 시 체크 포인트
   - rail이 바닥 lane처럼 보이지 않는가
@@ -111,13 +119,13 @@ scene을 다시 만들거나 결과를 비교할 때, 전체 영상을 처음부
 새 scene을 만들고 비교할 때는 아래 순서가 가장 효율적이다.
 
 1. **Automated Material Handling Systems Solution 약 0:35 전후**
-   - stocker body / 내부 carriage / top handoff 인상 확인
+   - stocker body / 내부 carriage / upper-lower vertical relation 확인
 2. **같은 영상 약 0:53 전후**
-   - handoff 흐름과 slot rhythm 확인
-3. **Daifuku 약 1:00 전후**
-   - OHT/rail이 upper context인지 확인
-4. **TSMC mainline/junction 장면**
-   - rail network가 너무 단순하거나 바닥 lane처럼 보이지 않는지 확인
+   - handoff 흐름과 slot rhythm, 상부 인터페이스 확인
+3. **TSMC의 stocker/lift demo cell처럼 보이는 장면 전후**
+   - 층간 수직 bay와 주변 handoff 면 조합 확인
+4. **Daifuku 약 1:00 전후**
+   - OHT/rail이 upper context인지 확인하는 보조 비교
 5. **Muratec / MoveLink 텍스트**
    - storage semantics와 용어 해석 교차검증
 

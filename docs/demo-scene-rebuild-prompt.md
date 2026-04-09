@@ -8,12 +8,12 @@
 
 `glb-editor`의 demo scene을 다시 만든다.
 이 demo scene의 목적은 반도체 FAB 전체를 사실적으로 재현하는 것이 아니라,
-**Lift/Port 중심의 제약형 편집기에서 배치 편집, domain parent 복원, semantic role 표현을 검증**하는 것이다.
+**층간 리프트(inter-floor lift)와 상부/하부 포트 중심의 제약형 편집기에서 배치 편집, domain parent 복원, semantic role 표현을 검증**하는 것이다.
 
 즉, 이 scene은 다음을 검증해야 한다.
 
-1. Lift 이동/회전과 애니메이션 메타데이터
-2. Port의 face/slot/level 기반 배치
+1. 층간 Lift 이동/회전과 애니메이션 메타데이터
+2. 상부/하부 Port의 face/slot/level 기반 배치
 3. Lift 소속 Port와 Lift 외부 Port(예: Stocker access)의 구분
 4. `domainParentId` / `domainParentType` / `semanticRole` 유지
 5. read-only 구조물은 문맥만 제공하고 편집 핵심보다 앞에 서지 않도록 시각적 우선순위를 낮추기
@@ -24,8 +24,8 @@
 
 - 이 editor는 **상단뷰 기반 배치 편집기**다.
 - 자유형 3D 모델러를 만드는 것이 아니다.
-- 편집 핵심은 `Lift`와 `Port`다.
-- `Bridge`, `Rail`, `Stocker`, `Transport`, cleanroom shell은 **문맥 제공용 구조물**이다.
+- 편집 핵심은 **층간 `Lift`와 그에 연결된 상부/하부 `Port`**다.
+- `Bridge`, `Rail`, `Stocker`, `Transport`, cleanroom shell은 **보조 문맥 제공용 구조물**이다.
 - 편집 로직은 geometry보다 metadata 중심이어야 한다.
 - scene graph parent보다 **domain parent**가 더 중요하다.
 - 원본 GLB의 메쉬 형태가 달라도 편집 규칙은 동일해야 한다.
@@ -55,7 +55,10 @@
 - Port 총 4개
 - Lift dock port 3개
 - Stocker access port 1개
+- 최소 1개의 Lift는 **상부 포트와 하부 포트를 둘 다 가져야 함**
+- 장면을 처음 봤을 때 "이 리프트가 서로 다른 Z 레벨의 handoff point를 연결한다"가 읽혀야 함
 - Port는 단순 박스가 아니라 의미가 조금 드러나는 low-poly 형태로 표현
+- `slot`은 같은 `face`·같은 `level` 안에서의 배치 순서로 해석
 - 단, 편집 기준은 메쉬가 아니라 metadata여야 함
 
 예시 구성:
@@ -69,7 +72,7 @@
 - `port_a_02`
   - parent: `lift_a`
   - `semanticRole = LIFT_DOCK`
-  - `level = TOP`
+  - `level = BOTTOM`
   - `face = FRONT`
   - `slot = 4`
   - `portType = OUT`
@@ -96,7 +99,7 @@
   - Stocker 1개
   - Transport 1개
 - 이 오브젝트들은 편집 대상이 아니라 **배경 문맥**이다.
-- 존재감은 있되, Lift/Port보다 강하게 보이면 안 된다.
+- 존재감은 있되, **층간 Lift와 상부/하부 Port 관계보다 강하게 보이면 안 된다.**
 
 예시 의미:
 - `Bridge`: 연결 구조물
@@ -117,19 +120,19 @@
 ## 실제 stocker/lift 동작 참고 해석
 
 실제/제품 소개 영상 기준으로 scene은 아래 특징을 따르면 결과가 안정적이다.
+단, 이 장면의 주연은 generic AMHS overview가 아니라 **층간 리프트와 upper/lower handoff 관계**다.
 
 - Stocker는 **높은 직육면체 cleanroom cabinet/tower**처럼 보여야 함
 - Stocker 내부에는 **반복적인 multi-level storage slot rhythm**이 보여야 함
 - 내부 transfer는 흔들리는 crane보다 **vertical lift carriage의 직선 Z 이동**으로 느껴져야 함
 - slot 입출고는 긴 다관절 팔보다 **짧은 horizontal handoff shelf / platform**이 더 자연스러움
 - overhead rail/OHT는 바닥 장비가 아니라 **상부 guideway 문맥**으로 보여야 함
-- stocker 상부에는 OHT에서 내부 lift로 이어지는 **top handoff 접점**이 보여야 하며, 전체 흐름은 한눈에 아래 순서로 읽혀야 함
-  - overhead arrival (ceiling rail context)
-  - top handoff (stocker 상부 접점)
-  - vertical alignment (internal lift Z 이동)
-  - short horizontal insert (slot 입출고)
-
-즉, 장면은 “위에서는 운반, 안에서는 수직 정렬, 슬롯에는 짧게 넣고 뺀다”가 읽히는 방향이 좋다.
+- stocker 상부에는 OHT에서 내부 lift로 이어지는 **top handoff 접점**이 보일 수 있지만, 이번 demo scene의 핵심 메시지는 어디까지나 **상부 포트 ↔ 하부 포트 ↔ 수직 lift 연결**이다.
+- 따라서 전체 흐름은 아래 순서가 우선 읽혀야 함
+  - upper port handoff
+  - vertical lift transfer
+  - lower port handoff
+- overhead rail/OHT와 stocker는 이 흐름을 보조하는 문맥으로 남겨도 충분하다.
 
 ---
 
@@ -138,10 +141,10 @@
 ### 1) 핵심 오브젝트 우선순위
 가장 눈에 띄어야 하는 순서는 대략 다음과 같다.
 
-1. Lift
-2. Port
+1. 층간 Lift 본체
+2. 상부/하부 Port
 3. Stocker
-4. Bridge / Rail
+4. Bridge / Rail / Transport
 5. Cleanroom shell / building-like background
 
 즉, building처럼 보이는 구조물이 scene의 주인공처럼 보이면 안 된다.
@@ -160,7 +163,7 @@
 ### 3) Preview 카메라
 - preview 초기 카메라는 **정면 기준 45도 ISO 뷰**여야 함
 - 기본 target은 scene center여야 하며, 초기 position은 X축 비틀림 없이 floor/ceiling 높이 차를 바로 읽을 수 있어야 함
-- 사용자가 열었을 때 바닥은 아래, 천장은 위라는 관계가 즉시 이해되어야 함
+- 사용자가 열었을 때 **상부 포트는 높은 Z, 하부 포트는 낮은 Z**라는 관계가 즉시 이해되어야 함
 - Lift/Port가 cleanroom shell, wall, ceiling grid 같은 배경 구조물에 가려진 상태로 시작하면 안 됨
 - orbit은 가능하되, initial pose는 top view 기반 편집기의 확장 preview처럼 보여야 함
 
@@ -220,7 +223,7 @@
 
 이 demo scene을 보는 사람은 다음을 바로 이해할 수 있어야 한다.
 
-1. 이 editor의 핵심은 Lift와 Port 편집이다.
+1. 이 editor의 핵심은 층간 Lift와 상부/하부 Port 편집이다.
 2. Stocker access 같은 lift 외부 포트도 다룰 수 있다.
 3. read-only 구조물은 배치 문맥용이다.
 4. cleanroom/building-like 구조물은 배경일 뿐이며 편집 주제가 아니다.
@@ -231,6 +234,7 @@
 ## 하지 말아야 할 것
 
 - FAB 전체를 과도하게 사실적으로 재현하려고 하지 말 것
+- generic fab-wide AMHS overview를 main reference로 삼지 말 것
 - 건물/벽/천장 구조가 Lift/Port보다 더 눈에 띄게 만들지 말 것
 - preview를 완전 side view 또는 완전 top-down으로 시작하지 말 것
 - 배경 구조물(cleanroom shell, wall, ceiling)이 Lift/Port 앞에 서는 각도로 시작하지 말 것

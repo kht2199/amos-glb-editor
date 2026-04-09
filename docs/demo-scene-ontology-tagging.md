@@ -22,30 +22,34 @@
   - floor / ceiling grid / column / rear wall
 
 이 장면은 FAB 전체 재현이 아니라,
-**Lift/Port 편집, domain parent 복원, semantic role 표현을 검증하기 위한 축약 샘플**이다.
+**층간 Lift와 상부/하부 Port 편집, domain parent 복원, semantic role 표현을 검증하기 위한 축약 샘플**이다.
 
 ## 캐리어 흐름 관점의 해석
 현재 demo scene은 아래 구조를 단순화한 장면으로 본다.
 
-`Transport(OHT) → Rail/Bridge guideway → Stocker top handoff contact → internal vertical carriage / storage body → Stocker access point`
+`Upper Port Handoff → Inter-floor Lift Vertical Transfer → Lower Port Handoff`
+
+보조 문맥으로는 아래 흐름을 덧붙여 읽을 수 있다.
+
+`Transport(OHT) → Rail/Bridge guideway → Stocker top handoff contact → Stocker access point`
 
 즉,
-- `Transport`는 ceiling guideway 위를 흐르는 OHT 문맥
+- `Lift`는 편집 핵심인 **층간 수직 이송 모듈**
+- `Port`는 **상부/하부 handoff를 나타내는 핵심 인터페이스**
+- `Transport`는 ceiling guideway 위를 흐르는 OHT 보조 문맥
 - `Rail`, `Bridge`는 guideway 배경 구조
-- `Lift`는 편집 핵심 수직 이송 모듈
-- `Port`는 의미론적 역할을 가진 handoff / access point
 - `Stocker`는 저장 장치 본체이며, 내부 carriage / slot rhythm / top handoff hint를 read-only geometry로 읽을 수 있음
-- `Transport`/`OHT`는 현재 scene의 중심 오브젝트는 아니지만, 이번 버전부터 scene 안에서 ceiling logistics 문맥을 직접 보여주는 read-only reference로 포함됨
+- `Transport`/`OHT`는 현재 scene의 중심 오브젝트가 아니라 ceiling logistics를 암시하는 read-only reference
 - cleanroom shell은 도메인 엔티티라기보다 lightweight visual context
 
 ## 노드/엔티티 tagging 표
 | Entity | editorId | ontology class | editor entity | domain parent | 핵심 메타 | note |
 |---|---|---|---|---|---|---|
 | Lift A | `lift_a` | `VerticalTransfer.Lift` | Lift | - | `rotation=0`, `slotsPerFace=6` | editable lift |
-| Lift B | `lift_b` | `VerticalTransfer.Lift` | Lift | - | `rotation=90`, `slotsPerFace=6` | editable lift |
+| Lift B | `lift_b` | `VerticalTransfer.Lift` | Lift | - | `rotation=90`, `slotsPerFace=6` | editable lift, single-level dock reference |
 | Port A-01 | `port_a_01` | `Interface.DockingPoint` | Port | `Lift(lift_a)` | `semanticRole=LIFT_DOCK`, `level=TOP`, `face=FRONT`, `slot=2`, `portType=IN` | lift 상단 전면 도킹 포인트 |
-| Port A-02 | `port_a_02` | `Interface.DockingPoint` | Port | `Lift(lift_a)` | `semanticRole=LIFT_DOCK`, `level=TOP`, `face=FRONT`, `slot=4`, `portType=OUT` | lift 상단 전면 도킹 포인트 |
-| Port B-01 | `port_b_01` | `Interface.DockingPoint` | Port | `Lift(lift_b)` | `semanticRole=LIFT_DOCK`, `level=BOTTOM`, `face=LEFT`, `slot=3`, `portType=INOUT` | lift 하단 좌측 도킹 포인트 |
+| Port A-02 | `port_a_02` | `Interface.DockingPoint` | Port | `Lift(lift_a)` | `semanticRole=LIFT_DOCK`, `level=BOTTOM`, `face=FRONT`, `slot=4`, `portType=OUT` | lift 하단 전면 도킹 포인트 |
+| Port B-01 | `port_b_01` | `Interface.DockingPoint` | Port | `Lift(lift_b)` | `semanticRole=LIFT_DOCK`, `level=BOTTOM`, `face=LEFT`, `slot=3`, `portType=INOUT` | 보조 lift의 하단 좌측 도킹 포인트 |
 | Stocker Access 01 | `stocker_access_01` | `Interface.AccessPoint` | Port | `Stocker(stocker_01)` | `semanticRole=STOCKER_ACCESS`, `level=BOTTOM`, `face=FRONT`, `slot=1`, `portType=INOUT` | stocker 접근/인계 지점 |
 | Bridge 01 | `bridge_01` | `Guideway.Bridge` | Bridge | - | read-only | 배경 연결 구조 |
 | Rail 01 | `rail_01` | `Guideway.Rail` | Rail | - | read-only | transport path reference |
@@ -91,6 +95,7 @@
 
 ### validation
 - Lift 소속 포트는 `same lift + same level + same face + same slot` 충돌을 본다.
+- 여기서 `slot`은 같은 `face`·같은 `level` 안에서의 배치 순서를 의미한다.
 - Lift 외부 포트는 `same domain parent + same level + same face + same slot` 규칙으로 확장 가능하다.
 
 ### export
@@ -100,10 +105,11 @@
 
 ## 결론
 현재 demo scene은 반도체 FAB 전체를 정밀 재현한 샘플이 아니라,
-**Lift 중심 편집기에서 Port의 의미론적 역할과 부모 복원 규칙을 검증하기 위한 도메인 샘플**이다.
+**층간 Lift 중심 편집기에서 상부/하부 Port의 의미론적 역할과 부모 복원 규칙을 검증하기 위한 도메인 샘플**이다.
 
-특히 이번 버전의 핵심 차별점은 다음 네 가지다.
-1. `Stocker access port`를 별도 semantic role과 domain parent로 표현했다.
-2. Lift / Port / Stocker의 외형을 box placeholder보다 조금 더 현실적인 low-poly 구조로 바꿨다.
-3. Stocker에 내부 vertical carriage, top handoff hint, storage slot rhythm을 read-only visual hint로 반영했다.
-4. Transport/OHT를 별도 read-only reference로 추가해 ceiling logistics 문맥을 더 직접적으로 드러냈다.
+특히 이번 버전의 핵심 차별점은 다음 다섯 가지다.
+1. `lift_a`에 상부 포트와 하부 포트를 함께 두어 **inter-floor handoff pair**를 한 눈에 읽히게 했다.
+2. `Stocker access port`를 별도 semantic role과 domain parent로 표현했다.
+3. Lift / Port / Stocker의 외형을 box placeholder보다 조금 더 현실적인 low-poly 구조로 바꿨다.
+4. Stocker에 내부 vertical carriage, top handoff hint, storage slot rhythm을 read-only visual hint로 반영했다.
+5. Transport/OHT를 별도 read-only reference로 추가하되, ceiling logistics의 보조 문맥으로 후순위에 뒀다.
