@@ -1,7 +1,9 @@
+import { lazy, Suspense } from 'react'
 import { X } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { useEditorStore } from '../store/editor-store'
-import { PreviewSceneCanvas } from './PreviewSceneCanvas'
+
+const PreviewSceneCanvas = lazy(async () => import('./PreviewSceneCanvas').then((module) => ({ default: module.PreviewSceneCanvas })))
 
 export function PreviewOverlay() {
   const { fileName, hasPendingChanges, isPreviewOpen, selectedId, setPreviewOpen } = useEditorStore(useShallow((state) => ({
@@ -25,7 +27,9 @@ export function PreviewOverlay() {
           <button type="button" onClick={() => setPreviewOpen(false)} className="rounded-lg border border-slate-700 p-2 text-slate-300 hover:border-slate-500 hover:text-white"><X className="h-4 w-4" /></button>
         </div>
         <div className="flex-1">
-          <PreviewSceneCanvas />
+          <Suspense fallback={<div className="h-full w-full bg-slate-950/40" />}>
+            <PreviewSceneCanvas />
+          </Suspense>
         </div>
       </div>
     </div>

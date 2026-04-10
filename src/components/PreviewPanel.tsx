@@ -1,7 +1,9 @@
+import { lazy, Suspense } from 'react'
 import { Expand } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { useEditorStore } from '../store/editor-store'
-import { PreviewSceneCanvas } from './PreviewSceneCanvas'
+
+const PreviewSceneCanvas = lazy(async () => import('./PreviewSceneCanvas').then((module) => ({ default: module.PreviewSceneCanvas })))
 
 export function PreviewPanel() {
   const { fileName, hasPendingChanges, isPreviewOpen, selectedId, setPreviewOpen } = useEditorStore(useShallow((state) => ({
@@ -31,7 +33,9 @@ export function PreviewPanel() {
         </button>
       </div>
       <div className="min-h-0 flex-1">
-        <PreviewSceneCanvas />
+        <Suspense fallback={<div className="h-full w-full bg-slate-950/40" />}>
+          <PreviewSceneCanvas />
+        </Suspense>
       </div>
     </section>
   )

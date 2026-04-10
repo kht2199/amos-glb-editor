@@ -1,8 +1,16 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { useEditorStore } from './store/editor-store'
+
+vi.mock('./components/PreviewPanel', () => ({
+  PreviewPanel: () => <div data-testid="preview-panel-mock" />,
+}))
+
+vi.mock('./components/PreviewOverlay', () => ({
+  PreviewOverlay: () => null,
+}))
 
 beforeEach(() => {
   localStorage.clear()
