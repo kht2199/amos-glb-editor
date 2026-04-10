@@ -24,8 +24,8 @@
      - `src/store/editor-store.ts`
 
 2. **높이 모델 불일치**
-   - 문서: `TOP/BOTTOM`보다 `Z` 직접 수정 중심
-   - 코드: `PortLevel`, `VisibilityMode`, `addPortDraft.level` 유지
+   - 문서: `zOffset` 보존 + `Z` 직접 수정 중심
+   - 코드: 과거 `PortLevel`, `VisibilityMode`, level inference 흔적이 남아 있었음
    - 관련 파일:
      - `src/types.ts`
      - `src/lib/utils.ts`
@@ -151,33 +151,37 @@
 
 ---
 
-## Phase 2 — Port 높이/가시성 모델 정리
+## Phase 2 — Port 높이 모델을 Z 중심으로 정리
 
 ### 목표
-문서가 지향하는 `Z 직접 수정` 중심 모델로 점진 이행한다.
+`PortLevel(TOP/BOTTOM)`을 제거하고, Lift 소속 Port의 높이를 `zOffset`과 실제 `Z` 값 기준으로만 관리한다.
 
 ### 체크리스트
-- [ ] `PortLevel = TOP | BOTTOM`를 유지할지, 파생값으로 낮출지, 제거할지 결정한다.
-- [ ] `VisibilityMode = TOP_ONLY | BOTTOM_ONLY`를 Z 기준 필터 또는 다른 뷰 모델로 대체할지 결정한다.
-- [ ] `computePortPosition()`이 `level` 중심인 부분을 `z` 또는 `zOffset` 중심으로 재설계한다.
-- [ ] Inspector에서 `Level`보다 `Z`가 1차 표현이 되도록 정리한다.
-- [ ] import/export 시 level inference가 꼭 필요한지 재검토한다.
-- [ ] 문서에서 이미 제거 대상으로 적은 구개념을 실제 타입/로직/UI에서 함께 정리한다.
+- [x] `VisibilityMode = TOP_ONLY | BOTTOM_ONLY`를 제거하고 관련 store/UI/helper를 정리한다.
+- [x] Inspector에서 Port 높이 편집 기준을 `level`이 아니라 `Z`로 고정한다.
+- [x] `PortLevel` 타입과 `PortEntity.level` 필드를 제거한다.
+- [x] `computePortPosition()`을 `face + slot + zOffset` 기준으로 단순화한다.
+- [x] validation/collision 규칙에서 `level` 축을 제거하고 `same domain parent + same face + same slot` 충돌 기준으로 맞춘다.
+- [x] import/export 시 `level inference`를 제거하고 `zOffset` round-trip 기준으로 정리한다.
+- [x] 문서와 테스트에서 `TOP/BOTTOM` 포트 개념 대신 `Z/zOffset` 모델을 사용하도록 갱신한다.
 
 ### 우선 수정 파일
 - `src/types.ts`
 - `src/lib/utils.ts`
-- `src/lib/visibilityMode.ts`
-- `src/components/Toolbar.tsx`
+- `src/lib/collision.ts`
+- `src/lib/validation.ts`
 - `src/components/InspectorPanel.tsx`
 - `src/store/editor-store.ts`
 - `src/lib/glb.ts`
+- `src/lib/demoScene.ts`
 - `src/lib/glb.test.ts`
 - `src/lib/validation.test.ts`
+- `scripts/verify-import-export.ts`
 
 ### 완료 기준
-- 사용자 높이 편집의 주 표현이 `Z`가 됨
-- `TOP/BOTTOM`, `TOP_ONLY/BOTTOM_ONLY`가 핵심 UX/핵심 타입에서 빠지거나 파생 개념으로만 남음
+- `PortLevel` / `port.level` 참조가 코드에서 제거됨
+- Port 높이 복원이 `face + slot + zOffset` 기반으로 동작함
+- Inspector/validation/import/export 문서와 구현이 같은 모델을 설명함
 
 ---
 
@@ -188,7 +192,7 @@ Port를 “Lift 고정 전용 엔티티”가 아니라 문서 설명과 맞는 
 
 ### 체크리스트
 - [ ] 현재 `nearestLift` 재부착 로직에 대한 테스트가 있는지 확인하고, 없으면 현행 동작을 먼저 테스트로 고정한다.
-- [ ] 이 단계에서 `PortLevel`을 어디까지 건드릴지 범위를 먼저 명시한다. 완전 제거는 Phase 2로 미뤄도, 재계산/유지 규칙은 여기서 확정한다.
+- [x] Port 높이 모델은 `PortLevel`이 아니라 `zOffset + Z` 기준으로 정리한다.
 - [ ] Inspector에서 `domainParentType`, `domainParentId`를 어떤 수준까지 직접 수정할지 결정한다.
 - [ ] 포트 이동 시 무조건 nearest lift에 재부착하는 정책을 완화하거나 조건부화한다.
 - [ ] external port(`Stocker`, `Transport`, `Bridge`, `Rail`)를 유지한 채 위치 수정 가능한지 정리한다.
@@ -222,7 +226,7 @@ Port를 “Lift 고정 전용 엔티티”가 아니라 문서 설명과 맞는 
 - [ ] 우선 selector/helper 레벨에 `allDraftObjects`, `allAppliedObjects`를 도입한다.
 - [ ] 공통 편집 액션(`move/update/delete/duplicate/select`)을 object 관점 API로 감싼다.
 - [ ] Inspector를 `공통 필드 + 타입별 확장 필드` 구조로 재편한다.
-- [ ] `ReadOnlyEntity` 명칭이 실제 편집 가능 범위와 맞는지 재정의한다.
+- [ ] `ReadOnlyEntity` 명칭이 실제 편집 가능 범위와 맞는지 재정의한다. (현재는 구조 객체 타입명은 유지하고, `readOnly: true` 플래그만 제거함)
 - [ ] StructurePanel 표기도 `RO` 중심 표현에서 더 일반적인 object 관점으로 바꿀지 결정한다.
 - [ ] 이후 필요하면 내부 저장소까지 통합 배열/맵 구조로 옮긴다.
 
@@ -294,7 +298,7 @@ README, flow 문서, domain 문서가 서로 다른 “현재상”을 설명하
 - 관련 테스트 보강
 
 ### 3차 묶음
-- `TOP/BOTTOM` / `TOP_ONLY/BOTTOM_ONLY` 정리
+- `relative Z` / `TOP_ONLY/BOTTOM_ONLY` 정리
 - 통합 object 편집 모델 정리
 - 문서 동기화
 
@@ -304,6 +308,6 @@ README, flow 문서, domain 문서가 서로 다른 “현재상”을 설명하
 Claude 리뷰에서는 특히 아래를 확인한다.
 - 현재 실행 순서가 리스크 기준으로 타당한가?
 - `Duplicate-first` 전환을 상태 통합보다 먼저 하는 판단이 맞는가?
-- `PortLevel` 제거/축소를 언제 하는 게 안전한가?
+- `zOffset` 기반 높이 모델 이후 nearest-lift 재부착 규칙을 어디까지 단순화할 것인가?
 - `setObjectType()`와 preview/export 간 불일치를 어떤 단계에서 먼저 다뤄야 하는가?
 - 문서 정리를 구현 전/후 어느 시점에 어느 정도까지 병행해야 하는가?

@@ -18,7 +18,6 @@ function makePort(overrides: Partial<PortEntity> = {}): PortEntity {
     domainParentType: 'Lift',
     semanticRole: 'LIFT_DOCK',
     portType: 'IN',
-    level: 'TOP',
     face: 'FRONT',
     slot: 1,
     position: { x: 0, y: 0, z: 10 },
@@ -72,6 +71,34 @@ describe('GLB round-trip and visual bounds', () => {
     expect(loaded.bundle.ports.some((port) => port.id === 'Port_Template')).toBe(false)
   })
 
+  it('preserves custom port z offset during export/import round-trip', async () => {
+    const { scene, bundle } = createDemoScene()
+    const source = bundle.ports.find((port) => port.id === 'port_a_01')
+    const shiftedPorts = bundle.ports.map((port) => port.id === 'port_a_01'
+      ? {
+        ...port,
+        zOffset: (source?.zOffset ?? source?.position.z ?? 0) + 13,
+        position: { ...port.position, z: ((source?.zOffset ?? source?.position.z ?? 0) + 13) + (bundle.lifts.find((lift) => lift.editorId === port.parentLiftId)?.position.z ?? 0) },
+      }
+      : port)
+
+    const blob = await exportGlb({
+      pristineScene: scene,
+      lifts: bundle.lifts,
+      ports: shiftedPorts,
+      readonlyObjects: bundle.readonlyObjects,
+      animations: [],
+    })
+
+    const file = new File([blob], 'port-z-offset.glb', { type: 'model/gltf-binary' })
+    const loaded = await loadGlbFile(file)
+    const reloaded = loaded.bundle.ports.find((port) => port.id === 'port_a_01')
+    const expected = shiftedPorts.find((port) => port.id === 'port_a_01')
+
+    expect(reloaded?.zOffset).toBe(expected?.zOffset)
+    expect(reloaded?.position.z).toBe(expected?.position.z)
+  })
+
   it('preserves explicit readonly objectType metadata over name heuristics during round-trip', async () => {
     const { scene, bundle } = createDemoScene()
     const reclassified = bundle.readonlyObjects.map((item) => item.id === 'stocker_01'
@@ -118,7 +145,6 @@ describe('GLB round-trip and visual bounds', () => {
     expect(inferred?.semanticRole).toBe('STOCKER_ACCESS')
     expect(inferred?.domainParentType).toBe('Stocker')
     expect(inferred?.domainParentId).toBe('Stocker_01')
-    expect(inferred?.level).toBe('BOTTOM')
     expect(inferred?.portType).toBe('OUT')
     expect(inferred?.slot).toBe(7)
   })

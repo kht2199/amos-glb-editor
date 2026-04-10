@@ -16,7 +16,6 @@ import type {
   ReadOnlyEntity,
   SerializableSession,
   ValidationIssue,
-  VisibilityMode,
 } from '../types'
 
 interface ExportFeedback {
@@ -41,7 +40,6 @@ interface EditorState {
   appliedPorts: PortEntity[]
   appliedReadonlyObjects: ReadOnlyEntity[]
   selectedId: string | null
-  visibilityMode: VisibilityMode
   mode: EditorMode
   snapEnabled: boolean
   validationIssues: ValidationIssue[]
@@ -62,7 +60,6 @@ interface EditorState {
   loadFile: (file: File) => Promise<void>
   selectObject: (editorId: string | null) => void
   setMode: (mode: EditorMode) => void
-  setVisibilityMode: (mode: VisibilityMode) => void
   setSnapEnabled: (enabled: boolean) => void
   setValidationOpen: (open: boolean) => void
   setPreviewOpen: (open: boolean) => void
@@ -98,16 +95,14 @@ function cloneSnapshot(snapshot: EditorSnapshot): EditorSnapshot {
     draftLifts: structuredClone(snapshot.draftLifts),
     draftPorts: structuredClone(snapshot.draftPorts),
     draftReadonlyObjects: structuredClone(snapshot.draftReadonlyObjects),
-    visibilityMode: snapshot.visibilityMode,
   }
 }
 
-function createSnapshot(state: Pick<EditorState, 'draftLifts' | 'draftPorts' | 'draftReadonlyObjects' | 'visibilityMode'>): EditorSnapshot {
+function createSnapshot(state: Pick<EditorState, 'draftLifts' | 'draftPorts' | 'draftReadonlyObjects'>): EditorSnapshot {
   return cloneSnapshot({
     draftLifts: state.draftLifts,
     draftPorts: state.draftPorts,
     draftReadonlyObjects: state.draftReadonlyObjects,
-    visibilityMode: state.visibilityMode,
   })
 }
 
@@ -118,7 +113,7 @@ function hydratePortPositions(lifts: LiftEntity[], ports: PortEntity[]) {
     if (!lift || port.deleted) return port
     return {
       ...port,
-      position: computePortPosition(lift, port.face, port.slot, port.level, port.zOffset ?? 0),
+      position: computePortPosition(lift, port.face, port.slot, port.zOffset ?? (port.position.z - lift.position.z)),
     }
   })
 }
@@ -127,12 +122,12 @@ function withUpdatedPortPosition(lifts: LiftEntity[], port: PortEntity) {
   if (port.domainParentType !== 'Lift' || !port.parentLiftId) return port
   const lift = lifts.find((item) => item.editorId === port.parentLiftId)
   if (!lift || port.deleted) return port
-  const basePosition = computePortPosition(lift, port.face, port.slot, port.level)
+  const basePosition = computePortPosition(lift, port.face, port.slot)
   const zOffset = port.zOffset ?? (port.position.z - basePosition.z)
   return {
     ...port,
     zOffset,
-    position: computePortPosition(lift, port.face, port.slot, port.level, zOffset),
+    position: computePortPosition(lift, port.face, port.slot, zOffset),
   }
 }
 
@@ -173,8 +168,7 @@ function nextAvailablePortSlot(ports: PortEntity[], port: PortEntity) {
         && item.parentLiftId === port.parentLiftId
         && item.domainParentType === port.domainParentType
         && item.domainParentId === port.domainParentId
-        && item.face === port.face
-        && item.level === port.level)
+        && item.face === port.face)
       .map((item) => item.slot),
   )
   let slot = Math.max(1, port.slot)
@@ -284,7 +278,6 @@ function makeReadonlyFromEntity(entity: SceneEntity, objectType: ReadOnlyEntity[
     width: entity.width,
     depth: entity.depth,
     height: entity.height,
-    readOnly: true,
     domainLabel: entity.domainLabel,
   }
 }
@@ -305,10 +298,10 @@ function makePortFromEntity(entity: SceneEntity, lifts: LiftEntity[]): PortEntit
       domainParentType: 'Lift',
       semanticRole: 'LIFT_DOCK',
       portType: 'IN',
-      level: entity.position.z >= nearestLift.position.z + nearestLift.height / 2 ? 'TOP' : 'BOTTOM',
       face: 'FRONT',
       slot: 1,
       position: structuredClone(entity.position),
+      zOffset: entity.position.z - nearestLift.position.z,
       width: Math.min(entity.width, 12),
       depth: Math.min(entity.depth, 12),
       height: Math.min(entity.height, 12),
@@ -336,7 +329,6 @@ function makePortFromEntity(entity: SceneEntity, lifts: LiftEntity[]): PortEntit
     domainParentType: externalParentType,
     semanticRole: externalParentType === 'Stocker' ? 'STOCKER_ACCESS' : 'BUFFER_HANDOFF',
     portType: 'IN',
-    level: 'BOTTOM',
     face: 'FRONT',
     slot: 1,
     position: structuredClone(entity.position),
@@ -399,7 +391,6 @@ function serializableSession(state: EditorState): SerializableSession | null {
   if (!state.fileName) return null
   return {
     fileName: state.fileName,
-    visibilityMode: state.visibilityMode,
     snapEnabled: state.snapEnabled,
     lifts: state.draftLifts,
     ports: state.draftPorts,
@@ -467,7 +458,6 @@ function initializeScene(bundle: { fileName: string; lifts: LiftEntity[]; ports:
     appliedReadonlyObjects: structuredClone(bundle.readonlyObjects),
     selectedId: null,
     mode: 'select' as const,
-    visibilityMode: 'TOP_ONLY' as const,
     snapEnabled: true,
     runtime,
     validationIssues: derived.validationIssues,
@@ -485,12 +475,11 @@ function initializeScene(bundle: { fileName: string; lifts: LiftEntity[]; ports:
 
 function applyMutation(
   state: EditorState,
-  nextScene: Partial<Pick<EditorState, 'draftLifts' | 'draftPorts' | 'draftReadonlyObjects' | 'visibilityMode' | 'selectedId' | 'mode'>>,
+  nextScene: Partial<Pick<EditorState, 'draftLifts' | 'draftPorts' | 'draftReadonlyObjects' | 'selectedId' | 'mode'>>,
   statusMessage = 'Unsaved changes',
 ) {
   const draftLifts = nextScene.draftLifts ?? state.draftLifts
   const draftReadonlyObjects = nextScene.draftReadonlyObjects ?? state.draftReadonlyObjects
-  const visibilityMode = nextScene.visibilityMode ?? state.visibilityMode
   const draftPortsSource = nextScene.draftPorts ?? state.draftPorts
   const derived = deriveScene(draftLifts, draftPortsSource, draftReadonlyObjects)
   const history = [...state.history, createSnapshot(state)].slice(-50)
@@ -508,7 +497,6 @@ function applyMutation(
     draftLifts,
     draftPorts: derived.ports,
     draftReadonlyObjects,
-    visibilityMode,
     selectedId: nextScene.selectedId ?? state.selectedId,
     mode: nextScene.mode ?? state.mode,
     validationIssues: derived.validationIssues,
@@ -529,7 +517,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   appliedPorts: [],
   appliedReadonlyObjects: [],
   selectedId: null,
-  visibilityMode: 'TOP_ONLY',
   mode: 'select',
   snapEnabled: true,
   validationIssues: [],
@@ -564,7 +551,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
   selectObject: (editorId) => set({ selectedId: editorId }),
   setMode: (mode) => set({ mode }),
-  setVisibilityMode: (visibilityMode) => set({ visibilityMode }),
   setSnapEnabled: (snapEnabled) => set({ snapEnabled }),
   setValidationOpen: (isValidationOpen) => set({ isValidationOpen }),
   setPreviewOpen: (isPreviewOpen) => set({ isPreviewOpen }),
@@ -726,7 +712,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       draftLifts: snapshot.draftLifts,
       draftPorts: derived.ports,
       draftReadonlyObjects: snapshot.draftReadonlyObjects,
-      visibilityMode: snapshot.visibilityMode,
       validationIssues: derived.validationIssues,
       collisionIssues: derived.collisionIssues,
       collisionIndex: derived.collisionIndex,
@@ -755,7 +740,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       draftLifts: snapshot.draftLifts,
       draftPorts: derived.ports,
       draftReadonlyObjects: snapshot.draftReadonlyObjects,
-      visibilityMode: snapshot.visibilityMode,
       validationIssues: derived.validationIssues,
       collisionIssues: derived.collisionIssues,
       collisionIndex: derived.collisionIndex,

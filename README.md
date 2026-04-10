@@ -29,7 +29,7 @@ GLB scene을 웹에서 읽고, **일반 오브젝트를 선택·복사·이동·
 - **중심 개념은 scene object**다.
 - `Port`, `Lift`, `Bridge`, `Rail`, `Stocker`, `Transport`는 여러 `objectType` 중 일부다.
 - 새 오브젝트 생성의 기본 방식은 **시스템이 새 primitive를 만드는 것**이 아니라 **선택된 오브젝트를 복사하는 것**이다.
-- 높이 차이는 `TOP/BOTTOM` 같은 enum이 아니라 **실제 Z 좌표**로 표현한다.
+- 높이 차이는 `relative Z` 같은 enum이 아니라 **실제 Z 좌표**로 표현한다.
 
 즉 이 에디터는 **objectType + metadata + transform**을 다루는 일반 오브젝트 에디터다.
 
@@ -123,8 +123,9 @@ re-export는 원본을 전부 재구성하지 않고, import 시점의 pristine 
 
 - `Add Port` 같은 타입 전용 생성 흐름 제거
 - `Duplicate` 중심 생성 UX 통일
-- `TOP/BOTTOM`, `TOP_ONLY/BOTTOM_ONLY` 제거
-- 높이 표현을 Z 직접 수정으로 통일
+- `VisibilityMode(TOP_ONLY/BOTTOM_ONLY)` 제거
+- `PortLevel` 없이 `zOffset`과 실제 Z 기준으로 Port 높이 복원
+- 높이 편집은 Z 직접 수정 중심으로 정리
 - `Port`를 여러 objectType 중 하나로 재위치
 - draft / applied / apply / revert 구조 유지
 

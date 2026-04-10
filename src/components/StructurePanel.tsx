@@ -1,5 +1,5 @@
 import { AlertTriangle, Search } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { cn } from '../lib/utils'
 import { useEditorStore } from '../store/editor-store'
@@ -24,7 +24,7 @@ export function StructurePanel() {
   const floatingPorts = visiblePorts.filter((port) => !port.parentLiftId || !draftLifts.some((lift) => lift.editorId === port.parentLiftId))
   const issueCount = (editorId: string) => (collisionIndex[editorId]?.length ?? 0) + validationIssues.filter((issue) => issue.targetId === editorId).length
 
-  const filtered = useMemo(() => {
+  const filtered = (() => {
     const text = query.trim().toLowerCase()
     const match = (value: string) => !text || value.toLowerCase().includes(text)
     return {
@@ -32,7 +32,7 @@ export function StructurePanel() {
       ports: visiblePorts.filter((port) => (filter === 'All' || filter === 'Port') && match(port.id)),
       readonlyObjects: draftReadonlyObjects.filter((item) => (filter === 'All' || filter === item.objectType) && match(item.id)),
     }
-  }, [filter, draftLifts, query, draftReadonlyObjects, visiblePorts])
+  })()
 
   return (
     <aside className="flex max-h-[40vh] min-h-[280px] flex-col border-b border-slate-800 bg-slate-950/40 lg:h-full lg:max-h-none lg:min-h-0 lg:border-b-0 lg:border-r">

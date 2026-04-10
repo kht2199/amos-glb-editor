@@ -263,40 +263,40 @@ export function createDemoScene() {
     {
       id: 'lift_b', editorId: 'lift_b', label: 'Lift B', objectType: 'Lift', nodeName: 'Lift_B',
       position: { x: 65, y: 20, z: 0 }, width: 64, depth: 34, height: 20, rotation: 90, slotsPerFace: 6,
-      animation: { ...DEFAULT_ANIMATION }, domainLabel: 'Single-level dock lift module B',
+      animation: { ...DEFAULT_ANIMATION }, domainLabel: 'Dock lift module B',
     },
   ]
 
   const readonlyObjects: ReadOnlyEntity[] = [
-    { id: 'bridge_01', editorId: 'bridge_01', label: 'Bridge 01', objectType: 'Bridge', nodeName: 'Bridge_01', position: { x: 0, y: -72, z: 0 }, width: 180, depth: 12, height: 10, readOnly: true, domainLabel: 'Overhead bridge frame' },
-    { id: 'rail_01', editorId: 'rail_01', label: 'Rail 01', objectType: 'Rail', nodeName: 'Rail_01', position: { x: 0, y: 62, z: 0 }, width: 180, depth: 8, height: 8, readOnly: true, domainLabel: 'Ceiling guide rail' },
-    { id: 'stocker_01', editorId: 'stocker_01', label: 'Stocker 01', objectType: 'Stocker', nodeName: 'Stocker_01', position: { x: 8, y: 100, z: 0 }, width: 32, depth: 24, height: 28, readOnly: true, domainLabel: 'Secondary stocker cabinet context' },
-    { id: 'transport_01', editorId: 'transport_01', label: 'Transport 01', objectType: 'Transport', nodeName: 'Transport_01', position: { x: 28, y: 62, z: 0 }, width: 16, depth: 10, height: 10, readOnly: true, domainLabel: 'Secondary overhead carrier context' },
+    { id: 'bridge_01', editorId: 'bridge_01', label: 'Bridge 01', objectType: 'Bridge', nodeName: 'Bridge_01', position: { x: 0, y: -72, z: 0 }, width: 180, depth: 12, height: 10, domainLabel: 'Overhead bridge frame' },
+    { id: 'rail_01', editorId: 'rail_01', label: 'Rail 01', objectType: 'Rail', nodeName: 'Rail_01', position: { x: 0, y: 62, z: 0 }, width: 180, depth: 8, height: 8, domainLabel: 'Ceiling guide rail' },
+    { id: 'stocker_01', editorId: 'stocker_01', label: 'Stocker 01', objectType: 'Stocker', nodeName: 'Stocker_01', position: { x: 8, y: 100, z: 0 }, width: 32, depth: 24, height: 28, domainLabel: 'Secondary stocker cabinet context' },
+    { id: 'transport_01', editorId: 'transport_01', label: 'Transport 01', objectType: 'Transport', nodeName: 'Transport_01', position: { x: 28, y: 62, z: 0 }, width: 16, depth: 10, height: 10, domainLabel: 'Secondary overhead carrier context' },
   ]
 
   const ports: PortEntity[] = [
     {
       id: 'port_a_01', editorId: 'port_a_01', label: 'Port A-01', objectType: 'Port', nodeName: 'Port_A_01',
       parentLiftId: 'lift_a', domainParentId: 'lift_a', domainParentType: 'Lift', semanticRole: 'LIFT_DOCK',
-      portType: 'IN', level: 'TOP', face: 'FRONT', slot: 2, position: { x: 0, y: 0, z: 0 }, width: 8, depth: 8, height: 8,
+      portType: 'IN', face: 'FRONT', slot: 2, position: { x: 0, y: 0, z: 20 }, width: 8, depth: 8, height: 8,
       created: false, templateNodeName: 'Port_Template', domainLabel: 'Upper lift handoff port',
     },
     {
       id: 'port_a_02', editorId: 'port_a_02', label: 'Port A-02', objectType: 'Port', nodeName: 'Port_A_02',
       parentLiftId: 'lift_a', domainParentId: 'lift_a', domainParentType: 'Lift', semanticRole: 'LIFT_DOCK',
-      portType: 'OUT', level: 'BOTTOM', face: 'FRONT', slot: 4, position: { x: 0, y: 0, z: 0 }, width: 8, depth: 8, height: 8,
+      portType: 'OUT', face: 'FRONT', slot: 4, position: { x: 0, y: 0, z: 0 }, width: 8, depth: 8, height: 8,
       created: false, templateNodeName: 'Port_Template', domainLabel: 'Lower lift handoff port',
     },
     {
       id: 'port_b_01', editorId: 'port_b_01', label: 'Port B-01', objectType: 'Port', nodeName: 'Port_B_01',
       parentLiftId: 'lift_b', domainParentId: 'lift_b', domainParentType: 'Lift', semanticRole: 'LIFT_DOCK',
-      portType: 'INOUT', level: 'BOTTOM', face: 'LEFT', slot: 3, position: { x: 0, y: 0, z: 0 }, width: 8, depth: 8, height: 8,
+      portType: 'INOUT', face: 'LEFT', slot: 3, position: { x: 0, y: 0, z: 0 }, width: 8, depth: 8, height: 8,
       created: false, templateNodeName: 'Port_Template', domainLabel: 'Secondary lower lift port',
     },
     {
       id: 'stocker_access_01', editorId: 'stocker_access_01', label: 'Stocker Access 01', objectType: 'Port', nodeName: 'Stocker_Access_01',
       domainParentId: 'stocker_01', domainParentType: 'Stocker', semanticRole: 'STOCKER_ACCESS',
-      portType: 'INOUT', level: 'BOTTOM', face: 'FRONT', slot: 1, position: { x: 0, y: 72, z: 0 }, width: 10, depth: 10, height: 10,
+      portType: 'INOUT', face: 'FRONT', slot: 1, position: { x: 0, y: 72, z: 0 }, width: 10, depth: 10, height: 10,
       created: false, templateNodeName: 'Port_Template', domainLabel: 'Stocker access handoff point',
     },
   ]
@@ -310,7 +310,7 @@ export function createDemoScene() {
   for (const port of ports) {
     if (port.domainParentType === 'Lift' && port.parentLiftId) {
       const lift = lifts.find((item) => item.editorId === port.parentLiftId)!
-      port.position = computePortPosition(lift, port.face, port.slot, port.level)
+      port.position = computePortPosition(lift, port.face, port.slot, port.position.z - lift.position.z)
     }
     scene.add(createPortNode(port))
   }

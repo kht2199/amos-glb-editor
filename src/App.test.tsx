@@ -15,7 +15,6 @@ beforeEach(() => {
     appliedPorts: [],
     appliedReadonlyObjects: [],
     selectedId: null,
-    visibilityMode: 'TOP_ONLY',
     mode: 'select',
     snapEnabled: true,
     validationIssues: [],

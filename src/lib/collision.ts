@@ -71,8 +71,7 @@ export function detectCollisions(lifts: LiftEntity[], ports: PortEntity[], reado
 
   for (let i = 0; i < activePorts.length; i += 1) {
     for (let j = i + 1; j < activePorts.length; j += 1) {
-      const sameLevel = activePorts[i].level === activePorts[j].level
-      if (sameLevel && intersects(rectFromEntity(activePorts[i]), rectFromEntity(activePorts[j]), 0.5)) {
+      if (intersects(rectFromEntity(activePorts[i]), rectFromEntity(activePorts[j]), 0.5)) {
         issues.push({
           id: `port-collision-${activePorts[i].editorId}-${activePorts[j].editorId}`,
           sourceId: activePorts[i].editorId,

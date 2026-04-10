@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { computeVisibilityPivot, matchesVisibilityMode, visibilityModeLabel } from '../lib/visibilityMode'
 import { cn, round } from '../lib/utils'
 import { useEditorStore } from '../store/editor-store'
 import type { LiftEntity, PortEntity, ReadOnlyEntity } from '../types'
@@ -54,7 +53,6 @@ export function TopViewCanvas() {
     selectedId,
     selectObject,
     moveEntity,
-    visibilityMode,
     mode,
     collisionIndex,
     collisionIssues,
@@ -65,17 +63,12 @@ export function TopViewCanvas() {
     selectedId: state.selectedId,
     selectObject: state.selectObject,
     moveEntity: state.moveEntity,
-    visibilityMode: state.visibilityMode,
     mode: state.mode,
     collisionIndex: state.collisionIndex,
     collisionIssues: state.collisionIssues,
   })))
 
-  const visibilityPivot = useMemo(() => computeVisibilityPivot(ports, lifts), [ports, lifts])
-  const visiblePorts = useMemo(
-    () => ports.filter((port) => !port.deleted && matchesVisibilityMode(port, visibilityMode, visibilityPivot)),
-    [ports, visibilityMode, visibilityPivot],
-  )
+  const visiblePorts = useMemo(() => ports.filter((port) => !port.deleted), [ports])
   const bounds = useMemo(() => computeBounds(lifts, visiblePorts, readonlyObjects), [lifts, readonlyObjects, visiblePorts])
   const visibleEntities = useMemo(() => Object.fromEntries([...lifts, ...visiblePorts, ...readonlyObjects].map((entity) => [entity.editorId, entity] as const)), [lifts, readonlyObjects, visiblePorts])
   const collisionConnections = useMemo(() => {
@@ -134,7 +127,7 @@ export function TopViewCanvas() {
       </div>
 
       <div ref={canvasRef} className="editor-grid relative flex-1 overflow-hidden" onPointerMove={handlePointerMove} onPointerUp={() => setDraggingId(null)} onPointerLeave={() => setDraggingId(null)}>
-        <div className="absolute left-4 top-4 rounded-lg border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs text-slate-400">{visibilityModeLabel(visibilityMode, visibilityPivot)} · {mode}{collisionIssues.length ? ` · collisions ${collisionIssues.length}` : ''}</div>
+        <div className="absolute left-4 top-4 rounded-lg border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs text-slate-400">Ports {visiblePorts.length} · {mode}{collisionIssues.length ? ` · collisions ${collisionIssues.length}` : ''}</div>
 
         {collisionConnections.length > 0 && (
           <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true">
@@ -171,7 +164,7 @@ export function TopViewCanvas() {
               )}
               style={{ left: center.x - (item.width * center.scale) / 2, top: center.y - (item.depth * center.scale) / 2, width: item.width * center.scale, height: Math.max(18, item.depth * center.scale) }}
             >
-              <div className="flex h-full items-center justify-center">{item.id} (RO)</div>
+              <div className="flex h-full items-center justify-center">{item.id}</div>
               {colliding && <span className="absolute -right-2 -top-2 rounded-full border border-rose-200 bg-rose-500 px-1.5 py-0.5 text-[9px] font-bold text-white">{collisionIndex[item.editorId].length}</span>}
             </div>
           )

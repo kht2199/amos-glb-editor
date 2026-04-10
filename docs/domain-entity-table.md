@@ -20,7 +20,7 @@
 | Editor Entity | 온톨로지 분류 | 프로젝트 의미 | 편집 가능 | 현재 타입/구조 | 핵심 속성 | 비고 |
 |---|---|---|---|---|---|---|
 | Lift | Vertical Transfer | 상하 레벨을 연결하는 수직 이송 모듈 | Yes | `LiftEntity` | `id`, `position`, `rotation`, `slotsPerFace`, `animation` | 실제 설비 고유명이라기보다 프로젝트 추상화 |
-| Port | Interface / Handoff Point | Lift 또는 다른 구조물에 부착되는 도킹/인계 지점 | Yes | `PortEntity` | `id`, `portType`, `semanticRole`, `domainParentId`, `domainParentType`, `parentLiftId`, `level`, `face`, `slot` | scene graph parent와 domain parent가 다를 수 있음 |
+| Port | Interface / Handoff Point | Lift 또는 다른 구조물에 부착되는 도킹/인계 지점 | Yes | `PortEntity` | `id`, `portType`, `semanticRole`, `domainParentId`, `domainParentType`, `parentLiftId`, `zOffset`, `face`, `slot` | scene graph parent와 domain parent가 다를 수 있음 |
 | Bridge | Guideway | rail/구조 연결용 고정 구조 | No | `ReadOnlyEntity` | `id`, `position`, `width`, `depth`, `height` | read-only 참조 구조 |
 | Rail | Guideway | transport 경로로 해석되는 선형 구조 | No | `ReadOnlyEntity` | `id`, `position`, `width`, `depth`, `height` | OHT/OHS guideway 추상화 |
 | Stocker | Storage | carrier 임시 저장 장치 본체 | No | `ReadOnlyEntity` | `id`, `position`, `width`, `depth`, `height` | demo scene에서는 내부 vertical carriage / storage bay rhythm / top handoff 문맥을 read-only geometry로 함께 표현 가능 |
@@ -47,7 +47,7 @@
 - `parentLiftId`
   - Lift 기반 편집 규칙과 위치 계산 호환용 부모 식별자
 
-즉, 포트는 단순한 world 좌표 오브젝트가 아니라 **domain parent + role + face/slot/level 조합**으로 다루는 엔티티다.
+즉, 포트는 단순한 world 좌표 오브젝트가 아니라 **domain parent + role + face/slot/Z 조합**으로 다루는 엔티티다.
 
 ## Lift 규칙
 - 탑뷰 기준 XY 평면에서 이동한다.
@@ -58,10 +58,10 @@
 - 외형이 box, frame, 상세 모델 중 무엇이든 편집 규칙은 동일해야 하며, 편집 로직은 mesh 형상에 종속되면 안 된다.
 
 ## Port 규칙
-- Lift 소속 포트는 `face + slot + level`로 위치를 복원한다.
+- Lift 소속 포트는 `face + slot + Z`로 위치를 복원한다.
 - Lift 외부 포트는 `domainParentId/domainParentType`가 1차 기준이다.
 - scene graph 상에서 Lift child가 아니어도 domain 관계는 유지해야 한다.
-- validation은 geometry보다 `same domain parent + same level + same face + same slot` 충돌 규칙이 중요하다.
+- validation은 geometry보다 `same domain parent + same face + same slot` 충돌 규칙이 중요하다.
 
 ## Read-only 구조물 규칙
 ### Bridge
@@ -94,7 +94,7 @@
 - `PortEntity`
   - `portType`
   - `semanticRole`
-  - `level`
+  - `zOffset`
   - `face`
   - `slot`
   - `parentLiftId?`

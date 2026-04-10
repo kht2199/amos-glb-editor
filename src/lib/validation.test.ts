@@ -33,7 +33,6 @@ function port(overrides: Partial<PortEntity> = {}): PortEntity {
     domainParentType: 'Lift',
     semanticRole: 'LIFT_DOCK',
     portType: 'IN',
-    level: 'TOP',
     face: 'FRONT',
     slot: 1,
     position: { x: 0, y: 0, z: 20 },
@@ -56,7 +55,6 @@ function stocker(overrides: Partial<ReadOnlyEntity> = {}): ReadOnlyEntity {
     width: 24,
     depth: 24,
     height: 28,
-    readOnly: true,
     ...overrides,
   }
 }

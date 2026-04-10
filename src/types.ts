@@ -1,8 +1,6 @@
 export type ObjectKind = 'Lift' | 'Port' | 'Bridge' | 'Rail' | 'Stocker' | 'Transport'
 export type PortType = 'IN' | 'OUT' | 'INOUT'
-export type PortLevel = 'TOP' | 'BOTTOM'
 export type Face = 'FRONT' | 'BACK' | 'LEFT' | 'RIGHT'
-export type VisibilityMode = 'TOP_ONLY' | 'BOTTOM_ONLY'
 export type EditorMode = 'select' | 'move'
 export type ValidationSeverity = 'error' | 'warning'
 export type DomainParentType = 'Lift' | 'Stocker' | 'Transport' | 'Bridge' | 'Rail'
@@ -36,7 +34,6 @@ export interface BaseEntity {
   nodeName: string
   editorId: string
   domainLabel?: string
-  readOnly?: boolean
 }
 
 export interface LiftEntity extends BaseEntity {
@@ -50,7 +47,6 @@ export interface PortEntity extends BaseEntity {
   objectType: 'Port'
   portType: PortType
   semanticRole: PortSemanticRole
-  level: PortLevel
   face: Face
   slot: number
   parentLiftId?: string
@@ -65,7 +61,6 @@ export interface PortEntity extends BaseEntity {
 
 export interface ReadOnlyEntity extends BaseEntity {
   objectType: 'Bridge' | 'Rail' | 'Stocker' | 'Transport'
-  readOnly: true
 }
 
 export interface ValidationIssue {
@@ -85,7 +80,6 @@ export interface CollisionIssue {
 
 export interface SerializableSession {
   fileName: string
-  visibilityMode: VisibilityMode
   snapEnabled: boolean
   lifts: LiftEntity[]
   ports: PortEntity[]
@@ -96,7 +90,6 @@ export interface EditorSnapshot {
   draftLifts: LiftEntity[]
   draftPorts: PortEntity[]
   draftReadonlyObjects: ReadOnlyEntity[]
-  visibilityMode: VisibilityMode
 }
 
 export interface SceneBundle {

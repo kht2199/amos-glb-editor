@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
 import { DEFAULT_ANIMATION } from './constants'
 import { createPortNode } from './portVisual'
-import type { DomainParentType, Face, LiftEntity, PortEntity, PortLevel, PortSemanticRole, PortType, ReadOnlyEntity, SceneBundle, Vec3 } from '../types'
+import type { DomainParentType, Face, LiftEntity, PortEntity, PortSemanticRole, PortType, ReadOnlyEntity, SceneBundle, Vec3 } from '../types'
 import { computePortPosition, inferFaceAndSlot, round } from './utils'
 
 type DetectableObjectType = 'Lift' | 'Port' | 'Bridge' | 'Rail' | 'Stocker' | 'Transport'
@@ -11,7 +11,6 @@ type DetectableObjectType = 'Lift' | 'Port' | 'Bridge' | 'Rail' | 'Stocker' | 'T
 interface InferredPortNameMeta {
   semanticRole?: PortSemanticRole
   portType?: PortType
-  level?: PortLevel
   face?: Face
   slot?: number
   domainParentType?: DomainParentType
@@ -80,8 +79,8 @@ function editorMeta(object: THREE.Object3D) {
     animation: raw.animation,
     portType: raw.portType as PortType | undefined,
     face: raw.face,
-    level: raw.level,
     slot: typeof raw.slot === 'number' ? raw.slot : undefined,
+    zOffset: typeof raw.zOffset === 'number' ? raw.zOffset : undefined,
   }
 }
 
@@ -121,9 +120,6 @@ function inferPortNameMeta(name: string): InferredPortNameMeta {
   if (normalized.includes('inout')) meta.portType = 'INOUT'
   else if (/(^|[_\s-])out([_\s-]|$)/.test(normalized)) meta.portType = 'OUT'
   else if (/(^|[_\s-])in([_\s-]|$)/.test(normalized)) meta.portType = 'IN'
-
-  if (normalized.includes('top') || normalized.includes('upper') || normalized.includes('up')) meta.level = 'TOP'
-  else if (normalized.includes('bottom') || normalized.includes('lower') || normalized.includes('down')) meta.level = 'BOTTOM'
 
   if (normalized.includes('front')) meta.face = 'FRONT'
   else if (normalized.includes('back') || normalized.includes('rear')) meta.face = 'BACK'
@@ -191,7 +187,6 @@ function makeReadOnlyEntity(object: THREE.Object3D, objectType: 'Bridge' | 'Rail
     width: Math.max(round(size.x), 10),
     depth: Math.max(round(size.y), 10),
     height: Math.max(round(size.z), 10),
-    readOnly: true,
   }
 }
 
@@ -229,8 +224,7 @@ function assignExternalPortSlot(base: PortEntity, ports: PortEntity[]) {
   const siblings = ports.filter((port) => !port.deleted
     && port.domainParentType === base.domainParentType
     && port.domainParentId === base.domainParentId
-    && port.face === base.face
-    && port.level === base.level)
+    && port.face === base.face)
   const occupied = new Set(siblings.map((port) => port.slot))
   let slot = base.slot
   while (occupied.has(slot)) slot += 1
@@ -247,7 +241,7 @@ function makePortEntity(object: THREE.Object3D, lifts: LiftEntity[], readonlyObj
 
   let domainParentType: DomainParentType = meta.domainParentType ?? inferredNameMeta.domainParentType ?? 'Lift'
   let domainParentId = meta.domainParentId ?? parentLift?.editorId ?? ''
-  let semanticRole: PortSemanticRole = meta.semanticRole ?? inferredNameMeta.semanticRole ?? 'LIFT_DOCK'
+  const semanticRole: PortSemanticRole = meta.semanticRole ?? inferredNameMeta.semanticRole ?? 'LIFT_DOCK'
 
   if (domainParentType === 'Stocker' && !meta.domainParentId) {
     const stocker = matchReadOnlyByHint(object.name, readonlyObjects, 'Stocker')
@@ -282,19 +276,13 @@ function makePortEntity(object: THREE.Object3D, lifts: LiftEntity[], readonlyObj
     domainParentType,
     semanticRole,
     portType: meta.portType ?? inferredNameMeta.portType ?? asPortType(object.name),
-    level: (meta.level === 'TOP' || meta.level === 'BOTTOM')
-      ? meta.level
-      : inferredNameMeta.level
-        ? inferredNameMeta.level
-        : parentLift && domainParentType === 'Lift'
-          ? (center.z > parentLift.height / 2 ? 'TOP' : 'BOTTOM')
-          : 'BOTTOM',
     face: (meta.face === 'FRONT' || meta.face === 'BACK' || meta.face === 'LEFT' || meta.face === 'RIGHT') ? meta.face : (inferredNameMeta.face ?? 'FRONT'),
     slot: meta.slot ?? inferredNameMeta.slot ?? 1,
     position: { x: round(center.x), y: round(center.y), z: round(center.z - size.z / 2) },
     width: Math.max(round(size.x), 6),
     depth: Math.max(round(size.y), 6),
     height: Math.max(round(size.z), 6),
+    zOffset: meta.zOffset,
     created: false,
     templateNodeName: object.name,
   }
@@ -303,7 +291,10 @@ function makePortEntity(object: THREE.Object3D, lifts: LiftEntity[], readonlyObj
     const inferred = inferFaceAndSlot(parentLift, base)
     base.face = meta.face === 'FRONT' || meta.face === 'BACK' || meta.face === 'LEFT' || meta.face === 'RIGHT' ? meta.face : inferred.face
     base.slot = meta.slot ?? inferred.slot
-    base.position = computePortPosition(parentLift, base.face, base.slot, base.level)
+    const baseZ = computePortPosition(parentLift, base.face, base.slot).z
+    const inferredZOffset = meta.zOffset ?? round(base.position.z - baseZ)
+    base.zOffset = inferredZOffset
+    base.position = computePortPosition(parentLift, base.face, base.slot, inferredZOffset)
   } else {
     base.slot = meta.slot ?? inferredNameMeta.slot ?? assignExternalPortSlot(base, existingPorts)
   }
@@ -319,8 +310,8 @@ function makePortEntity(object: THREE.Object3D, lifts: LiftEntity[], readonlyObj
     parentLiftId: base.parentLiftId,
     portType: base.portType,
     face: base.face,
-    level: base.level,
     slot: base.slot,
+    zOffset: base.zOffset,
   }
   return base
 }
@@ -378,11 +369,20 @@ function findByEditorId(root: THREE.Object3D, editorId: string): THREE.Object3D 
   return result
 }
 
+function placeNodeByBottom(node: THREE.Object3D, position: Vec3) {
+  node.position.set(position.x, position.y, position.z)
+  node.updateMatrixWorld(true)
+  const bounds = new THREE.Box3().setFromObject(node)
+  if (Number.isFinite(bounds.min.z)) {
+    node.position.z = round(node.position.z + (position.z - bounds.min.z))
+  }
+}
+
 function applyLift(scene: THREE.Object3D, lift: LiftEntity) {
   const node = findByEditorId(scene, lift.editorId)
   if (!node) return
   node.name = lift.nodeName
-  node.position.set(lift.position.x, lift.position.y, lift.position.z + lift.height / 2)
+  placeNodeByBottom(node, lift.position)
   node.rotation.z = (lift.rotation * Math.PI) / 180
   node.userData.editorMeta = {
     ...(node.userData.editorMeta ?? {}),
@@ -409,7 +409,7 @@ function applyPort(scene: THREE.Object3D, port: PortEntity) {
   if (!node) return
   node.visible = true
   node.name = port.nodeName
-  node.position.set(port.position.x, port.position.y, port.position.z + port.height / 2)
+  placeNodeByBottom(node, port.position)
   node.userData.editorMeta = {
     ...(node.userData.editorMeta ?? {}),
     id: port.editorId,
@@ -421,8 +421,8 @@ function applyPort(scene: THREE.Object3D, port: PortEntity) {
     domainParentType: port.domainParentType,
     parentLiftId: port.parentLiftId,
     face: port.face,
-    level: port.level,
     slot: port.slot,
+    zOffset: port.zOffset,
   }
 }
 
@@ -431,7 +431,7 @@ function applyReadOnly(scene: THREE.Object3D, entity: ReadOnlyEntity) {
   if (!node) return
   node.visible = true
   node.name = entity.nodeName
-  node.position.set(entity.position.x, entity.position.y, entity.position.z + entity.height / 2)
+  placeNodeByBottom(node, entity.position)
   node.userData.editorMeta = {
     ...(node.userData.editorMeta ?? {}),
     id: entity.editorId,

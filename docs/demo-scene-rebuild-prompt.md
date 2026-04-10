@@ -13,7 +13,7 @@
 즉, 이 scene은 다음을 검증해야 한다.
 
 1. 층간 Lift 이동/회전과 애니메이션 메타데이터
-2. 상부/하부 Port의 face/slot/level 기반 배치
+2. 상부/하부 Port의 face/slot/Z 기반 배치
 3. Lift 소속 Port와 Lift 외부 Port(예: Stocker access)의 구분
 4. `domainParentId` / `domainParentType` / `semanticRole` 유지
 5. read-only 구조물은 문맥만 제공하고 편집 핵심보다 앞에 서지 않도록 시각적 우선순위를 낮추기
@@ -58,28 +58,28 @@
 - 최소 1개의 Lift는 **상부 포트와 하부 포트를 둘 다 가져야 함**
 - 장면을 처음 봤을 때 "이 리프트가 서로 다른 Z 레벨의 handoff point를 연결한다"가 읽혀야 함
 - Port는 단순 박스가 아니라 의미가 조금 드러나는 low-poly 형태로 표현
-- `slot`은 같은 `face`·같은 `level` 안에서의 배치 순서로 해석
+- `slot`은 같은 `face`·같은 `zOffset` 안에서의 배치 순서로 해석
 - 단, 편집 기준은 메쉬가 아니라 metadata여야 함
 
 예시 구성:
 - `port_a_01`
   - parent: `lift_a`
   - `semanticRole = LIFT_DOCK`
-  - `level = TOP`
+  - `z ≈ upper dock height`
   - `face = FRONT`
   - `slot = 2`
   - `portType = IN`
 - `port_a_02`
   - parent: `lift_a`
   - `semanticRole = LIFT_DOCK`
-  - `level = BOTTOM`
+  - `z ≈ lower dock height`
   - `face = FRONT`
   - `slot = 4`
   - `portType = OUT`
 - `port_b_01`
   - parent: `lift_b`
   - `semanticRole = LIFT_DOCK`
-  - `level = BOTTOM`
+  - `z ≈ lower dock height`
   - `face = LEFT`
   - `slot = 3`
   - `portType = INOUT`
@@ -87,7 +87,7 @@
   - parent: `stocker_01`
   - `semanticRole = STOCKER_ACCESS`
   - `domainParentType = Stocker`
-  - `level = BOTTOM`
+  - `z ≈ lower dock height`
   - `face = FRONT`
   - `slot = 1`
   - `portType = INOUT`
@@ -177,7 +177,7 @@
 - 단, 두 포트는 완전히 다른 메시 패밀리가 아니라 **같은 계열의 기본 볼륨 위에 구분용 프레임/장식이 추가된 형태**가 좋다.
 - 메인 inter-floor lift는 단순 박스보다 **밝은 vertical shaft + high/low landing band + central guide column**으로 읽히는 편이 낫다.
 - 포트 앞에는 실제보다 과장되더라도 **handoff shelf / plate**를 두어 인계 지점을 설명적으로 보여줄 수 있다.
-- level 차이는 얇은 horizontal band / translucent plane으로 강조할 수 있다.
+- 높이 차이는 얇은 horizontal band / translucent plane 또는 실제 Z 차이로 읽히게 표현할 수 있다.
 
 ### 5) 탑뷰 편집 중심성 유지
 - 제품의 본질은 top view 기반 배치 편집
@@ -210,7 +210,7 @@
 - `domainParentType`
 - `parentLiftId` (Lift 소속 포트인 경우)
 - `face`
-- `level`
+- `zOffset`
 - `slot`
 - `portType`
 
@@ -224,7 +224,7 @@
 - 직접 편집 대상 아님
 
 ### 핵심 규칙
-- Lift 소속 포트는 `face + slot + level`로 배치 가능해야 함
+- Lift 소속 포트는 `face + slot + Z`로 배치 가능해야 함
 - Lift 외부 포트는 `domainParentId/domainParentType`로 의미를 복원해야 함
 - 포트는 scene graph child 여부보다 domain metadata가 더 중요함
 - export/import round-trip에서 메타데이터 유지가 중요함
@@ -296,7 +296,7 @@
 
 포함해야 할 metadata:
 - Lift: id, editorId, position, rotation, slotsPerFace, animation
-- Port: id, editorId, semanticRole, domainParentId, domainParentType, parentLiftId, face, level, slot, portType
+- Port: id, editorId, semanticRole, domainParentId, domainParentType, parentLiftId, face, slot, portType, zOffset
 - Read-only: Bridge/Rail/Stocker/Transport 타입 체계 유지 가능
 
 예시 포트 구성:

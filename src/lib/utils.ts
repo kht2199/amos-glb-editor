@@ -1,6 +1,6 @@
 import { clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import type { Face, LiftEntity, PortEntity, PortLevel, Vec3 } from '../types'
+import type { Face, LiftEntity, PortEntity, Vec3 } from '../types'
 
 export function cn(...inputs: Array<string | undefined | false | null>) {
   return twMerge(clsx(inputs))
@@ -61,13 +61,13 @@ export function getFaceLocalPosition(lift: LiftEntity, face: Face, slot: number,
   }
 }
 
-export function computePortPosition(lift: LiftEntity, face: Face, slot: number, level: PortLevel): Vec3 {
+export function computePortPosition(lift: LiftEntity, face: Face, slot: number, zOffset = 0): Vec3 {
   const local = getFaceLocalPosition(lift, face, slot)
   const world = localToWorld(lift, local.x, local.y)
   return {
     x: world.x,
     y: world.y,
-    z: level === 'TOP' ? lift.height : 0,
+    z: lift.position.z + zOffset,
   }
 }
 

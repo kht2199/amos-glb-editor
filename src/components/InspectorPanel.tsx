@@ -2,11 +2,9 @@ import { Trash2 } from 'lucide-react'
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useEditorStore } from '../store/editor-store'
-import type { Face, LiftEntity, ObjectKind, PortLevel, PortSemanticRole, PortType } from '../types'
+import type { Face, LiftEntity, ObjectKind, PortSemanticRole, PortType } from '../types'
 
 const FACE_OPTIONS: Face[] = ['FRONT', 'BACK', 'LEFT', 'RIGHT']
-const LEVEL_OPTIONS: PortLevel[] = ['TOP', 'BOTTOM']
-const LEVEL_LABELS: Record<PortLevel, string> = { TOP: 'Higher Z', BOTTOM: 'Lower Z' }
 const PORT_TYPE_OPTIONS: PortType[] = ['IN', 'OUT', 'INOUT']
 const PORT_ROLE_OPTIONS: PortSemanticRole[] = ['LIFT_DOCK', 'STOCKER_ACCESS', 'TOOL_LOAD', 'BUFFER_HANDOFF']
 const OBJECT_TYPE_OPTIONS: ObjectKind[] = ['Lift', 'Port', 'Bridge', 'Rail', 'Stocker', 'Transport']
@@ -76,10 +74,7 @@ export function InspectorPanel() {
             <Field label="Object Type"><select aria-label="Object Type" className={fieldClass} value={selectedPort.objectType} onChange={(event) => setObjectType(selectedPort.editorId, event.target.value as ObjectKind)}>{OBJECT_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
             <Field label="ID"><input className={fieldClass} value={selectedPort.id} onChange={(event) => updatePort(selectedPort.editorId, { id: event.target.value, nodeName: event.target.value })} /></Field>
             <Field label="Domain Parent"><input className={fieldClass} value={`${selectedPort.domainParentType} · ${selectedPort.domainParentId}`} disabled /></Field>
-            <DoubleField>
-              <Field label="Level"><select className={fieldClass} value={selectedPort.level} onChange={(event) => updatePort(selectedPort.editorId, { level: event.target.value as PortLevel })}>{LEVEL_OPTIONS.map((option) => <option key={option} value={option}>{LEVEL_LABELS[option]}</option>)}</select></Field>
-              <Field label="Type"><select className={fieldClass} value={selectedPort.portType} onChange={(event) => updatePort(selectedPort.editorId, { portType: event.target.value as PortType })}>{PORT_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
-            </DoubleField>
+            <p className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-xs leading-5 text-slate-400">포트 높이는 <code className="rounded bg-slate-900 px-1 py-0.5 text-slate-200">Z</code> 값으로 직접 관리합니다.</p>
             <Field label="Semantic Role"><select className={fieldClass} value={selectedPort.semanticRole} onChange={(event) => updatePort(selectedPort.editorId, { semanticRole: event.target.value as PortSemanticRole })}>{PORT_ROLE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
             <DoubleField>
               <Field label="Face"><select className={fieldClass} value={selectedPort.face} onChange={(event) => updatePort(selectedPort.editorId, { face: event.target.value as Face })}>{FACE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
@@ -89,7 +84,10 @@ export function InspectorPanel() {
               <NumberField label="X" value={selectedPort.position.x} onChange={(value) => updatePort(selectedPort.editorId, { position: { ...selectedPort.position, x: value } })} />
               <NumberField label="Y" value={selectedPort.position.y} onChange={(value) => updatePort(selectedPort.editorId, { position: { ...selectedPort.position, y: value } })} />
             </DoubleField>
-            <NumberField label="Z" value={selectedPort.position.z} onChange={(value) => updatePort(selectedPort.editorId, { position: { ...selectedPort.position, z: value } })} />
+            <DoubleField>
+              <NumberField label="Z" value={selectedPort.position.z} onChange={(value) => updatePort(selectedPort.editorId, { position: { ...selectedPort.position, z: value } })} />
+              <Field label="Type"><select className={fieldClass} value={selectedPort.portType} onChange={(event) => updatePort(selectedPort.editorId, { portType: event.target.value as PortType })}>{PORT_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
+            </DoubleField>
             <IssueList issues={issues} />
             <button type="button" className={dangerButton} onClick={() => deletePort(selectedPort.editorId)}><Trash2 className="h-4 w-4" />Delete Port</button>
           </section>
@@ -105,7 +103,7 @@ export function InspectorPanel() {
               <NumberField label="Y" value={selectedReadonly.position.y} onChange={(value) => updateReadonlyObject(selectedReadonly.editorId, { position: { ...selectedReadonly.position, y: value } })} />
             </DoubleField>
             <NumberField label="Z" value={selectedReadonly.position.z} onChange={(value) => updateReadonlyObject(selectedReadonly.editorId, { position: { ...selectedReadonly.position, z: value } })} />
-            <p className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-3 py-2 text-sm text-violet-100">이 객체도 Move 모드와 Inspector에서 좌표를 조정할 수 있습니다.</p>
+            <p className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-3 py-2 text-sm text-violet-100">보조 구조물도 Move 모드와 Inspector에서 좌표를 조정할 수 있습니다.</p>
             <IssueList issues={issues} />
           </section>
         ) : null}

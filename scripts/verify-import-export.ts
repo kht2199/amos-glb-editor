@@ -4,6 +4,7 @@ import { exportGlb, loadGlbFile } from '../src/lib/glb.ts'
 class SimpleFileReader {
   result: ArrayBuffer | string | null = null
   onload: ((event: { target: SimpleFileReader }) => void) | null = null
+  onloadend: ((event: { target: SimpleFileReader }) => void) | null = null
   onerror: ((error: unknown) => void) | null = null
 
   readAsArrayBuffer(blob: Blob) {
@@ -11,6 +12,7 @@ class SimpleFileReader {
       .then((buffer) => {
         this.result = buffer
         this.onload?.({ target: this })
+        this.onloadend?.({ target: this })
       })
       .catch((error) => this.onerror?.(error))
   }
@@ -21,6 +23,7 @@ class SimpleFileReader {
         const base64 = Buffer.from(buffer).toString('base64')
         this.result = `data:${blob.type || 'application/octet-stream'};base64,${base64}`
         this.onload?.({ target: this })
+        this.onloadend?.({ target: this })
       })
       .catch((error) => this.onerror?.(error))
   }
@@ -69,7 +72,8 @@ async function main() {
       domainParentId: port.domainParentId,
       slot: port.slot,
       face: port.face,
-      level: port.level,
+      z: port.position.z,
+      zOffset: port.zOffset ?? null,
     })),
     readonlyObjects: loaded.bundle.readonlyObjects.map((item) => ({ id: item.id, objectType: item.objectType })),
   }

@@ -91,7 +91,7 @@ export function validateEntities(lifts: LiftEntity[], ports: PortEntity[], reado
       })
     }
 
-    const key = `${port.domainParentType}:${port.domainParentId}:${port.level}:${port.face}:${port.slot}`
+    const key = `${port.domainParentType}:${port.domainParentId}:${port.face}:${port.slot}`
     const existing = occupied.get(key)
     if (existing) {
       issues.push({

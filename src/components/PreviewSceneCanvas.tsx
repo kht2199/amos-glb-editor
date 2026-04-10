@@ -1,6 +1,6 @@
 import { GizmoHelper, GizmoViewport, Grid, OrbitControls } from '@react-three/drei'
 import { Canvas, useThree } from '@react-three/fiber'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, type ComponentRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import * as THREE from 'three'
 import { useEditorStore } from '../store/editor-store'
@@ -8,6 +8,7 @@ import { buildAppliedScene } from '../lib/glb'
 import type { LiftEntity, PortEntity, ReadOnlyEntity } from '../types'
 
 type SceneEntity = LiftEntity | PortEntity | ReadOnlyEntity
+type OrbitControlsHandle = ComponentRef<typeof OrbitControls>
 
 function visiblePorts(ports: PortEntity[]) {
   return ports.filter((port) => !port.deleted)
@@ -92,7 +93,7 @@ function CameraRig({
 }: {
   entities: SceneEntity[]
   selectedId: string | null
-  controlsRef: React.RefObject<any>
+  controlsRef: React.RefObject<OrbitControlsHandle | null>
   sceneRoot: THREE.Object3D | null
 }) {
   const { camera } = useThree()
@@ -116,9 +117,6 @@ function CameraRig({
       target.y - distance * 1.08,
       target.z + heightSpan * 1.18,
     )
-    camera.near = 0.1
-    camera.far = Math.max(1600, distance * 12)
-    camera.updateProjectionMatrix()
     camera.lookAt(target)
 
     const controls = controlsRef.current
@@ -133,7 +131,7 @@ function CameraRig({
 }
 
 export function PreviewSceneCanvas() {
-  const controlsRef = useRef<any>(null)
+  const controlsRef = useRef<OrbitControlsHandle | null>(null)
   const { lifts, ports, readonlyObjects, selectedId, pristineScene } = useEditorStore(useShallow((state) => ({
     lifts: state.appliedLifts,
     ports: state.appliedPorts,
@@ -155,7 +153,7 @@ export function PreviewSceneCanvas() {
 
   return (
     <Canvas
-      camera={{ position: [120, 120, 90], fov: 34 }}
+      camera={{ position: [120, 120, 90], fov: 34, near: 0.1, far: 1600 }}
       gl={{ antialias: true, powerPreference: 'high-performance', alpha: false }}
       onCreated={({ gl }) => {
         gl.setClearColor('#dbeafe', 1)

@@ -47,11 +47,11 @@
 | Entity | editorId | ontology class | editor entity | domain parent | 핵심 메타 | note |
 |---|---|---|---|---|---|---|
 | Lift A | `lift_a` | `VerticalTransfer.Lift` | Lift | - | `rotation=0`, `slotsPerFace=6` | editable lift |
-| Lift B | `lift_b` | `VerticalTransfer.Lift` | Lift | - | `rotation=90`, `slotsPerFace=6` | editable lift, single-level dock reference |
-| Port A-01 | `port_a_01` | `Interface.DockingPoint` | Port | `Lift(lift_a)` | `semanticRole=LIFT_DOCK`, `level=TOP`, `face=FRONT`, `slot=2`, `portType=IN` | lift 상단 전면 도킹 포인트 |
-| Port A-02 | `port_a_02` | `Interface.DockingPoint` | Port | `Lift(lift_a)` | `semanticRole=LIFT_DOCK`, `level=BOTTOM`, `face=FRONT`, `slot=4`, `portType=OUT` | lift 하단 전면 도킹 포인트 |
-| Port B-01 | `port_b_01` | `Interface.DockingPoint` | Port | `Lift(lift_b)` | `semanticRole=LIFT_DOCK`, `level=BOTTOM`, `face=LEFT`, `slot=3`, `portType=INOUT` | 보조 lift의 하단 좌측 도킹 포인트 |
-| Stocker Access 01 | `stocker_access_01` | `Interface.AccessPoint` | Port | `Stocker(stocker_01)` | `semanticRole=STOCKER_ACCESS`, `level=BOTTOM`, `face=FRONT`, `slot=1`, `portType=INOUT` | stocker 접근/인계 지점 |
+| Lift B | `lift_b` | `VerticalTransfer.Lift` | Lift | - | `rotation=90`, `slotsPerFace=6` | editable lift, dock reference |
+| Port A-01 | `port_a_01` | `Interface.DockingPoint` | Port | `Lift(lift_a)` | `semanticRole=LIFT_DOCK`, `zOffset=20`, `face=FRONT`, `slot=2`, `portType=IN` | lift 전면 도킹 포인트(상단 쪽 배치) |
+| Port A-02 | `port_a_02` | `Interface.DockingPoint` | Port | `Lift(lift_a)` | `semanticRole=LIFT_DOCK`, `zOffset=0`, `face=FRONT`, `slot=4`, `portType=OUT` | lift 전면 도킹 포인트(기준 높이 배치) |
+| Port B-01 | `port_b_01` | `Interface.DockingPoint` | Port | `Lift(lift_b)` | `semanticRole=LIFT_DOCK`, `zOffset=0`, `face=LEFT`, `slot=3`, `portType=INOUT` | 보조 lift의 좌측 도킹 포인트 |
+| Stocker Access 01 | `stocker_access_01` | `Interface.AccessPoint` | Port | `Stocker(stocker_01)` | `semanticRole=STOCKER_ACCESS`, `zOffset=null`, `face=FRONT`, `slot=1`, `portType=INOUT` | stocker 접근/인계 지점 |
 | Bridge 01 | `bridge_01` | `Guideway.Bridge` | Bridge | - | read-only | 배경 연결 구조 |
 | Rail 01 | `rail_01` | `Guideway.Rail` | Rail | - | read-only | transport path reference |
 | Stocker 01 | `stocker_01` | `Storage.Stocker` | Stocker | - | read-only | 저장 장치 본체 |
@@ -92,17 +92,17 @@
 
 ### selection / inspector
 - Lift 선택 시 domain 관계를 기준으로 하위 포트를 보여줘야 한다.
-- Port inspector는 `semanticRole`, `domain parent`, `level`, `face`, `slot`, `portType`를 중심으로 다뤄야 한다.
+- Port inspector는 `semanticRole`, `domain parent`, `zOffset`, `face`, `slot`, `portType`를 중심으로 다뤄야 한다.
 
 ### validation
-- Lift 소속 포트는 `same lift + same level + same face + same slot` 충돌을 본다.
-- 여기서 `slot`은 같은 `face`·같은 `level` 안에서의 배치 순서를 의미한다.
-- Lift 외부 포트는 `same domain parent + same level + same face + same slot` 규칙으로 확장 가능하다.
+- Lift 소속 포트는 `same lift + same face + same slot` 충돌을 본다.
+- 현재 구현에서 `zOffset`은 높이 복원용 값이며, 슬롯 유일성 키에는 포함하지 않는다.
+- Lift 외부 포트도 동일하게 `same domain parent + same face + same slot` 규칙으로 본다.
 
 ### export
 - scene graph를 강제로 재계층화하지 않는다.
 - pristine clone 위에 domain diff를 적용하는 방식이 더 안전하다.
-- export 시 `objectType`, `domainParentId`, `domainParentType`, `semanticRole`, `face`, `level`, `slot`, `portType` 메타데이터를 유지하는 것이 중요하다.
+- export 시 `objectType`, `domainParentId`, `domainParentType`, `semanticRole`, `face`, `zOffset`, `slot`, `portType` 메타데이터를 유지하는 것이 중요하다.
 
 ## 결론
 현재 demo scene은 반도체 FAB 전체를 정밀 재현한 샘플이 아니라,

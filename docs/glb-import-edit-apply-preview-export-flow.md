@@ -9,7 +9,8 @@
 - **우측 preview와 export 기준**은 applied로 관리한다.
 - **Apply 버튼**이 draft와 applied 사이의 경계가 된다.
 - 새 오브젝트 생성의 기본은 **타입 전용 추가가 아니라 선택된 오브젝트 복사(`Duplicate`)**다.
-- 높이 표현은 `TOP/BOTTOM` enum이 아니라 **실제 Z 위치 수정**으로 다룬다.
+- 높이 편집의 1차 입력은 **실제 Z 위치 수정**으로 다룬다.
+- Lift 소속 Port 높이는 `face + slot + zOffset`으로 복원하고, Inspector에서는 `Z`를 직접 수정한다.
 
 즉 이 문서의 목적은 현재 구현 설명을 나열하는 것이 아니라,
 **앞으로 맞춰갈 기준 흐름**을 분명히 정하는 것이다.
@@ -135,7 +136,7 @@
 - `Move` 모드는 Lift 전용이 아니라 Lift / Port / 배경 구조물 전체의 XY 이동 모드다.
 - 배경 구조물(`Bridge / Rail / Stocker / Transport`)도 draft/applied entity로 유지되며 Inspector에서 X / Y / Z를 직접 수정할 수 있다.
 - 현재 코드에는 Port 관련 전용 로직이 남아 있을 수 있으나, 문서 기준의 목표 방향은 **오브젝트 복사 + objectType/metadata 수정 중심 흐름**이다.
-- 높이 차이는 단계 전환이 아니라 **Z 좌표 직접 수정**으로 표현한다.
+- 높이 차이는 `TOP/BOTTOM` 단계값이 아니라 **Z 좌표 직접 수정**으로 표현한다.
 
 #### 표현 원칙
 - XY plane 중심의 편집 친화 표현

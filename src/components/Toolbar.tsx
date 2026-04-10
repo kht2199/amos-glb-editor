@@ -1,9 +1,8 @@
 import { Check, Copy, Eye, FileDown, FileUp, Layers3, Move, Redo2, RefreshCcw, RotateCw, Save, SearchCheck, Undo2 } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
-import { computeVisibilityPivot, visibilityModeToggleLabel } from '../lib/visibilityMode'
 import { cn } from '../lib/utils'
 import { useEditorStore } from '../store/editor-store'
-import type { EditorMode, VisibilityMode } from '../types'
+import type { EditorMode } from '../types'
 
 interface ToolbarProps {
   onOpenFile: () => void
@@ -19,9 +18,7 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
     fileName,
     selectedId,
     lifts,
-    ports,
     mode,
-    visibilityMode,
     snapEnabled,
     saveState,
     hasPendingChanges,
@@ -30,7 +27,6 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
     canUndo,
     canRedo,
     setMode,
-    setVisibilityMode,
     setSnapEnabled,
     setPreviewOpen,
     rotateLift,
@@ -46,9 +42,7 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
     fileName: state.fileName,
     selectedId: state.selectedId,
     lifts: state.draftLifts,
-    ports: state.draftPorts,
     mode: state.mode,
-    visibilityMode: state.visibilityMode,
     snapEnabled: state.snapEnabled,
     saveState: state.saveState,
     hasPendingChanges: state.hasPendingChanges,
@@ -57,7 +51,6 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
     canUndo: state.canUndo,
     canRedo: state.canRedo,
     setMode: state.setMode,
-    setVisibilityMode: state.setVisibilityMode,
     setSnapEnabled: state.setSnapEnabled,
     setPreviewOpen: state.setPreviewOpen,
     rotateLift: state.rotateLift,
@@ -74,7 +67,6 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
   const selectedLift = lifts.find((lift) => lift.editorId === selectedId)
   const disabled = !fileName
   const errorCount = validationIssues.filter((issue) => issue.severity === 'error').length
-  const visibilityPivot = computeVisibilityPivot(ports, lifts)
 
   return (
     <header className="border-b border-slate-800 bg-slate-950/80 px-4 py-3 backdrop-blur">
@@ -118,15 +110,6 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
         </ToolGroup>
 
         <ToolGroup title="View & Validate">
-          <SegmentedToggle<VisibilityMode>
-            options={[
-              { label: visibilityModeToggleLabel('TOP_ONLY', visibilityPivot), value: 'TOP_ONLY' },
-              { label: visibilityModeToggleLabel('BOTTOM_ONLY', visibilityPivot), value: 'BOTTOM_ONLY' },
-            ]}
-            value={visibilityMode}
-            onChange={setVisibilityMode}
-            disabled={disabled}
-          />
           <ToolButton icon={Layers3} disabled={disabled} active={snapEnabled} onClick={() => setSnapEnabled(!snapEnabled)}>Snap {snapEnabled ? 'ON' : 'OFF'}</ToolButton>
           <ToolButton icon={SearchCheck} disabled={disabled} onClick={runValidation}>Validate</ToolButton>
           <ToolButton icon={Eye} disabled={disabled} onClick={() => setPreviewOpen(true)}>Expand Preview</ToolButton>
@@ -159,23 +142,5 @@ function ToolButton({ icon: Icon, children, disabled, active, onClick }: { icon:
       <Icon className="h-4 w-4" />
       {children}
     </button>
-  )
-}
-
-function SegmentedToggle<T extends string>({ options, value, onChange, disabled }: { options: Array<{ label: string; value: T }>; value: T; onChange: (value: T) => void; disabled?: boolean }) {
-  return (
-    <div className="flex rounded-xl border border-slate-700 bg-slate-950 p-1">
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          disabled={disabled}
-          onClick={() => onChange(option.value)}
-          className={cn('rounded-lg px-3 py-1.5 text-xs font-medium transition', option.value === value ? 'bg-blue-500/20 text-blue-100' : 'text-slate-400 hover:text-slate-200')}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
   )
 }

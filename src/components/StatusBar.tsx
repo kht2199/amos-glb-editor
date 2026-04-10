@@ -1,14 +1,12 @@
 import { useShallow } from 'zustand/react/shallow'
-import { computeVisibilityPivot, visibilityModeLabel } from '../lib/visibilityMode'
 import { useEditorStore } from '../store/editor-store'
 
 export function StatusBar() {
-  const { selectedId, lifts, ports, snapEnabled, visibilityMode, statusMessage, validationIssues, collisionIssues, saveState, hasPendingChanges, canUndo, canRedo } = useEditorStore(useShallow((state) => ({
+  const { selectedId, lifts, ports, snapEnabled, statusMessage, validationIssues, collisionIssues, saveState, hasPendingChanges, canUndo, canRedo } = useEditorStore(useShallow((state) => ({
     selectedId: state.selectedId,
     lifts: state.draftLifts,
     ports: state.draftPorts,
     snapEnabled: state.snapEnabled,
-    visibilityMode: state.visibilityMode,
     statusMessage: state.statusMessage,
     validationIssues: state.validationIssues,
     collisionIssues: state.collisionIssues,
@@ -19,7 +17,7 @@ export function StatusBar() {
   })))
 
   const selected = lifts.find((lift) => lift.editorId === selectedId) || ports.find((port) => port.editorId === selectedId)
-  const visibilityPivot = computeVisibilityPivot(ports, lifts)
+  const visiblePortCount = ports.filter((port) => !port.deleted).length
 
   return (
     <footer className="flex flex-col gap-2 border-t border-slate-800 bg-slate-950/80 px-4 py-2 text-xs text-slate-400 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between lg:gap-3">
@@ -31,7 +29,7 @@ export function StatusBar() {
       </div>
       <div className="flex min-w-0 flex-wrap items-center gap-3">
         <span>Snap: <strong className="text-slate-200">{snapEnabled ? 'ON' : 'OFF'}</strong></span>
-        <span>View: <strong className="text-slate-200">{visibilityModeLabel(visibilityMode, visibilityPivot)}</strong></span>
+        <span>Ports: <strong className="text-slate-200">{visiblePortCount}</strong></span>
         <span>Issues: <strong className="text-slate-200">{validationIssues.length}</strong></span>
         <span>Collisions: <strong className="text-slate-200">{collisionIssues.length}</strong></span>
         <span>Undo/Redo: <strong className="text-slate-200">{canUndo ? 'Y' : 'N'} / {canRedo ? 'Y' : 'N'}</strong></span>
