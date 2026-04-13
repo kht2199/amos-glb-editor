@@ -53,13 +53,18 @@ function computeBounds(
   })
 }
 
-function project(bounds: Bounds, width: number, height: number, x: number, y: number, frame: TopViewFrame) {
+function getProjectionScale(bounds: Bounds, width: number, height: number) {
   const padding = 40
   const usableWidth = width - padding * 2
   const usableHeight = height - padding * 2
   const worldWidth = Math.max(bounds.maxX - bounds.minX, 1)
   const worldHeight = Math.max(bounds.maxY - bounds.minY, 1)
-  const scale = Math.min(usableWidth / worldWidth, usableHeight / worldHeight)
+  return Math.min(usableWidth / worldWidth, usableHeight / worldHeight)
+}
+
+function project(bounds: Bounds, width: number, height: number, x: number, y: number, frame: TopViewFrame) {
+  const padding = 40
+  const scale = getProjectionScale(bounds, width, height)
   const point = toFrameCoordinates(frame, x, y)
   return {
     x: padding + (point.x - bounds.minX) * scale,
@@ -70,11 +75,7 @@ function project(bounds: Bounds, width: number, height: number, x: number, y: nu
 
 function unproject(bounds: Bounds, width: number, height: number, px: number, py: number, frame: TopViewFrame) {
   const padding = 40
-  const usableWidth = width - padding * 2
-  const usableHeight = height - padding * 2
-  const worldWidth = Math.max(bounds.maxX - bounds.minX, 1)
-  const worldHeight = Math.max(bounds.maxY - bounds.minY, 1)
-  const scale = Math.min(usableWidth / worldWidth, usableHeight / worldHeight)
+  const scale = getProjectionScale(bounds, width, height)
   const point = {
     x: round((px - padding) / scale + bounds.minX),
     y: round(bounds.maxY - (py - padding) / scale),
@@ -85,6 +86,15 @@ function unproject(bounds: Bounds, width: number, height: number, px: number, py
 export function TopViewCanvas() {
   const canvasRef = useRef<HTMLDivElement | null>(null)
   const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [frameDragStart, setFrameDragStart] = useState<null | {
+    pointerX: number
+    pointerY: number
+    scale: number
+    originX: number
+    originY: number
+    xAxisDirection: TopViewFrame['xAxisDirection']
+    yAxisDirection: TopViewFrame['yAxisDirection']
+  }>(null)
   const [canvasSize, setCanvasSize] = useState({ width: 1000, height: 700 })
   const {
     lifts,
@@ -165,7 +175,37 @@ export function TopViewCanvas() {
     setTopViewFrame({ [key]: Number.isFinite(parsed) ? parsed : 0 })
   }
 
+  function clearDragState() {
+    setDraggingId(null)
+    setFrameDragStart(null)
+  }
+
+  function handleCanvasPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (event.target !== event.currentTarget || !canvasRef.current) return
+
+    const rect = canvasRef.current.getBoundingClientRect()
+    setFrameDragStart({
+      pointerX: event.clientX,
+      pointerY: event.clientY,
+      scale: getProjectionScale(bounds, rect.width, rect.height),
+      originX: topViewFrame.originX,
+      originY: topViewFrame.originY,
+      xAxisDirection: topViewFrame.xAxisDirection,
+      yAxisDirection: topViewFrame.yAxisDirection,
+    })
+  }
+
   function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    if (frameDragStart) {
+      const deltaX = (event.clientX - frameDragStart.pointerX) / frameDragStart.scale
+      const deltaY = (event.clientY - frameDragStart.pointerY) / frameDragStart.scale
+      setTopViewFrame({
+        originX: round(frameDragStart.originX - deltaX * axisDirectionSign(frameDragStart.xAxisDirection)),
+        originY: round(frameDragStart.originY - deltaY * axisDirectionSign(frameDragStart.yAxisDirection)),
+      })
+      return
+    }
+
     if (!draggingId || !canvasRef.current) return
     const rect = canvasRef.current.getBoundingClientRect()
     const world = unproject(bounds, rect.width, rect.height, event.clientX - rect.left, event.clientY - rect.top, topViewFrame)
@@ -230,7 +270,14 @@ export function TopViewCanvas() {
         </div>
       </div>
 
-      <div ref={canvasRef} className="editor-grid relative flex-1 overflow-hidden" onPointerMove={handlePointerMove} onPointerUp={() => setDraggingId(null)} onPointerLeave={() => setDraggingId(null)}>
+      <div
+        ref={canvasRef}
+        className="editor-grid relative flex-1 overflow-hidden"
+        onPointerDown={handleCanvasPointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={clearDragState}
+        onPointerLeave={clearDragState}
+      >
         <div className="absolute left-4 top-4 rounded-lg border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs text-slate-400">Ports {visiblePorts.length} · {mode}{collisionIssues.length ? ` · collisions ${collisionIssues.length}` : ''}</div>
 
         {collisionConnections.length > 0 && (

@@ -31,7 +31,7 @@ beforeEach(() => {
     isPreviewOpen: false,
     statusMessage: 'No file loaded',
     exportFeedback: { status: 'idle' },
-    runtime: { workingScene: null, pristineScene: null, animations: [] },
+    runtime: { pristineScene: null, animations: [] },
     collisionIssues: [],
     collisionIndex: {},
     history: [],

@@ -28,7 +28,6 @@ interface ExportFeedback {
 }
 
 interface SceneRuntime {
-  workingScene: THREE.Group | null
   pristineScene: THREE.Group | null
   animations: THREE.AnimationClip[]
 }
@@ -565,7 +564,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isPreviewOpen: false,
   statusMessage: 'No file loaded',
   exportFeedback: { status: 'idle' },
-  runtime: { workingScene: null, pristineScene: null, animations: [] },
+  runtime: { pristineScene: null, animations: [] },
   history: [],
   future: [],
   canUndo: false,
@@ -575,7 +574,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const demo = createDemoScene()
     set(initializeScene(
       demo.bundle,
-      { workingScene: demo.scene, pristineScene: demo.scene.clone(true), animations: [] },
+      { pristineScene: demo.scene.clone(true), animations: [] },
       'Demo scene loaded',
       get().objectTypeDefinitions,
     ))
@@ -584,7 +583,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const loaded = await loadGlbFile(file)
     set(initializeScene(
       loaded.bundle,
-      { workingScene: loaded.workingScene, pristineScene: loaded.pristineScene, animations: loaded.animations },
+      { pristineScene: loaded.pristineScene, animations: loaded.animations },
       `${file.name} loaded`,
       get().objectTypeDefinitions,
     ))

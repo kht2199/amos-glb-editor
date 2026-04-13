@@ -22,7 +22,7 @@
   - floor / ceiling grid / column / rear wall
 
 이 장면은 FAB 전체 재현이 아니라,
-**층간 Lift와 상부/하부 Port 편집, domain parent 복원, semantic role 표현을 검증하기 위한 축약 샘플**이다.
+**scene object 편집, metadata 복원, domain parent 해석, semantic role 표현을 설명하기 위한 축약 샘플**이다.
 
 ## 캐리어 흐름 관점의 해석
 현재 demo scene은 아래 구조를 단순화한 장면으로 본다.
@@ -34,14 +34,14 @@
 `Transport(OHT) → Rail/Bridge guideway → Stocker top handoff contact → Stocker access point`
 
 즉,
-- `Lift`는 편집 핵심인 **층간 수직 이송 모듈**
-- `Port`는 **상부/하부 handoff를 나타내는 핵심 인터페이스**
-- `Transport`는 ceiling guideway 위를 흐르는 OHT 보조 문맥
-- `Rail`, `Bridge`는 guideway 배경 구조
-- `Stocker`는 저장 장치 본체이며, 내부 carriage / slot rhythm / top handoff hint를 하나의 object geometry 안에서 읽을 수 있음
-- `Transport`/`OHT`는 현재 scene의 중심 오브젝트가 아니라 ceiling logistics를 암시하는 배경 object
-- cleanroom shell은 도메인 엔티티라기보다 lightweight visual context
-- 시각 표현은 현실 복제보다 **upper/lower 구분과 vertical transfer 가독성**을 우선할 수 있음
+- `Lift`는 scene 안의 한 objectType으로서 **층간 수직 이송 모듈**을 표현한다.
+- `Port`는 한 objectType으로서 **handoff / docking / access point**를 표현한다.
+- `Transport`는 ceiling guideway 위를 흐르는 OHT 보조 문맥이다.
+- `Rail`, `Bridge`는 guideway 배경 구조다.
+- `Stocker`는 저장 장치 본체이며, 내부 carriage / slot rhythm / top handoff hint를 하나의 object geometry 안에서 읽을 수 있다.
+- `Transport`/`OHT`는 ceiling logistics를 암시하는 배경 object다.
+- cleanroom shell은 도메인 엔티티라기보다 lightweight visual context다.
+- 시각 표현은 현실 복제보다 object 구분과 metadata 읽기를 돕는 방향을 우선할 수 있다.
 
 ## 노드/엔티티 tagging 표
 | Entity | editorId | ontology class | editor entity | domain parent | 핵심 메타 | note |
@@ -91,13 +91,14 @@
 - lift 외부 포트도 `domainParentId/domainParentType`로 복원해야 한다.
 
 ### selection / inspector
-- Lift 선택 시 domain 관계를 기준으로 하위 포트를 보여줘야 한다.
-- Port inspector는 `semanticRole`, `domain parent`, `zOffset`, `face`, `slot`, `portType`를 중심으로 다뤄야 한다.
+- 선택된 objectType에 따라 metadata 편집 항목이 달라질 수 있다.
+- Port inspector에서는 `semanticRole`, `domain parent`, `zOffset`, `face`, `slot`, `portType` 같은 필드를 다룬다.
+- Lift inspector에서는 회전, 슬롯 수, 애니메이션 같은 필드를 다룬다.
 
-### validation
-- Lift 소속 포트는 `same lift + same face + same slot` 충돌을 본다.
+### validation 참고 정보
+- Lift 소속 포트는 `same lift + same face + same slot` 충돌 정보를 볼 수 있다.
 - 현재 구현에서 `zOffset`은 높이 복원용 값이며, 슬롯 유일성 키에는 포함하지 않는다.
-- Lift 외부 포트도 동일하게 `same domain parent + same face + same slot` 규칙으로 본다.
+- Lift 외부 포트도 동일하게 `same domain parent + same face + same slot` 규칙을 참고 정보로 본다.
 
 ### export
 - scene graph를 강제로 재계층화하지 않는다.
@@ -106,12 +107,12 @@
 
 ## 결론
 현재 demo scene은 반도체 FAB 전체를 정밀 재현한 샘플이 아니라,
-**층간 Lift 중심 편집기에서 상부/하부 Port의 의미론적 역할과 부모 복원 규칙을 검증하기 위한 도메인 샘플**이다.
+**scene object 편집기에서 objectType별 metadata와 부모 복원 규칙을 설명하기 위한 도메인 샘플**이다.
 
-특히 이번 버전의 핵심 차별점은 다음 여섯 가지다.
-1. `lift_a`에 상부 포트와 하부 포트를 함께 두어 **inter-floor handoff pair**를 한 눈에 읽히게 했다.
-2. 상부/하부 포트는 색과 프레임 실루엣을 분리해, 현실보다 설명적이더라도 즉시 구분되게 했다.
-3. 메인 lift는 vertical shaft / landing band / guide column을 강조해 층간 장비로 읽히게 했다.
+특히 이번 버전의 차별점은 다음 여섯 가지다.
+1. 서로 다른 objectType과 metadata 조합을 한 장면에서 함께 보여준다.
+2. `domainParentId` / `domainParentType` / `semanticRole` 같은 metadata가 mesh 외형과 별도로 읽히도록 구성했다.
+3. Lift와 Port도 다른 objectType과 동일한 편집 흐름 안에서 다룰 수 있는 샘플로 배치했다.
 4. `Stocker access port`를 별도 semantic role과 domain parent로 표현했다.
-5. Stocker / Rail / Transport는 ghosted context geometry로 남겨 보조 문맥 역할에 머물게 했다.
-6. Preview 조명과 재질 대비를 조정해 dark schematic 느낌을 줄였다.
+5. Stocker / Rail / Transport는 scene 문맥을 보강하는 geometry로 남겨 object editor 성격을 돕는다.
+6. Preview 조명과 재질 대비를 조정해 object 구분과 metadata 해석이 쉽게 보이도록 했다.

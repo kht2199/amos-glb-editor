@@ -332,7 +332,7 @@ Apply를 경계로 두면:
 - 하단 status: `Draft: Pending|Synced`, export/validation 상태 메시지
 - top view header: `Origin(x, y) · X+ right|left · Y+ up|down`
 - preview label: `applied preview · draft pending|draft synced`
-- `Validation failed · apply blocked` — 아직 미구현
+- `Validation issues available` — validation은 참고 정보/검토 보조로 표시
 - `Export ready / blocked / success` — export feedback modal과 연결
 
 ---
@@ -349,7 +349,7 @@ Apply를 경계로 두면:
 - draft 검증
 - applied 반영
 - pending 상태 해제
-- validation 차단은 아직 미구현
+- validation은 참고 정보로만 유지하고 apply 차단 정책은 두지 않음
 
 ### 6.3 Preview를 applied 기준으로 정리
 - draft 실시간 반영 제거
