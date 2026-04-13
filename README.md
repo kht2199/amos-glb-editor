@@ -114,7 +114,8 @@ re-export는 원본을 전부 재구성하지 않고, import 시점의 pristine 
 - Validation drawer
 - Preview overlay
 - Undo / Redo
-- 세션 저장 상태 추적
+- draft / applied pending 상태 추적
+- 2D 기준 좌표(origin)와 축 방향 수정
 - 충돌 표시
 
 ## 목표 구현 방향

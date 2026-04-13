@@ -1,19 +1,18 @@
 import { AlertTriangle, Search } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { cn } from '../lib/utils'
 import { useEditorStore } from '../store/editor-store'
 import type { ObjectKind } from '../types'
 
-const FILTERS: Array<'All' | ObjectKind> = ['All', 'Lift', 'Port', 'Rail', 'Bridge', 'Stocker', 'Transport']
-
 export function StructurePanel() {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<'All' | ObjectKind>('All')
-  const { draftLifts, draftPorts, draftBackgroundObjects, selectedId, selectObject, collisionIndex, validationIssues } = useEditorStore(useShallow((state) => ({
+  const { draftLifts, draftPorts, draftBackgroundObjects, objectTypeDefinitions, selectedId, selectObject, collisionIndex, validationIssues } = useEditorStore(useShallow((state) => ({
     draftLifts: state.draftLifts,
     draftPorts: state.draftPorts,
     draftBackgroundObjects: state.draftBackgroundObjects,
+    objectTypeDefinitions: state.objectTypeDefinitions,
     selectedId: state.selectedId,
     selectObject: state.selectObject,
     collisionIndex: state.collisionIndex,
@@ -23,14 +22,16 @@ export function StructurePanel() {
   const visiblePorts = draftPorts.filter((port) => !port.deleted)
   const floatingPorts = visiblePorts.filter((port) => !port.parentLiftId || !draftLifts.some((lift) => lift.editorId === port.parentLiftId))
   const issueCount = (editorId: string) => (collisionIndex[editorId]?.length ?? 0) + validationIssues.filter((issue) => issue.targetId === editorId).length
+  const filters = useMemo<Array<'All' | ObjectKind>>(() => ['All', ...objectTypeDefinitions.map((definition) => definition.name)], [objectTypeDefinitions])
+  const activeFilter = filter === 'All' || filters.includes(filter) ? filter : 'All'
 
   const filtered = (() => {
     const text = query.trim().toLowerCase()
     const match = (value: string) => !text || value.toLowerCase().includes(text)
     return {
-      lifts: draftLifts.filter((lift) => (filter === 'All' || filter === 'Lift') && match(lift.id)),
-      ports: visiblePorts.filter((port) => (filter === 'All' || filter === 'Port') && match(port.id)),
-      backgroundObjects: draftBackgroundObjects.filter((item) => (filter === 'All' || filter === item.objectType) && match(item.id)),
+      lifts: draftLifts.filter((lift) => (activeFilter === 'All' || activeFilter === 'Lift') && match(lift.id)),
+      ports: visiblePorts.filter((port) => (activeFilter === 'All' || activeFilter === 'Port') && match(port.id)),
+      backgroundObjects: draftBackgroundObjects.filter((item) => (activeFilter === 'All' || activeFilter === item.objectType) && match(item.id)),
     }
   })()
 
@@ -43,8 +44,8 @@ export function StructurePanel() {
           <input value={query} onChange={(event) => setQuery(event.target.value)} className="w-full bg-transparent outline-none" placeholder="Search by ID" />
         </label>
         <div className="mt-3 flex flex-wrap gap-2">
-          {FILTERS.map((item) => (
-            <button key={item} type="button" onClick={() => setFilter(item)} className={cn('rounded-full border px-2.5 py-1 text-xs transition', filter === item ? 'border-blue-500 bg-blue-500/15 text-blue-100' : 'border-slate-700 text-slate-400 hover:border-slate-600 hover:text-slate-200')}>
+          {filters.map((item) => (
+            <button key={item} type="button" onClick={() => setFilter(item)} className={cn('rounded-full border px-2.5 py-1 text-xs transition', activeFilter === item ? 'border-blue-500 bg-blue-500/15 text-blue-100' : 'border-slate-700 text-slate-400 hover:border-slate-600 hover:text-slate-200')}>
               {item}
             </button>
           ))}
@@ -66,7 +67,7 @@ export function StructurePanel() {
               <div className="mt-2 space-y-1 pl-2">
                 {visiblePorts
                   .filter((portItem) => portItem.parentLiftId === lift.editorId)
-                  .filter(() => filter === 'All' || filter === 'Port')
+                  .filter(() => activeFilter === 'All' || activeFilter === 'Port')
                   .filter((portItem) => !query || portItem.id.toLowerCase().includes(query.toLowerCase()))
                   .map((port) => {
                     const portIssues = issueCount(port.editorId)
@@ -85,7 +86,7 @@ export function StructurePanel() {
           )
         })}
 
-        {(filter === 'All' || filter === 'Port') && floatingPorts.length > 0 ? (
+        {(activeFilter === 'All' || activeFilter === 'Port') && floatingPorts.length > 0 ? (
           <div className="mb-3 rounded-2xl border border-slate-800 bg-slate-900/40 p-3">
             <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">External Ports</div>
             <div className="space-y-1">

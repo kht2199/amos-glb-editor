@@ -5,7 +5,6 @@ import { InspectorPanel } from './InspectorPanel'
 import { useEditorStore } from '../store/editor-store'
 
 beforeEach(() => {
-  localStorage.clear()
   useEditorStore.getState().openDemoScene()
 })
 

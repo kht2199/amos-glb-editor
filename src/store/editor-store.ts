@@ -12,8 +12,11 @@ import type {
   EditorSnapshot,
   LiftEntity,
   ObjectKind,
+  ObjectTypeCategory,
+  ObjectTypeDefinition,
   PortEntity,
   BackgroundObjectEntity,
+  TopViewFrame,
   ValidationIssue,
 } from '../types'
 
@@ -30,8 +33,43 @@ interface SceneRuntime {
   animations: THREE.AnimationClip[]
 }
 
+const DEFAULT_TOP_VIEW_FRAME: TopViewFrame = {
+  originX: 0,
+  originY: 0,
+  xAxisDirection: 'right',
+  yAxisDirection: 'up',
+}
+
+export const DEFAULT_OBJECT_TYPE_DEFINITIONS: ObjectTypeDefinition[] = [
+  { name: 'Lift', category: 'lift' },
+  { name: 'Port', category: 'port' },
+  { name: 'Bridge', category: 'background' },
+  { name: 'Rail', category: 'background' },
+  { name: 'Stocker', category: 'background' },
+  { name: 'Transport', category: 'background' },
+]
+
+const PROTECTED_OBJECT_TYPES = new Set(['Lift', 'Port'])
+
+function collectSceneObjectTypeDefinitions(bundle: { lifts: LiftEntity[]; ports: PortEntity[]; backgroundObjects: BackgroundObjectEntity[] }) {
+  const definitions = new Map<string, ObjectTypeDefinition>()
+  const register = (name: string, category: ObjectTypeCategory) => {
+    const normalizedName = normalizeTypeName(name)
+    if (!normalizedName || definitions.has(normalizedName)) return
+    definitions.set(normalizedName, { name: normalizedName, category })
+  }
+
+  DEFAULT_OBJECT_TYPE_DEFINITIONS.forEach((definition) => register(definition.name, definition.category))
+  bundle.lifts.forEach((item) => register(item.objectType, 'lift'))
+  bundle.ports.forEach((item) => register(item.objectType, 'port'))
+  bundle.backgroundObjects.forEach((item) => register(item.objectType, 'background'))
+
+  return [...definitions.values()]
+}
+
 interface EditorState {
   fileName: string | null
+  objectTypeDefinitions: ObjectTypeDefinition[]
   draftLifts: LiftEntity[]
   draftPorts: PortEntity[]
   draftBackgroundObjects: BackgroundObjectEntity[]
@@ -40,6 +78,7 @@ interface EditorState {
   appliedBackgroundObjects: BackgroundObjectEntity[]
   selectedId: string | null
   mode: EditorMode
+  topViewFrame: TopViewFrame
   snapEnabled: boolean
   validationIssues: ValidationIssue[]
   collisionIssues: CollisionIssue[]
@@ -58,9 +97,12 @@ interface EditorState {
   loadFile: (file: File) => Promise<void>
   selectObject: (editorId: string | null) => void
   setMode: (mode: EditorMode) => void
+  setTopViewFrame: (frame: Partial<TopViewFrame>) => void
   setSnapEnabled: (enabled: boolean) => void
   setValidationOpen: (open: boolean) => void
   setPreviewOpen: (open: boolean) => void
+  addObjectTypeDefinition: (definition: ObjectTypeDefinition) => void
+  removeObjectTypeDefinition: (name: string) => void
   moveEntity: (editorId: string, x: number, y: number) => void
   moveLift: (editorId: string, x: number, y: number) => void
   rotateLift: (editorId: string) => void
@@ -136,14 +178,17 @@ function moveBackgroundObject(state: EditorState, editorId: string, x: number, y
   return applyMutation(state, { draftBackgroundObjects, selectedId: editorId }, `${target.objectType} moved`)
 }
 
-const BACKGROUND_OBJECT_TYPES: BackgroundObjectEntity['objectType'][] = ['Bridge', 'Rail', 'Stocker', 'Transport']
-
 type SceneEntity = LiftEntity | PortEntity | BackgroundObjectEntity
 
 const DUPLICATE_OFFSET = 20
 
-function isBackgroundObjectType(objectType: ObjectKind): objectType is BackgroundObjectEntity['objectType'] {
-  return BACKGROUND_OBJECT_TYPES.includes(objectType as BackgroundObjectEntity['objectType'])
+function normalizeTypeName(name: string) {
+  return name.trim()
+}
+
+function getObjectTypeCategory(objectTypeDefinitions: ObjectTypeDefinition[], objectType: ObjectKind): ObjectTypeCategory | null {
+  const match = objectTypeDefinitions.find((definition) => definition.name === objectType)
+  return match?.category ?? null
 }
 
 function makeDuplicateId(baseId: string, existingIds: Set<string>) {
@@ -263,7 +308,7 @@ function makeLiftFromEntity(entity: SceneEntity): LiftEntity {
   }
 }
 
-function makeBackgroundObjectFromEntity(entity: SceneEntity, objectType: BackgroundObjectEntity['objectType']): BackgroundObjectEntity {
+function makeBackgroundObjectFromEntity(entity: SceneEntity, objectType: string): BackgroundObjectEntity {
   return {
     id: entity.id,
     editorId: entity.editorId,
@@ -313,7 +358,11 @@ function makePortFromEntity(entity: SceneEntity, lifts: LiftEntity[]): PortEntit
     })
   }
 
-  const externalParentType = isBackgroundObjectType(entity.objectType) ? entity.objectType : 'Transport'
+  const externalParentType = entity.objectType === 'Stocker'
+    ? 'Stocker'
+    : entity.objectType === 'Lift' || entity.objectType === 'Port'
+      ? 'Transport'
+      : entity.objectType
   return {
     id: entity.id,
     editorId: entity.editorId,
@@ -342,22 +391,15 @@ function convertSceneEntity(state: EditorState, editorId: string, objectType: Ob
   const port = state.draftPorts.find((item) => item.editorId === editorId)
   const backgroundObject = state.draftBackgroundObjects.find((item) => item.editorId === editorId)
   const source = lift ?? port ?? backgroundObject
+  const targetCategory = getObjectTypeCategory(state.objectTypeDefinitions, objectType)
 
-  if (!source || source.objectType === objectType) {
-    if (backgroundObject && isBackgroundObjectType(objectType) && backgroundObject.objectType !== objectType) {
-      return applyMutation(state, {
-        draftBackgroundObjects: state.draftBackgroundObjects.map((item) => item.editorId === editorId ? { ...item, objectType } : item),
-        selectedId: editorId,
-      }, `Object type updated to ${objectType}`)
-    }
-    return state
-  }
+  if (!source || !targetCategory || source.objectType === objectType) return state
 
   const draftLifts = state.draftLifts.filter((item) => item.editorId !== editorId)
   const draftPorts = state.draftPorts.filter((item) => item.editorId !== editorId)
   const draftBackgroundObjects = state.draftBackgroundObjects.filter((item) => item.editorId !== editorId)
 
-  if (objectType === 'Lift') {
+  if (targetCategory === 'lift') {
     return applyMutation(state, {
       draftLifts: [...draftLifts, makeLiftFromEntity(source)],
       draftPorts,
@@ -366,7 +408,7 @@ function convertSceneEntity(state: EditorState, editorId: string, objectType: Ob
     }, 'Object reclassified as Lift')
   }
 
-  if (objectType === 'Port') {
+  if (targetCategory === 'port') {
     return applyMutation(state, {
       draftLifts,
       draftPorts: [...draftPorts, makePortFromEntity(source, state.draftLifts)],
@@ -431,10 +473,20 @@ function resolveSelectedId(selectedId: string | null, lifts: LiftEntity[], ports
   return exists ? selectedId : null
 }
 
-function initializeScene(bundle: { fileName: string; lifts: LiftEntity[]; ports: PortEntity[]; backgroundObjects: BackgroundObjectEntity[] }, runtime: SceneRuntime, statusMessage: string) {
+function initializeScene(
+  bundle: { fileName: string; lifts: LiftEntity[]; ports: PortEntity[]; backgroundObjects: BackgroundObjectEntity[] },
+  runtime: SceneRuntime,
+  statusMessage: string,
+  objectTypeDefinitions: ObjectTypeDefinition[],
+) {
   const derived = deriveScene(bundle.lifts, bundle.ports, bundle.backgroundObjects)
+  const mergedObjectTypeDefinitions = [
+    ...objectTypeDefinitions,
+    ...collectSceneObjectTypeDefinitions(bundle).filter((definition) => !objectTypeDefinitions.some((item) => item.name === definition.name)),
+  ]
   return {
     fileName: bundle.fileName,
+    objectTypeDefinitions: mergedObjectTypeDefinitions,
     draftLifts: bundle.lifts,
     draftPorts: derived.ports,
     draftBackgroundObjects: bundle.backgroundObjects,
@@ -443,6 +495,7 @@ function initializeScene(bundle: { fileName: string; lifts: LiftEntity[]; ports:
     appliedBackgroundObjects: structuredClone(bundle.backgroundObjects),
     selectedId: null,
     mode: 'select' as const,
+    topViewFrame: { ...DEFAULT_TOP_VIEW_FRAME },
     snapEnabled: true,
     runtime,
     validationIssues: derived.validationIssues,
@@ -494,6 +547,7 @@ function applyMutation(
 
 export const useEditorStore = create<EditorState>((set, get) => ({
   fileName: null,
+  objectTypeDefinitions: structuredClone(DEFAULT_OBJECT_TYPE_DEFINITIONS),
   draftLifts: [],
   draftPorts: [],
   draftBackgroundObjects: [],
@@ -502,6 +556,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   appliedBackgroundObjects: [],
   selectedId: null,
   mode: 'select',
+  topViewFrame: { ...DEFAULT_TOP_VIEW_FRAME },
   snapEnabled: true,
   validationIssues: [],
   collisionIssues: [],
@@ -522,6 +577,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       demo.bundle,
       { workingScene: demo.scene, pristineScene: demo.scene.clone(true), animations: [] },
       'Demo scene loaded',
+      get().objectTypeDefinitions,
     ))
   },
   loadFile: async (file) => {
@@ -530,13 +586,49 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       loaded.bundle,
       { workingScene: loaded.workingScene, pristineScene: loaded.pristineScene, animations: loaded.animations },
       `${file.name} loaded`,
+      get().objectTypeDefinitions,
     ))
   },
   selectObject: (editorId) => set({ selectedId: editorId }),
   setMode: (mode) => set({ mode }),
+  setTopViewFrame: (frame) => set((state) => ({
+    topViewFrame: { ...state.topViewFrame, ...frame },
+    statusMessage: 'Top view frame updated',
+  })),
   setSnapEnabled: (snapEnabled) => set({ snapEnabled }),
   setValidationOpen: (isValidationOpen) => set({ isValidationOpen }),
   setPreviewOpen: (isPreviewOpen) => set({ isPreviewOpen }),
+  addObjectTypeDefinition: (definition) => set((state) => {
+    const name = normalizeTypeName(definition.name)
+    if (!name) {
+      return { statusMessage: 'Type name is required' }
+    }
+    if (state.objectTypeDefinitions.some((item) => item.name.toLowerCase() === name.toLowerCase())) {
+      return { statusMessage: `${name} already exists` }
+    }
+    return {
+      objectTypeDefinitions: [...state.objectTypeDefinitions, { name, category: definition.category }],
+      statusMessage: `${name} type added`,
+    }
+  }),
+  removeObjectTypeDefinition: (name) => set((state) => {
+    if (PROTECTED_OBJECT_TYPES.has(name)) {
+      return { statusMessage: `${name} type is protected` }
+    }
+    const isInUse = state.draftLifts.some((item) => item.objectType === name)
+      || state.appliedLifts.some((item) => item.objectType === name)
+      || state.draftPorts.some((item) => item.objectType === name)
+      || state.appliedPorts.some((item) => item.objectType === name)
+      || state.draftBackgroundObjects.some((item) => item.objectType === name)
+      || state.appliedBackgroundObjects.some((item) => item.objectType === name)
+    if (isInUse) {
+      return { statusMessage: `${name} is in use and cannot be removed` }
+    }
+    return {
+      objectTypeDefinitions: state.objectTypeDefinitions.filter((item) => item.name !== name),
+      statusMessage: `${name} type removed`,
+    }
+  }),
   moveEntity: (editorId, x, y) => set((state) => {
     if (state.draftLifts.some((lift) => lift.editorId === editorId)) {
       const target = state.draftLifts.find((lift) => lift.editorId === editorId)

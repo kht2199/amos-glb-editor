@@ -2,7 +2,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
-import { useEditorStore } from './store/editor-store'
+import { DEFAULT_OBJECT_TYPE_DEFINITIONS, useEditorStore } from './store/editor-store'
 
 vi.mock('./components/PreviewPanel', () => ({
   PreviewPanel: () => <div data-testid="preview-panel-mock" />,
@@ -15,6 +15,7 @@ vi.mock('./components/PreviewOverlay', () => ({
 beforeEach(() => {
   useEditorStore.setState({
     fileName: null,
+    objectTypeDefinitions: DEFAULT_OBJECT_TYPE_DEFINITIONS.map((item) => ({ ...item })),
     draftLifts: [],
     draftPorts: [],
     draftBackgroundObjects: [],
@@ -23,6 +24,7 @@ beforeEach(() => {
     appliedBackgroundObjects: [],
     selectedId: null,
     mode: 'select',
+    topViewFrame: { originX: 0, originY: 0, xAxisDirection: 'right', yAxisDirection: 'up' },
     snapEnabled: true,
     validationIssues: [],
     isValidationOpen: false,
@@ -72,5 +74,24 @@ describe('App', () => {
     await user.keyboard('d')
 
     expect(useEditorStore.getState().draftLifts).toHaveLength(beforeCount)
+  })
+
+  it('lets the user add a type from the screen and uses it in object type selectors', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Load Demo Scene' }))
+    await user.click(screen.getByRole('button', { name: 'Type Settings' }))
+    await user.type(screen.getByLabelText('Type Name'), 'Tool')
+    await user.selectOptions(screen.getByLabelText('Type Behavior'), 'background')
+    await user.click(screen.getByRole('button', { name: 'Add Type' }))
+
+    const stockerButton = screen.getAllByRole('button', { name: /stocker_01/i })[0]
+    await user.click(stockerButton)
+
+    const typeSelect = screen.getByLabelText('Object Type')
+    expect(screen.getAllByRole('button', { name: 'Tool' }).length).toBeGreaterThan(0)
+    expect(screen.getByRole('option', { name: 'Tool' })).toBeInTheDocument()
+    expect(typeSelect).toHaveValue('Stocker')
   })
 })
