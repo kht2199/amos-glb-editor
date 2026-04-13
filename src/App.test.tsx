@@ -24,7 +24,7 @@ beforeEach(() => {
     appliedBackgroundObjects: [],
     selectedId: null,
     mode: 'select',
-    topViewFrame: { originX: 0, originY: 0, xAxisDirection: 'right', yAxisDirection: 'up' },
+    topViewFrame: { originX: 0, originY: 0, xAxisDirection: 'right', yAxisDirection: 'up', editPlane: 'xy' },
     snapEnabled: true,
     validationIssues: [],
     isValidationOpen: false,
@@ -93,5 +93,20 @@ describe('App', () => {
     expect(screen.getAllByRole('button', { name: 'Tool' }).length).toBeGreaterThan(0)
     expect(screen.getByRole('option', { name: 'Tool' })).toBeInTheDocument()
     expect(typeSelect).toHaveValue('Stocker')
+  })
+
+  it('renders the plane editor before the structure list so mobile users see the editor first', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Load Demo Scene' }))
+
+    const layoutHeadings = screen.getAllByRole('heading', { level: 2 })
+    const planeEditorIndex = layoutHeadings.findIndex((heading) => heading.textContent === 'GLB Plane Editor')
+    const structureIndex = layoutHeadings.findIndex((heading) => heading.textContent === 'Structure')
+
+    expect(planeEditorIndex).toBeGreaterThanOrEqual(0)
+    expect(structureIndex).toBeGreaterThanOrEqual(0)
+    expect(planeEditorIndex).toBeLessThan(structureIndex)
   })
 })

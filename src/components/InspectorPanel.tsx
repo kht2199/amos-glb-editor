@@ -32,7 +32,7 @@ export function InspectorPanel() {
   const objectTypeOptions = objectTypeDefinitions.map((definition) => definition.name as ObjectKind)
 
   return (
-    <aside className="flex min-h-[280px] flex-col border-t border-slate-800 bg-slate-950/40 lg:h-full lg:min-h-0 lg:border-t-0 lg:border-l">
+    <aside className="flex min-h-[220px] flex-col border-t border-slate-800 bg-slate-950/40 lg:h-full lg:min-h-0 lg:border-t-0 lg:border-l">
       <div className="border-b border-slate-800 p-4">
         <h2 className="text-sm font-semibold text-slate-100">Inspector</h2>
         <p className="mt-1 text-xs text-slate-500">Selection-aware editing with inline rules.</p>

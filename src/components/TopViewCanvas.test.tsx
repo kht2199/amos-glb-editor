@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { TopViewCanvas } from './TopViewCanvas'
@@ -26,26 +26,80 @@ describe('TopViewCanvas', () => {
     })
   }
 
+  it('uses a stable mobile min-height so browser scroll chrome does not resize the editor', () => {
+    const { container } = render(<TopViewCanvas />)
+
+    expect(container.firstElementChild).toHaveClass('min-h-[62svh]')
+    expect(container.firstElementChild).not.toHaveClass('min-h-[62dvh]')
+
+    const canvas = container.querySelector('[data-testid="top-view-canvas-surface"]')
+    expect(canvas).toHaveClass('min-h-[34svh]')
+    expect(canvas).not.toHaveClass('min-h-[34dvh]')
+  })
+
+  it('puts the canvas before the settings block on mobile so the editor appears earlier in the first viewport', () => {
+    const { container } = render(<TopViewCanvas />)
+
+    const canvas = container.querySelector('[data-testid="top-view-canvas-surface"]')
+    const settings = container.querySelector('[data-testid="top-view-settings"]')
+
+    expect(canvas).toHaveClass('order-1')
+    expect(canvas).toHaveClass('lg:order-2')
+    expect(settings).toHaveClass('order-2')
+    expect(settings).toHaveClass('lg:order-1')
+  })
+
+  it('packs the frame controls into a denser mobile grid so settings do not push the canvas too far down', () => {
+    const { container } = render(<TopViewCanvas />)
+
+    const settingsGrid = container.querySelector('[data-testid="top-view-settings-grid"]')
+
+    expect(settingsGrid).toHaveClass('grid-cols-2')
+    expect(settingsGrid).toHaveClass('xl:grid-cols-6')
+  })
+
+  it('shows the non-plane axis position and lets users edit it directly when working in XY view', async () => {
+    const user = userEvent.setup()
+    const state = useEditorStore.getState()
+    const selectedLift = state.draftLifts[0]
+    state.selectObject(selectedLift.editorId)
+
+    const { container } = render(<TopViewCanvas />)
+    const settingsGrid = container.querySelector('[data-testid="top-view-settings-grid"]')
+    const zInput = within(settingsGrid as HTMLElement).getByLabelText('Z Position')
+
+    expect(zInput).toHaveValue(selectedLift.position.z)
+
+    await user.clear(zInput)
+    await user.type(zInput, '42')
+
+    expect(useEditorStore.getState().draftLifts[0].position.z).toBe(42)
+    expect(within(settingsGrid as HTMLElement).getByText('XY plane에서 이동되지 않는 축: Z')).toBeInTheDocument()
+  })
+
   it('lets users edit the 2D axis directions and reference coordinates', async () => {
     const user = userEvent.setup()
-    render(<TopViewCanvas />)
+    const { container } = render(<TopViewCanvas />)
+    const view = within(container)
 
-    expect(screen.getByText('Origin (0, 0) · X+ right · Y+ up')).toBeInTheDocument()
+    expect(view.getByText('Edit plane XY · Origin (0, 0) · X+ right · Y+ up')).toBeInTheDocument()
 
-    await user.clear(screen.getByLabelText('Reference X'))
-    await user.type(screen.getByLabelText('Reference X'), '120')
-    await user.clear(screen.getByLabelText('Reference Y'))
-    await user.type(screen.getByLabelText('Reference Y'), '35')
-    await user.selectOptions(screen.getByLabelText('X Axis Positive'), 'left')
-    await user.selectOptions(screen.getByLabelText('Y Axis Positive'), 'down')
+    await user.selectOptions(view.getByLabelText('Edit Plane'), 'xz')
+    await user.clear(view.getByLabelText('Reference X'))
+    await user.type(view.getByLabelText('Reference X'), '120')
+    await user.clear(view.getByLabelText('Reference Z'))
+    await user.type(view.getByLabelText('Reference Z'), '35')
+    await user.selectOptions(view.getByLabelText('X Axis Positive'), 'left')
+    await user.selectOptions(view.getByLabelText('Z Axis Positive'), 'down')
 
     expect(useEditorStore.getState().topViewFrame).toEqual({
       originX: 120,
       originY: 35,
       xAxisDirection: 'left',
       yAxisDirection: 'down',
+      editPlane: 'xz',
     })
-    expect(screen.getByText('Origin (120, 35) · X+ left · Y+ down')).toBeInTheDocument()
+    expect(view.getByText('Edit plane XZ · Origin (120, 35) · X+ left · Z+ down')).toBeInTheDocument()
   })
 
   it('lets users pan the top-view reference frame by dragging empty canvas space', async () => {
@@ -72,6 +126,7 @@ describe('TopViewCanvas', () => {
         originY: 0,
         xAxisDirection: 'right',
         yAxisDirection: 'up',
+        editPlane: 'xy',
       })
     })
 

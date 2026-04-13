@@ -17,7 +17,7 @@ export function PreviewPanel() {
   if (!fileName || isPreviewOpen) return null
 
   return (
-    <section className="flex h-[300px] min-h-[260px] flex-col border-t border-slate-800 bg-slate-950/65 sm:h-[320px] sm:min-h-[280px] lg:border-l">
+    <section className="flex h-[220px] min-h-[200px] flex-col border-t border-slate-800 bg-slate-950/65 sm:h-[320px] sm:min-h-[280px] lg:border-l">
       <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
         <div>
           <h2 className="text-sm font-semibold text-slate-100">Live Preview</h2>

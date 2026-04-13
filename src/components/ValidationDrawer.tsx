@@ -14,7 +14,10 @@ export function ValidationDrawer() {
   const errorCount = validationIssues.filter((issue) => issue.severity === 'error').length
 
   return (
-    <aside className={cn('absolute right-0 top-0 z-20 h-full w-full max-w-none border-l border-slate-800 bg-slate-950/95 p-4 transition-transform duration-200 lg:w-[360px] lg:max-w-[360px]', isValidationOpen ? 'translate-x-0' : 'translate-x-full')}>
+    <aside className={cn(
+      'fixed inset-y-0 right-0 z-20 w-full max-w-none border-l border-slate-800 bg-slate-950/95 p-4 transition-transform duration-200 lg:absolute lg:h-full lg:w-[360px] lg:max-w-[360px]',
+      isValidationOpen ? 'pointer-events-auto translate-x-0' : 'pointer-events-none translate-x-full',
+    )}>
 
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>

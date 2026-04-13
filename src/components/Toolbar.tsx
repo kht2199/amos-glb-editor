@@ -110,23 +110,23 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
   }
 
   return (
-    <header className="border-b border-slate-800 bg-slate-950/80 px-4 py-3 backdrop-blur">
-      <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+    <header className="border-b border-slate-800 bg-slate-950/80 px-3 py-2 backdrop-blur sm:px-4 sm:py-3">
+      <div className="mb-2 flex flex-col gap-2 lg:mb-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
         <div>
           <h1 className="text-lg font-semibold text-slate-50">Three.js Object Editor</h1>
-          <p className="text-xs text-slate-400">Lift / Port constrained editor · React + TypeScript + R3F</p>
+          <p className="hidden text-xs text-slate-400 sm:block">Lift / Port constrained editor · React + TypeScript + R3F</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs lg:gap-3">
-          <div className="max-w-full rounded-full border border-slate-700 px-3 py-1 text-slate-300">
-            {fileName ?? 'No file loaded'} · {hasPendingChanges ? 'DRAFT PENDING' : 'DRAFT SYNCED'}
+        <div className="flex flex-wrap items-center gap-2 text-[11px] sm:text-xs lg:gap-3">
+          <div className="max-w-full rounded-full border border-slate-700 px-2.5 py-1 text-slate-300 sm:px-3">
+            {fileName ?? 'No file loaded'} · {hasPendingChanges ? 'Draft pending' : 'Draft synced'}
           </div>
-          <div className={cn('rounded-full border px-3 py-1', errorCount ? 'border-rose-500/40 text-rose-100' : 'border-emerald-500/30 text-emerald-100')}>
-            Errors {errorCount} · Collisions {collisionIssues.length}
+          <div className={cn('rounded-full border px-2.5 py-1 sm:px-3', errorCount ? 'border-rose-500/40 text-rose-100' : 'border-emerald-500/30 text-emerald-100')}>
+            Err {errorCount} · Col {collisionIssues.length}
           </div>
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 overflow-x-auto pb-1 lg:overflow-visible lg:pb-0">
+      <div data-testid="toolbar-action-rail" className="grid grid-cols-2 gap-2 pb-1 lg:flex lg:flex-wrap lg:overflow-visible lg:pb-0">
         <ToolGroup title="File">
           <ToolButton icon={FileUp} onClick={onOpenFile}>Open GLB</ToolButton>
           <ToolButton icon={FileDown} disabled={disabled} onClick={() => void exportCurrentGlb()}>Export GLB</ToolButton>
@@ -218,26 +218,38 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
 
 function ToolGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="flex min-w-max flex-wrap items-center gap-2 rounded-2xl border border-slate-800 bg-slate-900/70 p-2 lg:min-w-0">
-      <span className="px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{title}</span>
+    <div className="flex min-w-0 flex-wrap items-center gap-1.5 rounded-2xl border border-slate-800 bg-slate-900/70 p-1.5 sm:gap-2 sm:p-2 lg:min-w-0 lg:flex-wrap">
+      <span className="w-full px-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 sm:text-[11px]">{title}</span>
       {children}
     </div>
   )
 }
 
 function ToolButton({ icon: Icon, children, disabled, active, onClick }: { icon: typeof Move; children: React.ReactNode; disabled?: boolean; active?: boolean; onClick?: () => void }) {
+  const labelText = typeof children === 'string' ? children : undefined
+  const shortLabel =
+    labelText === 'Open GLB' ? 'Open'
+      : labelText === 'Export GLB' ? 'Export'
+      : labelText === 'Rotate 90°' ? 'Rotate'
+        : labelText === 'Duplicate' ? 'Copy'
+          : labelText === 'Snap ON' || labelText === 'Snap OFF' ? 'Snap'
+        : labelText === 'Expand Preview' ? 'Preview'
+          : labelText === 'Type Settings' ? 'Types'
+            : labelText
+
   return (
     <button
       type="button"
       disabled={disabled}
       onClick={onClick}
+      aria-label={labelText}
       className={cn(
-        'inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition',
+        'inline-flex min-h-10 min-w-0 flex-1 basis-[calc(50%-0.25rem)] items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-[11px] transition sm:gap-2 sm:px-3 sm:text-sm lg:min-w-fit lg:flex-initial lg:basis-auto',
         disabled ? 'cursor-not-allowed border-slate-800 bg-slate-900 text-slate-600' : active ? 'border-blue-500 bg-blue-500/20 text-blue-100' : 'border-slate-700 bg-slate-950 text-slate-200 hover:border-slate-500 hover:text-white',
       )}
     >
       <Icon className="h-4 w-4" />
-      {children}
+      {shortLabel ? <span>{shortLabel}</span> : children}
     </button>
   )
 }

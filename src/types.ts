@@ -6,6 +6,7 @@ export type ValidationSeverity = 'error' | 'warning'
 export type DomainParentType = string
 export type PortSemanticRole = 'LIFT_DOCK' | 'STOCKER_ACCESS' | 'TOOL_LOAD' | 'BUFFER_HANDOFF'
 export type TopViewAxisDirection = 'right' | 'left' | 'up' | 'down'
+export type TopViewEditPlane = 'xy' | 'xz' | 'yz'
 export type ObjectTypeCategory = 'lift' | 'port' | 'background'
 
 export interface ObjectTypeDefinition {
@@ -90,6 +91,7 @@ export interface TopViewFrame {
   originY: number
   xAxisDirection: Extract<TopViewAxisDirection, 'right' | 'left'>
   yAxisDirection: Extract<TopViewAxisDirection, 'up' | 'down'>
+  editPlane: TopViewEditPlane
 }
 
 export interface EditorSnapshot {

@@ -16,7 +16,7 @@ export function EmptyState({ onOpenFile, onOpenDemo }: EmptyStateProps) {
         </div>
         <ul className="mt-8 space-y-2 text-sm text-slate-400">
           <li>• 좌표계: X 좌우 / Y 전후 / Z 상하</li>
-          <li>• 편집 평면: XY plane</li>
+          <li>• 편집 평면: XY / XZ / YZ 전환 가능</li>
           <li>• Validation: ID 중복, 슬롯 충돌, animation 범위 검사</li>
           <li>• Preview: applied scene 3D orbit view</li>
         </ul>

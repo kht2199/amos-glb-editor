@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { cn, round } from '../lib/utils'
 import { useEditorStore } from '../store/editor-store'
-import type { BackgroundObjectEntity, LiftEntity, PortEntity, TopViewFrame } from '../types'
+import type { BackgroundObjectEntity, LiftEntity, PortEntity, TopViewEditPlane, TopViewFrame, Vec3 } from '../types'
 
 interface Bounds {
   minX: number
@@ -11,8 +11,45 @@ interface Bounds {
   maxY: number
 }
 
+type PlaneAxis = 'x' | 'y' | 'z'
+
+type SceneEntity = LiftEntity | PortEntity | BackgroundObjectEntity
+
+const PLANE_AXES: Record<TopViewEditPlane, { horizontal: PlaneAxis; vertical: PlaneAxis }> = {
+  xy: { horizontal: 'x', vertical: 'y' },
+  xz: { horizontal: 'x', vertical: 'z' },
+  yz: { horizontal: 'y', vertical: 'z' },
+}
+
 function axisDirectionSign(direction: TopViewFrame['xAxisDirection'] | TopViewFrame['yAxisDirection']) {
   return direction === 'right' || direction === 'up' ? 1 : -1
+}
+
+function axisValue(position: Vec3, axis: PlaneAxis) {
+  return position[axis]
+}
+
+function axisSize(entity: SceneEntity, axis: PlaneAxis) {
+  if (axis === 'x') return entity.width
+  if (axis === 'y') return entity.depth
+  return entity.height
+}
+
+function planeAxes(frame: TopViewFrame) {
+  return PLANE_AXES[frame.editPlane]
+}
+
+function lockedAxis(frame: TopViewFrame): PlaneAxis {
+  const axes = planeAxes(frame)
+  return (['x', 'y', 'z'] as const).find((axis) => axis !== axes.horizontal && axis !== axes.vertical) ?? 'z'
+}
+
+function planePoint(frame: TopViewFrame, position: Vec3) {
+  const axes = planeAxes(frame)
+  return {
+    x: axisValue(position, axes.horizontal),
+    y: axisValue(position, axes.vertical),
+  }
 }
 
 function toFrameCoordinates(frame: TopViewFrame, x: number, y: number) {
@@ -29,6 +66,21 @@ function fromFrameCoordinates(frame: TopViewFrame, x: number, y: number) {
   }
 }
 
+function projectEntityPoint(frame: TopViewFrame, position: Vec3) {
+  const point = planePoint(frame, position)
+  return toFrameCoordinates(frame, point.x, point.y)
+}
+
+function applyProjectedPosition(position: Vec3, frame: TopViewFrame, projectedX: number, projectedY: number): Vec3 {
+  const world = fromFrameCoordinates(frame, projectedX, projectedY)
+  const axes = planeAxes(frame)
+  return {
+    ...position,
+    [axes.horizontal]: world.x,
+    [axes.vertical]: world.y,
+  }
+}
+
 function computeBounds(
   lifts: LiftEntity[],
   ports: PortEntity[],
@@ -36,14 +88,15 @@ function computeBounds(
   frame: TopViewFrame,
 ): Bounds {
   const entities = [...lifts, ...ports.filter((port) => !port.deleted), ...backgroundObjects]
+  const axes = planeAxes(frame)
   if (!entities.length) return { minX: -100, maxX: 100, minY: -100, maxY: 100 }
   return entities.reduce<Bounds>((acc, item) => {
-    const point = toFrameCoordinates(frame, item.position.x, item.position.y)
+    const point = projectEntityPoint(frame, item.position)
     return {
-      minX: Math.min(acc.minX, point.x - item.width / 2 - 20),
-      maxX: Math.max(acc.maxX, point.x + item.width / 2 + 20),
-      minY: Math.min(acc.minY, point.y - item.depth / 2 - 20),
-      maxY: Math.max(acc.maxY, point.y + item.depth / 2 + 20),
+      minX: Math.min(acc.minX, point.x - axisSize(item, axes.horizontal) / 2 - 20),
+      maxX: Math.max(acc.maxX, point.x + axisSize(item, axes.horizontal) / 2 + 20),
+      minY: Math.min(acc.minY, point.y - axisSize(item, axes.vertical) / 2 - 20),
+      maxY: Math.max(acc.maxY, point.y + axisSize(item, axes.vertical) / 2 + 20),
     }
   }, {
     minX: Number.POSITIVE_INFINITY,
@@ -62,10 +115,10 @@ function getProjectionScale(bounds: Bounds, width: number, height: number) {
   return Math.min(usableWidth / worldWidth, usableHeight / worldHeight)
 }
 
-function project(bounds: Bounds, width: number, height: number, x: number, y: number, frame: TopViewFrame) {
+function project(bounds: Bounds, width: number, height: number, position: Vec3, frame: TopViewFrame) {
   const padding = 40
   const scale = getProjectionScale(bounds, width, height)
-  const point = toFrameCoordinates(frame, x, y)
+  const point = projectEntityPoint(frame, position)
   return {
     x: padding + (point.x - bounds.minX) * scale,
     y: padding + (bounds.maxY - point.y) * scale,
@@ -103,6 +156,9 @@ export function TopViewCanvas() {
     selectedId,
     selectObject,
     moveEntity,
+    updateLift,
+    updatePort,
+    updateBackgroundObject,
     mode,
     collisionIndex,
     collisionIssues,
@@ -115,6 +171,9 @@ export function TopViewCanvas() {
     selectedId: state.selectedId,
     selectObject: state.selectObject,
     moveEntity: state.moveEntity,
+    updateLift: state.updateLift,
+    updatePort: state.updatePort,
+    updateBackgroundObject: state.updateBackgroundObject,
     mode: state.mode,
     collisionIndex: state.collisionIndex,
     collisionIssues: state.collisionIssues,
@@ -143,7 +202,15 @@ export function TopViewCanvas() {
       return [{ key, source, target, severity: issue.severity }]
     })
   }, [collisionIssues, visibleEntities])
-  const frameSummary = `Origin (${topViewFrame.originX}, ${topViewFrame.originY}) · X+ ${topViewFrame.xAxisDirection} · Y+ ${topViewFrame.yAxisDirection}`
+
+  const currentAxes = planeAxes(topViewFrame)
+  const freeAxis = lockedAxis(topViewFrame)
+  const primaryAxisLabel = currentAxes.horizontal.toUpperCase()
+  const secondaryAxisLabel = currentAxes.vertical.toUpperCase()
+  const freeAxisLabel = freeAxis.toUpperCase()
+  const planeLabel = topViewFrame.editPlane.toUpperCase()
+  const frameSummary = `Edit plane ${planeLabel} · Origin (${topViewFrame.originX}, ${topViewFrame.originY}) · ${primaryAxisLabel}+ ${topViewFrame.xAxisDirection} · ${secondaryAxisLabel}+ ${topViewFrame.yAxisDirection}`
+  const selectedEntity = selectedId ? visibleEntities[selectedId] ?? null : null
 
   useEffect(() => {
     if (!canvasRef.current || typeof window === 'undefined') return
@@ -175,6 +242,25 @@ export function TopViewCanvas() {
     setTopViewFrame({ [key]: Number.isFinite(parsed) ? parsed : 0 })
   }
 
+  function handleFreeAxisChange(value: string) {
+    if (!selectedEntity) return
+    const parsed = Number(value)
+    const nextValue = Number.isFinite(parsed) ? parsed : 0
+    const nextPosition = { ...selectedEntity.position, [freeAxis]: nextValue }
+
+    if ('rotation' in selectedEntity) {
+      updateLift(selectedEntity.editorId, { position: nextPosition })
+      return
+    }
+
+    if ('portType' in selectedEntity) {
+      updatePort(selectedEntity.editorId, { position: nextPosition })
+      return
+    }
+
+    updateBackgroundObject(selectedEntity.editorId, { position: nextPosition })
+  }
+
   function clearDragState() {
     setDraggingId(null)
     setFrameDragStart(null)
@@ -195,6 +281,29 @@ export function TopViewCanvas() {
     })
   }
 
+  function updateDraggedEntity(editorId: string, projectedX: number, projectedY: number) {
+    const entity = visibleEntities[editorId]
+    if (!entity) return
+    const nextPosition = applyProjectedPosition(entity.position, topViewFrame, projectedX, projectedY)
+
+    if (topViewFrame.editPlane === 'xy') {
+      moveEntity(editorId, nextPosition.x, nextPosition.y)
+      return
+    }
+
+    if ('rotation' in entity) {
+      updateLift(editorId, { position: nextPosition })
+      return
+    }
+
+    if ('portType' in entity) {
+      updatePort(editorId, { position: nextPosition })
+      return
+    }
+
+    updateBackgroundObject(editorId, { position: nextPosition })
+  }
+
   function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
     if (frameDragStart) {
       const deltaX = (event.clientX - frameDragStart.pointerX) / frameDragStart.scale
@@ -210,43 +319,56 @@ export function TopViewCanvas() {
     const rect = canvasRef.current.getBoundingClientRect()
     const world = unproject(bounds, rect.width, rect.height, event.clientX - rect.left, event.clientY - rect.top, topViewFrame)
     if (mode !== 'move') return
-    if ([...lifts, ...visiblePorts, ...backgroundObjects].some((entity) => entity.editorId === draggingId)) moveEntity(draggingId, world.x, world.y)
+    if (visibleEntities[draggingId]) updateDraggedEntity(draggingId, world.x, world.y)
   }
 
   return (
-    <section className="relative flex min-h-[52dvh] flex-col bg-slate-950/30 lg:h-full lg:min-h-0">
-      <div className="flex flex-col gap-3 border-b border-slate-800 px-4 py-3 text-sm text-slate-300 xl:flex-row xl:items-start xl:justify-between">
+    <section className="order-1 relative flex min-h-[62svh] flex-col bg-slate-950/30 lg:order-2 lg:h-full lg:min-h-0">
+      <div data-testid="top-view-settings" className="order-2 flex flex-col gap-2 border-b border-slate-800 px-3 py-2 text-sm text-slate-300 sm:px-4 sm:py-3 lg:order-1 xl:flex-row xl:items-start xl:justify-between">
         <div>
-          <h2 className="font-semibold text-slate-100">XY Plane Editor</h2>
-          <p className="text-xs text-slate-500">XY plane editing · lift-to-lift snap · port-to-nearest-lift attach</p>
+          <h2 className="font-semibold text-slate-100">GLB Plane Editor</h2>
+          <p className="text-xs text-slate-500">{planeLabel} plane editing · XY snap/attach 유지 · XZ/YZ alternate up-axis 지원</p>
           <p className="mt-1 text-xs text-slate-400">{frameSummary}</p>
         </div>
 
-        <div className="grid gap-2 text-xs text-slate-300 sm:grid-cols-2 xl:grid-cols-4">
-          <label className="flex min-w-[8rem] flex-col gap-1">
-            <span>Reference X</span>
+        <div data-testid="top-view-settings-grid" className="grid grid-cols-2 gap-2 text-xs text-slate-300 xl:grid-cols-6">
+          <label className="flex min-w-0 flex-col gap-1">
+            <span>Edit Plane</span>
+            <select
+              aria-label="Edit Plane"
+              value={topViewFrame.editPlane}
+              onChange={(event) => setTopViewFrame({ editPlane: event.target.value as TopViewEditPlane })}
+              className="rounded-md border border-slate-700 bg-slate-950/80 px-2 py-1 text-slate-100"
+            >
+              <option value="xy">xy</option>
+              <option value="xz">xz</option>
+              <option value="yz">yz</option>
+            </select>
+          </label>
+          <label className="flex min-w-0 flex-col gap-1">
+            <span>{`Reference ${primaryAxisLabel}`}</span>
             <input
-              aria-label="Reference X"
+              aria-label={`Reference ${primaryAxisLabel}`}
               type="number"
               value={topViewFrame.originX}
               onChange={(event) => handleFrameNumberChange('originX', event.target.value)}
               className="rounded-md border border-slate-700 bg-slate-950/80 px-2 py-1 text-slate-100"
             />
           </label>
-          <label className="flex min-w-[8rem] flex-col gap-1">
-            <span>Reference Y</span>
+          <label className="flex min-w-0 flex-col gap-1">
+            <span>{`Reference ${secondaryAxisLabel}`}</span>
             <input
-              aria-label="Reference Y"
+              aria-label={`Reference ${secondaryAxisLabel}`}
               type="number"
               value={topViewFrame.originY}
               onChange={(event) => handleFrameNumberChange('originY', event.target.value)}
               className="rounded-md border border-slate-700 bg-slate-950/80 px-2 py-1 text-slate-100"
             />
           </label>
-          <label className="flex min-w-[8rem] flex-col gap-1">
-            <span>X Axis Positive</span>
+          <label className="flex min-w-0 flex-col gap-1">
+            <span>{`${primaryAxisLabel} Axis Positive`}</span>
             <select
-              aria-label="X Axis Positive"
+              aria-label={`${primaryAxisLabel} Axis Positive`}
               value={topViewFrame.xAxisDirection}
               onChange={(event) => setTopViewFrame({ xAxisDirection: event.target.value as TopViewFrame['xAxisDirection'] })}
               className="rounded-md border border-slate-700 bg-slate-950/80 px-2 py-1 text-slate-100"
@@ -255,10 +377,10 @@ export function TopViewCanvas() {
               <option value="left">left</option>
             </select>
           </label>
-          <label className="flex min-w-[8rem] flex-col gap-1">
-            <span>Y Axis Positive</span>
+          <label className="col-span-2 flex min-w-0 flex-col gap-1 xl:col-span-1">
+            <span>{`${secondaryAxisLabel} Axis Positive`}</span>
             <select
-              aria-label="Y Axis Positive"
+              aria-label={`${secondaryAxisLabel} Axis Positive`}
               value={topViewFrame.yAxisDirection}
               onChange={(event) => setTopViewFrame({ yAxisDirection: event.target.value as TopViewFrame['yAxisDirection'] })}
               className="rounded-md border border-slate-700 bg-slate-950/80 px-2 py-1 text-slate-100"
@@ -267,12 +389,26 @@ export function TopViewCanvas() {
               <option value="down">down</option>
             </select>
           </label>
+          {selectedEntity ? (
+            <label className="col-span-2 flex min-w-0 flex-col gap-1 xl:col-span-1">
+              <span>{`${freeAxisLabel} Position`}</span>
+              <input
+                aria-label={`${freeAxisLabel} Position`}
+                type="number"
+                value={selectedEntity.position[freeAxis]}
+                onChange={(event) => handleFreeAxisChange(event.target.value)}
+                className="rounded-md border border-slate-700 bg-slate-950/80 px-2 py-1 text-slate-100"
+              />
+              <span className="text-[11px] text-slate-500">{`${planeLabel} plane에서 이동되지 않는 축: ${freeAxisLabel}`}</span>
+            </label>
+          ) : null}
         </div>
       </div>
 
       <div
+        data-testid="top-view-canvas-surface"
         ref={canvasRef}
-        className="editor-grid relative flex-1 overflow-hidden"
+        className="editor-grid order-1 relative min-h-[34svh] flex-1 overflow-hidden lg:order-2 lg:min-h-0"
         onPointerDown={handleCanvasPointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={clearDragState}
@@ -283,8 +419,8 @@ export function TopViewCanvas() {
         {collisionConnections.length > 0 && (
           <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true">
             {collisionConnections.map((connection) => {
-              const source = project(bounds, canvasSize.width, canvasSize.height, connection.source.position.x, connection.source.position.y, topViewFrame)
-              const target = project(bounds, canvasSize.width, canvasSize.height, connection.target.position.x, connection.target.position.y, topViewFrame)
+              const source = project(bounds, canvasSize.width, canvasSize.height, connection.source.position, topViewFrame)
+              const target = project(bounds, canvasSize.width, canvasSize.height, connection.target.position, topViewFrame)
               const stroke = connection.severity === 'error' ? 'rgba(251, 113, 133, 0.9)' : 'rgba(251, 191, 36, 0.8)'
               return (
                 <g key={connection.key}>
@@ -298,8 +434,10 @@ export function TopViewCanvas() {
         )}
 
         {backgroundObjects.map((item) => {
-          const center = project(bounds, canvasSize.width, canvasSize.height, item.position.x, item.position.y, topViewFrame)
+          const center = project(bounds, canvasSize.width, canvasSize.height, item.position, topViewFrame)
           const colliding = Boolean(collisionIndex[item.editorId]?.length)
+          const projectedWidth = axisSize(item, currentAxes.horizontal) * center.scale
+          const projectedHeight = Math.max(18, axisSize(item, currentAxes.vertical) * center.scale)
           return (
             <div
               key={item.editorId}
@@ -313,7 +451,7 @@ export function TopViewCanvas() {
                 selectedId === item.editorId && 'border-violet-400 bg-violet-500/10 text-violet-100',
                 mode === 'move' ? 'cursor-move' : 'cursor-default',
               )}
-              style={{ left: center.x - (item.width * center.scale) / 2, top: center.y - (item.depth * center.scale) / 2, width: item.width * center.scale, height: Math.max(18, item.depth * center.scale) }}
+              style={{ left: center.x - projectedWidth / 2, top: center.y - projectedHeight / 2, width: projectedWidth, height: projectedHeight }}
             >
               <div className="flex h-full items-center justify-center">{item.id}</div>
               {colliding && <span className="absolute -right-2 -top-2 rounded-full border border-rose-200 bg-rose-500 px-1.5 py-0.5 text-[9px] font-bold text-white">{collisionIndex[item.editorId].length}</span>}
@@ -322,8 +460,10 @@ export function TopViewCanvas() {
         })}
 
         {lifts.map((lift) => {
-          const center = project(bounds, canvasSize.width, canvasSize.height, lift.position.x, lift.position.y, topViewFrame)
+          const center = project(bounds, canvasSize.width, canvasSize.height, lift.position, topViewFrame)
           const colliding = Boolean(collisionIndex[lift.editorId]?.length)
+          const projectedWidth = axisSize(lift, currentAxes.horizontal) * center.scale
+          const projectedHeight = Math.max(32, axisSize(lift, currentAxes.vertical) * center.scale)
           return (
             <div
               key={lift.editorId}
@@ -338,7 +478,7 @@ export function TopViewCanvas() {
                 !colliding && (selectedId === lift.editorId ? 'border-blue-300' : 'border-blue-500/40'),
                 mode === 'move' ? 'cursor-move' : 'cursor-default',
               )}
-              style={{ left: center.x - (lift.width * center.scale) / 2, top: center.y - (lift.depth * center.scale) / 2, width: lift.width * center.scale, height: Math.max(32, lift.depth * center.scale), transform: `rotate(${-lift.rotation}deg)` }}
+              style={{ left: center.x - projectedWidth / 2, top: center.y - projectedHeight / 2, width: projectedWidth, height: projectedHeight, transform: topViewFrame.editPlane === 'xy' ? `rotate(${-lift.rotation}deg)` : undefined }}
             >
               {colliding && <span className="absolute -right-2 -top-2 rounded-full border border-rose-200 bg-rose-500 px-1.5 py-0.5 text-[9px] font-bold text-white">{collisionIndex[lift.editorId].length}</span>}
               <div className="flex h-full flex-col justify-between p-2">
@@ -350,7 +490,7 @@ export function TopViewCanvas() {
         })}
 
         {visiblePorts.map((port) => {
-          const center = project(bounds, canvasSize.width, canvasSize.height, port.position.x, port.position.y, topViewFrame)
+          const center = project(bounds, canvasSize.width, canvasSize.height, port.position, topViewFrame)
           const colliding = Boolean(collisionIndex[port.editorId]?.length)
           return (
             <button

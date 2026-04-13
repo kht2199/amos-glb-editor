@@ -114,6 +114,18 @@ describe('PreviewSceneCanvas', () => {
     expect(screen.getByRole('button', { name: 'Focus Selection' })).toBeDisabled()
   })
 
+  it('shows a compact XYZ position overlay for the current selection on top of the 3D preview', () => {
+    const state = useEditorStore.getState()
+    const selectedLift = state.appliedLifts[0]
+    state.selectObject(selectedLift.editorId)
+
+    render(<PreviewSceneCanvas />)
+
+    expect(screen.getByText(selectedLift.id)).toBeInTheDocument()
+    expect(screen.getByText(`X ${selectedLift.position.x} · Y ${selectedLift.position.y} · Z ${selectedLift.position.z}`)).toBeInTheDocument()
+    expect(screen.getByText('2D Plane XY · Free axis Z')).toBeInTheDocument()
+  })
+
   it('focuses the selected object and lets reset return to the whole-scene framing', async () => {
     const user = userEvent.setup()
     const state = useEditorStore.getState()

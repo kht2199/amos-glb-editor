@@ -197,6 +197,7 @@ describe('editor store', () => {
       originY: -35,
       xAxisDirection: 'left',
       yAxisDirection: 'down',
+      editPlane: 'xz',
     })
 
     const next = useEditorStore.getState()
@@ -205,6 +206,7 @@ describe('editor store', () => {
       originY: -35,
       xAxisDirection: 'left',
       yAxisDirection: 'down',
+      editPlane: 'xz',
     })
     expect(next.hasPendingChanges).toBe(false)
     expect(next.canUndo).toBe(false)

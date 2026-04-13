@@ -37,6 +37,7 @@ const DEFAULT_TOP_VIEW_FRAME: TopViewFrame = {
   originY: 0,
   xAxisDirection: 'right',
   yAxisDirection: 'up',
+  editPlane: 'xy',
 }
 
 export const DEFAULT_OBJECT_TYPE_DEFINITIONS: ObjectTypeDefinition[] = [

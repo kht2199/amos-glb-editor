@@ -169,15 +169,23 @@ export function PreviewSceneCanvas() {
   const controlsRef = useRef<OrbitControlsHandle | null>(null)
   const [viewMode, setViewMode] = useState<CameraViewMode>('overview')
   const [viewNonce, setViewNonce] = useState(0)
-  const { lifts, ports, backgroundObjects, selectedId, pristineScene } = useEditorStore(useShallow((state) => ({
+  const { lifts, ports, backgroundObjects, selectedId, pristineScene, topViewFrame } = useEditorStore(useShallow((state) => ({
     lifts: state.appliedLifts,
     ports: state.appliedPorts,
     backgroundObjects: state.appliedBackgroundObjects,
     selectedId: state.selectedId,
     pristineScene: state.runtime.pristineScene,
+    topViewFrame: state.topViewFrame,
   })))
 
   const entities = useMemo(() => allEntities(lifts, ports, backgroundObjects), [lifts, ports, backgroundObjects])
+  const selected = useMemo(() => selectedEntity(entities, selectedId), [entities, selectedId])
+  const freeAxis = useMemo(() => {
+    const plane = topViewFrame.editPlane
+    if (plane === 'xy') return 'Z'
+    if (plane === 'xz') return 'Y'
+    return 'X'
+  }, [topViewFrame.editPlane])
   const previewScene = useMemo(() => {
     if (!pristineScene) return null
     return buildAppliedScene({
@@ -214,6 +222,13 @@ export function PreviewSceneCanvas() {
           Focus Selection
         </button>
       </div>
+      {selected ? (
+        <div className="pointer-events-none absolute right-3 top-3 z-10 rounded-xl border border-slate-700/80 bg-slate-950/85 px-3 py-2 text-xs text-slate-100 shadow-sm">
+          <div className="font-semibold">{selected.id}</div>
+          <div className="mt-1 text-slate-300">{`X ${selected.position.x} · Y ${selected.position.y} · Z ${selected.position.z}`}</div>
+          <div className="mt-1 text-slate-400">{`2D Plane ${topViewFrame.editPlane.toUpperCase()} · Free axis ${freeAxis}`}</div>
+        </div>
+      ) : null}
       <Canvas
         camera={{ position: [120, 120, 90], fov: 34, near: 0.1, far: 1600 }}
         gl={{ antialias: true, powerPreference: 'high-performance', alpha: false }}

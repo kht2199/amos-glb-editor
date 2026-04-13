@@ -84,9 +84,9 @@ export default function App() {
       <main className="relative flex flex-1 flex-col overflow-auto lg:grid lg:grid-cols-[300px_minmax(0,1fr)_360px] lg:overflow-hidden">
         {fileName ? (
           <>
-            <StructurePanel />
             <TopViewCanvas />
-            <div className="flex min-h-0 flex-col lg:min-h-0">
+            <StructurePanel />
+            <div className="order-3 flex min-h-0 flex-col lg:order-3 lg:min-h-0">
               <div className="min-h-0 flex-1">
                 <InspectorPanel />
               </div>
