@@ -9,7 +9,7 @@ GLB scene을 웹에서 읽고, **일반 오브젝트를 선택·복사·이동·
 - 압축된 `.glb` 파일을 불러와 다시 `.glb`로 export
 - scene object의 위치/회전/속성 수정
 - 오브젝트 복사(`Duplicate`) 기반 생성
-- 충돌, 중복 ID, 잘못된 관계를 사전에 검증
+- 충돌, 중복 ID, 잘못된 관계를 참고 정보로 확인
 - 원본 GLB의 나머지 구조를 최대한 유지한 채 re-export
 
 ## 왜 이 에디터를 만드는가
@@ -45,6 +45,9 @@ GLB scene을 웹에서 읽고, **일반 오브젝트를 선택·복사·이동·
 - objectType별 추가 메타 예시
   - `Lift`: 90도 회전, 애니메이션 파라미터 편집
   - `Port`: 다른 Lift 또는 외부 도메인 parent에 맞춘 재연결, 타입 / semantic role / face / slot 같은 metadata 수정
+
+이 예시는 **특정 타입을 핵심 편집 대상으로 승격**하려는 뜻이 아니라,
+현재 타입별로 자주 쓰이는 metadata 종류가 다르다는 점을 보여주기 위한 것이다.
 
 ### 배경 구조물
 - `Bridge`
@@ -114,7 +117,8 @@ re-export는 원본을 전부 재구성하지 않고, import 시점의 pristine 
 - Validation drawer
 - Preview overlay
 - Undo / Redo
-- 세션 저장 상태 추적
+- draft / applied pending 상태 추적
+- 2D 기준 좌표(origin)와 축 방향 수정
 - 충돌 표시
 
 ## 목표 구현 방향
@@ -131,7 +135,7 @@ re-export는 원본을 전부 재구성하지 않고, import 시점의 pristine 
 
 ## UI 구성
 
-- **Toolbar**: import, demo 열기, apply/revert/export, 검증, Move/Duplicate/Snap 등 주요 액션
+- **Toolbar**: import, demo 열기, apply/revert/export, validation 참고 정보 열기, Move/Duplicate/Snap 등 주요 액션
 - **Structure Panel**: scene object 구조 탐색
 - **Top View Editor**: object 배치 작업 공간
 - **Inspector Panel**: 선택한 객체의 속성 및 좌표 편집
@@ -250,12 +254,12 @@ pnpm build
 pnpm dlx tsx scripts/regenerate-demo-scene.ts
 ```
 
-### export → import round-trip 재검증
+### export → import round-trip 확인
 ```bash
 pnpm dlx tsx scripts/verify-import-export.ts
 ```
 
-이 검증은 다음을 확인합니다.
+이 확인 절차는 다음을 봅니다.
 - Lift / Port / Read-only object 개수 유지
 - `slotsPerFace` 유지
 - `STOCKER_ACCESS` 같은 external port 메타 유지
@@ -278,7 +282,6 @@ pnpm dlx tsx scripts/verify-import-export.ts
 - Zustand
 - Zod
 - Vitest
-- Playwright
 
 ## 현재 판단 기준
 

@@ -4,7 +4,7 @@
 
 ## 목적
 - 실제 장비 용어와 editor 내부 엔티티를 분리한다.
-- import / selection / inspector / validation / export의 공통 기준을 고정한다.
+- import / selection / inspector / export와 validation 참고 정보의 공통 기준을 고정한다.
 - `scene graph 관계`와 `domain 관계`를 혼동하지 않도록 한다.
 
 ## 핵심 해석 원칙
@@ -13,7 +13,7 @@
 - `Lift`는 프로젝트의 수직 이송 모듈 추상화다.
 - `Port`는 도킹/인계 지점 추상화다. 실제 장비의 load port와 1:1 동치라고 단정하지 않는다.
 - `Bridge`, `Rail`, `Stocker`, `Transport`도 현재 scene object 체계 안에 포함된다.
-- 다만 각 objectType은 같은 편집 흐름을 공유하더라도, **도메인 제약과 주요 메타데이터의 밀도는 서로 다를 수 있다.**
+- 다만 각 objectType은 같은 편집 흐름을 공유하더라도, **도메인 메타데이터의 종류와 밀도는 서로 다를 수 있다.**
 - `Transport`는 현재도 demo scene에 포함되지만, 주된 역할은 **OHT/ceiling logistics 문맥을 보여주는 보조 구조**다.
 - 물리 구조층과 제어/운영층은 분리해서 다룬다. 현재 editor는 물리 구조층 중심이다.
 
@@ -62,7 +62,7 @@
 - Lift 소속 포트는 `face + slot + Z`로 위치를 복원한다.
 - Lift 외부 포트는 `domainParentId/domainParentType`가 1차 기준이다.
 - scene graph 상에서 Lift child가 아니어도 domain 관계는 유지해야 한다.
-- validation은 geometry보다 `same domain parent + same face + same slot` 충돌 규칙이 중요하다.
+- validation 참고 정보는 geometry보다 `same domain parent + same face + same slot` 충돌 규칙을 우선적으로 보여준다.
 
 ## 배경/문맥 오브젝트 규칙
 ### Bridge
@@ -80,7 +80,7 @@
 
 ### Transport
 - OHT/overhead vehicle 계열의 참조 엔티티다.
-- 현재 editor의 핵심 편집 대상은 아니며, 타입/온톨로지/향후 시뮬레이션 연결을 위한 개념 레벨로 유지한다.
+- 현재는 타입/온톨로지/향후 시뮬레이션 연결을 위한 개념 레벨이 강하다.
 - 시각적으로는 바닥 AGV가 아니라 **ceiling guideway에 매달린 compact carrier**처럼 읽히는 것이 적절하다.
 
 ## 현재 타입 시스템 매핑
@@ -107,7 +107,7 @@
 
 ## 현재 모델의 장점
 - scene object 전반을 같은 선택/이동/복사 흐름으로 다룰 수 있다.
-- Lift/Port에는 필요한 도메인 제약을 유지하면서도, 배경 오브젝트를 같은 편집 맥락 안에 둘 수 있다.
+- Lift/Port를 포함한 여러 타입의 메타데이터를 유지하면서도, 배경 오브젝트를 같은 편집 맥락 안에 둘 수 있다.
 - GLB export에서 변경 범위를 transform + metadata 중심으로 제한하기 쉽다.
 - top-view 기반 2D 편집 규칙과 잘 맞는다.
 - lift 외부 포트도 `domainParent` 메타데이터로 확장 가능하다.
@@ -120,4 +120,4 @@
 
 ## 결론
 현재 `glb-editor`는 반도체 물류 구조를 축약한 scene 위에서
-**여러 scene object를 같은 편집 흐름으로 다루되, Lift/Port의 domain metadata를 특히 중요하게 유지한 채 GLB로 다시 내보내기 위한 제약형 editor**로 보는 것이 가장 정확하다.
+**여러 scene object를 같은 편집 흐름으로 다루면서, objectType별 metadata와 transform을 유지한 채 GLB로 다시 내보내는 상단뷰 기반 object editor**로 보는 것이 가장 정확하다.

@@ -7,16 +7,16 @@ import type { Face, LiftEntity, ObjectKind, PortSemanticRole, PortType } from '.
 const FACE_OPTIONS: Face[] = ['FRONT', 'BACK', 'LEFT', 'RIGHT']
 const PORT_TYPE_OPTIONS: PortType[] = ['IN', 'OUT', 'INOUT']
 const PORT_ROLE_OPTIONS: PortSemanticRole[] = ['LIFT_DOCK', 'STOCKER_ACCESS', 'TOOL_LOAD', 'BUFFER_HANDOFF']
-const OBJECT_TYPE_OPTIONS: ObjectKind[] = ['Lift', 'Port', 'Bridge', 'Rail', 'Stocker', 'Transport']
 const fieldClass = 'w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-blue-400'
 const dangerButton = 'inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm font-medium text-rose-100 hover:bg-rose-500/20'
 
 export function InspectorPanel() {
-  const { selectedId, draftLifts, draftPorts, draftBackgroundObjects, updateLift, updatePort, updateBackgroundObject, setObjectType, deletePort, validationIssues } = useEditorStore(useShallow((state) => ({
+  const { selectedId, draftLifts, draftPorts, draftBackgroundObjects, objectTypeDefinitions, updateLift, updatePort, updateBackgroundObject, setObjectType, deletePort, validationIssues } = useEditorStore(useShallow((state) => ({
     selectedId: state.selectedId,
     draftLifts: state.draftLifts,
     draftPorts: state.draftPorts,
     draftBackgroundObjects: state.draftBackgroundObjects,
+    objectTypeDefinitions: state.objectTypeDefinitions,
     updateLift: state.updateLift,
     updatePort: state.updatePort,
     updateBackgroundObject: state.updateBackgroundObject,
@@ -29,6 +29,7 @@ export function InspectorPanel() {
   const selectedPort = draftPorts.find((item) => item.editorId === selectedId && !item.deleted) ?? null
   const selectedReadonly = draftBackgroundObjects.find((item) => item.editorId === selectedId) ?? null
   const issues = useMemo(() => validationIssues.filter((issue) => issue.targetId === selectedId), [selectedId, validationIssues])
+  const objectTypeOptions = objectTypeDefinitions.map((definition) => definition.name as ObjectKind)
 
   return (
     <aside className="flex min-h-[280px] flex-col border-t border-slate-800 bg-slate-950/40 lg:h-full lg:min-h-0 lg:border-t-0 lg:border-l">
@@ -43,7 +44,7 @@ export function InspectorPanel() {
         {selectedLift ? (
           <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
             <HeaderBadge title={selectedLift.id} badge="Lift" />
-            <Field label="Object Type"><select aria-label="Object Type" className={fieldClass} value={selectedLift.objectType} onChange={(event) => setObjectType(selectedLift.editorId, event.target.value as ObjectKind)}>{OBJECT_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
+            <Field label="Object Type"><select aria-label="Object Type" className={fieldClass} value={selectedLift.objectType} onChange={(event) => setObjectType(selectedLift.editorId, event.target.value as ObjectKind)}>{objectTypeOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
             <Field label="ID"><input className={fieldClass} value={selectedLift.id} onChange={(event) => updateLift(selectedLift.editorId, { id: event.target.value, nodeName: event.target.value })} /></Field>
             <DoubleField>
               <NumberField label="X" value={selectedLift.position.x} onChange={(value) => updateLift(selectedLift.editorId, { position: { ...selectedLift.position, x: value } })} />
@@ -71,7 +72,7 @@ export function InspectorPanel() {
         {selectedPort ? (
           <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
             <HeaderBadge title={selectedPort.id} badge="Port" />
-            <Field label="Object Type"><select aria-label="Object Type" className={fieldClass} value={selectedPort.objectType} onChange={(event) => setObjectType(selectedPort.editorId, event.target.value as ObjectKind)}>{OBJECT_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
+            <Field label="Object Type"><select aria-label="Object Type" className={fieldClass} value={selectedPort.objectType} onChange={(event) => setObjectType(selectedPort.editorId, event.target.value as ObjectKind)}>{objectTypeOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
             <Field label="ID"><input className={fieldClass} value={selectedPort.id} onChange={(event) => updatePort(selectedPort.editorId, { id: event.target.value, nodeName: event.target.value })} /></Field>
             <Field label="Domain Parent"><input className={fieldClass} value={`${selectedPort.domainParentType} · ${selectedPort.domainParentId}`} disabled /></Field>
             <p className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-xs leading-5 text-slate-400">포트 높이는 <code className="rounded bg-slate-900 px-1 py-0.5 text-slate-200">Z</code> 값으로 직접 관리합니다.</p>
@@ -96,7 +97,7 @@ export function InspectorPanel() {
         {selectedReadonly ? (
           <section className="space-y-3 rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4">
             <HeaderBadge title={selectedReadonly.id} badge={selectedReadonly.objectType} />
-            <Field label="Object Type"><select aria-label="Object Type" className={fieldClass} value={selectedReadonly.objectType} onChange={(event) => setObjectType(selectedReadonly.editorId, event.target.value as ObjectKind)}>{OBJECT_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
+            <Field label="Object Type"><select aria-label="Object Type" className={fieldClass} value={selectedReadonly.objectType} onChange={(event) => setObjectType(selectedReadonly.editorId, event.target.value as ObjectKind)}>{objectTypeOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
             <Field label="ID"><input className={fieldClass} value={selectedReadonly.id} onChange={(event) => updateBackgroundObject(selectedReadonly.editorId, { id: event.target.value, nodeName: event.target.value })} /></Field>
             <DoubleField>
               <NumberField label="X" value={selectedReadonly.position.x} onChange={(value) => updateBackgroundObject(selectedReadonly.editorId, { position: { ...selectedReadonly.position, x: value } })} />

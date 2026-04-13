@@ -353,7 +353,6 @@ export async function loadGlbFile(file: File) {
   }
 
   return {
-    workingScene: scene,
     pristineScene,
     animations: gltf.animations,
     bundle,

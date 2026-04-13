@@ -8,24 +8,24 @@
 
 `glb-editor`의 demo scene을 다시 만든다.
 이 demo scene의 목적은 반도체 FAB 전체를 사실적으로 재현하는 것이 아니라,
-**층간 리프트(inter-floor lift)와 상부/하부 포트 중심의 제약형 편집기에서 배치 편집, domain parent 복원, semantic role 표현을 검증**하는 것이다.
+**scene object를 metadata 중심으로 읽고 수정하는 object editor에서 배치 편집, domain parent 복원, semantic role 표현을 설명**하는 것이다.
 
-즉, 이 scene은 다음을 검증해야 한다.
+즉, 이 scene은 다음을 설명해야 한다.
 
 1. 층간 Lift 이동/회전과 애니메이션 메타데이터
 2. 상부/하부 Port의 face/slot/Z 기반 배치
 3. Lift 소속 Port와 Lift 외부 Port(예: Stocker access)의 구분
 4. `domainParentId` / `domainParentType` / `semanticRole` 유지
-5. 배경 구조물은 문맥만 제공하고 편집 핵심보다 앞에 서지 않도록 시각적 우선순위를 낮추기
+5. 여러 objectType이 같은 편집 흐름 안에서 함께 다뤄질 수 있다는 점
 
 ---
 
 ## 핵심 해석 원칙
 
-- 이 editor는 **상단뷰 기반 배치 편집기**다.
+- 이 editor는 **상단뷰 기반 object editor**다.
 - 자유형 3D 모델러를 만드는 것이 아니다.
-- 편집 핵심은 **층간 `Lift`와 그에 연결된 상부/하부 `Port`**다.
-- `Bridge`, `Rail`, `Stocker`, `Transport`, cleanroom shell은 **보조 문맥 제공용 구조물**이다.
+- 특정 objectType을 핵심 편집 대상으로 특별 취급하지 않는다.
+- `Bridge`, `Rail`, `Stocker`, `Transport`, cleanroom shell도 모두 같은 scene object 흐름 안에서 읽는다.
 - 편집 로직은 geometry보다 metadata 중심이어야 한다.
 - scene graph parent보다 **domain parent**가 더 중요하다.
 - 원본 GLB의 메쉬 형태가 달라도 편집 규칙은 동일해야 한다.
@@ -99,7 +99,7 @@
   - Stocker 1개
   - Transport 1개
 - 이 오브젝트들은 장면의 **배경 문맥**이다.
-- 존재감은 있되, **층간 Lift와 상부/하부 Port 관계보다 강하게 보이면 안 된다.**
+- 장면 해석을 돕는 context geometry로 유지하되, object editor의 시야를 방해하지 않는 정도가 적절하다.
 
 예시 의미:
 - `Bridge`: 연결 구조물
@@ -120,66 +120,51 @@
 ## 실제 stocker/lift 동작 참고 해석
 
 실제/제품 소개 영상 기준으로 scene은 아래 특징을 따르면 결과가 안정적이다.
-단, 이 장면의 주연은 generic AMHS overview가 아니라 **층간 리프트와 upper/lower handoff 관계**다.
+단, 이 장면은 특정 objectType을 주연으로 밀어주기보다 **metadata 해석과 배치 문맥이 쉽게 읽히는 장면**이어야 한다.
 
 - Stocker는 **높은 직육면체 cleanroom cabinet/tower**처럼 보여야 함
 - Stocker 내부에는 **반복적인 multi-level storage slot rhythm**이 보여야 함
 - 내부 transfer는 흔들리는 crane보다 **vertical lift carriage의 직선 Z 이동**으로 느껴져야 함
 - slot 입출고는 긴 다관절 팔보다 **짧은 horizontal handoff shelf / platform**이 더 자연스러움
 - overhead rail/OHT는 바닥 장비가 아니라 **상부 guideway 문맥**으로 보여야 함
-- stocker 상부에는 OHT에서 내부 lift로 이어지는 **top handoff 접점**이 보일 수 있지만, 이번 demo scene의 핵심 메시지는 어디까지나 **상부 포트 ↔ 하부 포트 ↔ 수직 lift 연결**이다.
-- 따라서 전체 흐름은 아래 순서가 우선 읽혀야 함
-  - upper port handoff
-  - vertical lift transfer
-  - lower port handoff
-- overhead rail/OHT와 stocker는 이 흐름을 보조하는 문맥으로 남겨도 충분하다.
+- stocker 상부에는 OHT에서 내부 lift로 이어지는 **top handoff 접점**이 보일 수 있다.
+- overhead rail/OHT와 stocker는 특정 objectType의 우선순위를 강요하기보다, 장면의 domain context를 보강하는 역할이면 충분하다.
 
 ---
 
 ## 시각/UX 요구사항
 
-### 1) 핵심 오브젝트 우선순위
-가장 눈에 띄어야 하는 순서는 대략 다음과 같다.
-
-1. 층간 Lift 본체
-2. 상부/하부 Port
-3. Stocker
-4. Bridge / Rail / Transport
-5. Cleanroom shell / building-like background
-
-즉, building처럼 보이는 구조물이 scene의 주인공처럼 보이면 안 된다.
-
-### 2) 중요하지 않은 구조물의 투명도
+### 1) 배경 구조물의 투명도
 - cleanroom shell 계열 구조물은 **조금 더 보이게 반투명** 처리
 - 완전 투명 아님
-- 너무 진해서 Lift/Port를 가리면 안 됨
+- 너무 진해서 scene object 확인을 방해하면 안 됨
 - floor / ceiling / rear wall / support 계열은 시선 방해를 줄이는 방향
-- 목표는 “배경 문맥은 남기되, 편집 핵심은 가리지 않기”
+- 목표는 “배경 문맥은 남기되, 오브젝트 편집 가독성은 해치지 않기”
 
 권장 해석:
 - cleanroom panel / rear wall / ceiling grid / support는 불투명보다 낮은 opacity 사용
-- stocker, bridge, rail도 필요하면 핵심 엔티티보다 약하게 보이도록 채도나 명도를 조정 가능
-- stocker / rail / transport는 **ghosted context geometry**처럼 읽히게 하고, 주연과 경쟁하지 않도록 저채도·저발광을 유지
+- stocker, bridge, rail도 필요하면 편집 가독성을 해치지 않도록 채도나 명도를 조정 가능
+- stocker / rail / transport는 **ghosted context geometry**처럼 읽히게 하고, scene 해석을 방해하지 않도록 저채도·저발광을 유지
 
-### 3) Preview 카메라
+### 2) Preview 카메라
 - preview 초기 카메라는 **정면 기준 45도 ISO 뷰**여야 함
 - 기본 target은 scene center여야 하며, 초기 position은 X축 비틀림 없이 floor/ceiling 높이 차를 바로 읽을 수 있어야 함
-- 사용자가 열었을 때 **상부 포트는 높은 Z, 하부 포트는 낮은 Z**라는 관계가 즉시 이해되어야 함
-- Lift/Port가 cleanroom shell, wall, ceiling grid 같은 배경 구조물에 가려진 상태로 시작하면 안 됨
+- 사용자가 열었을 때 주요 object의 Z 높이 차와 배치 관계가 바로 읽혀야 함
+- 특정 objectType이 cleanroom shell, wall, ceiling grid 같은 배경 구조물에 가려진 상태로 시작하면 안 됨
 - orbit은 가능하되, initial pose는 top view 기반 편집기의 확장 preview처럼 보여야 함
 
-### 4) 시각적 구분 우선 표현
+### 3) 시각적 구분 표현
 - 이 demo scene은 **현실 재현보다 즉시 구분 가능한 시각 언어**를 우선할 수 있다.
-- 상부 포트와 하부 포트는 색과 실루엣이 분명히 달라야 한다.
+- objectType별 metadata 차이가 보조적으로 읽히도록 색과 실루엣 차이를 둘 수 있다.
 - 권장 예시:
   - upper port: cyan / blue 계열 + upward chevron frame
   - lower port: amber / orange 계열 + downward dock frame
 - 단, 두 포트는 완전히 다른 메시 패밀리가 아니라 **같은 계열의 기본 볼륨 위에 구분용 프레임/장식이 추가된 형태**가 좋다.
-- 메인 inter-floor lift는 단순 박스보다 **밝은 vertical shaft + high/low landing band + central guide column**으로 읽히는 편이 낫다.
+- Lift도 단순 박스보다 **vertical shaft + landing band + guide column**처럼 메타데이터 해석을 돕는 실루엣이 유리할 수 있다.
 - 포트 앞에는 실제보다 과장되더라도 **handoff shelf / plate**를 두어 인계 지점을 설명적으로 보여줄 수 있다.
 - 높이 차이는 얇은 horizontal band / translucent plane 또는 실제 Z 차이로 읽히게 표현할 수 있다.
 
-### 5) 탑뷰 편집 중심성 유지
+### 4) 탑뷰 편집 중심성 유지
 - 제품의 본질은 top view 기반 배치 편집
 - preview가 화려한 3D showcase처럼 느껴지면 안 됨
 - scene 구성과 카메라는 **배치 편집을 더 잘 이해시키는 보조 수단**이어야 함
@@ -235,11 +220,11 @@
 
 이 demo scene을 보는 사람은 다음을 바로 이해할 수 있어야 한다.
 
-1. 이 editor의 핵심은 층간 Lift와 상부/하부 Port 편집이다.
-2. Stocker access 같은 lift 외부 포트도 다룰 수 있다.
+1. 이 editor는 특정 타입 전용 툴이 아니라 scene object 전반을 다루는 object editor다.
+2. Stocker access 같은 lift 외부 포트도 같은 편집 흐름 안에서 다룰 수 있다.
 3. 배경 구조물은 배치 문맥용이다.
 4. cleanroom/building-like 구조물은 배경일 뿐이며 편집 주제가 아니다.
-5. 이 scene은 정교한 fab replica가 아니라, domain-aware editing 규칙 검증용 샘플이다.
+5. 이 scene은 정교한 fab replica가 아니라, domain-aware object editing 예시용 샘플이다.
 
 ---
 
@@ -247,9 +232,9 @@
 
 - FAB 전체를 과도하게 사실적으로 재현하려고 하지 말 것
 - generic fab-wide AMHS overview를 main reference로 삼지 말 것
-- 건물/벽/천장 구조가 Lift/Port보다 더 눈에 띄게 만들지 말 것
+- 건물/벽/천장 구조가 특정 objectType보다 과하게 앞에 나오게 만들지 말 것
 - preview를 완전 side view 또는 완전 top-down으로 시작하지 말 것
-- 배경 구조물(cleanroom shell, wall, ceiling)이 Lift/Port 앞에 서는 각도로 시작하지 말 것
+- 배경 구조물(cleanroom shell, wall, ceiling)이 주요 scene object 앞에 서는 각도로 시작하지 말 것
 - geometry 디테일에 편집 규칙이 종속되게 만들지 말 것
 - scene graph 구조만으로 parent를 해석하지 말 것
 
@@ -278,18 +263,18 @@
 ```md
 `glb-editor`의 demo scene을 다시 설계/구현하라.
 
-목표는 반도체 FAB 전체를 사실적으로 재현하는 것이 아니라, Lift/Port 중심의 제약형 편집기에서 배치 편집, domain parent 복원, semantic role 표현을 검증하는 축약 샘플을 만드는 것이다.
+목표는 반도체 FAB 전체를 사실적으로 재현하는 것이 아니라, scene object 중심 object editor에서 배치 편집, domain parent 복원, semantic role 표현을 설명하는 축약 샘플을 만드는 것이다.
 
 필수 요구사항:
 - Lift 2개, Port 4개, background object 4개(Bridge/Rail/Stocker/Transport), cleanroom shell 포함
 - Port는 Lift dock 3개 + Stocker access 1개
 - scene graph parent보다 domain parent가 중요하도록 metadata 중심 구조 유지
-- Lift/Port가 시각적 중심이어야 함
+- 여러 objectType의 metadata와 배치 문맥이 함께 읽혀야 함
 - Stocker는 단순 박스보다 **높은 vertical storage body**로 읽혀야 함
 - Stocker geometry에는 **white vertical lift carriage가 Z축으로 직선 이동**하는 듯한 시각적 인상이 포함되면 좋다. 이는 별도 Lift 엔티티를 추가하라는 뜻이 아니라, stocker access의 맥락을 설명하는 내부 표현이다. carriage 앞에는 **짧은 horizontal transfer shelf** 표현이 붙어 있는 것이 자연스러움
 - overhead rail/OHT는 바닥 교통수단이 아니라 **ceiling guideway context**로 보여야 함
 - cleanroom/building-like 배경 구조는 조금 더 보이게 반투명 처리
-- preview 초기 카메라는 정면 기준 45도 ISO 뷰이며, 좌표계상 Z 높이 차와 주요 Lift/Port가 즉시 읽혀야 함
+- preview 초기 카메라는 정면 기준 45도 ISO 뷰이며, 좌표계상 Z 높이 차와 주요 scene object가 즉시 읽혀야 함
 - top-view 기반 편집기의 목적이 드러나야 함
 - geometry-agnostic editing 원칙 유지
 - export/import round-trip에서 metadata 유지가 중요하도록 설계

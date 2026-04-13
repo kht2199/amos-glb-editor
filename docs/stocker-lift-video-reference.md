@@ -7,9 +7,9 @@
 **영상에서 반복적으로 보이는 장비의 형상·축 방향·handoff 순서**를 scene 생성 프롬프트에 반영하는 것이다.
 
 추가 기준:
-- 현재 demo scene의 주연은 **층간 리프트와 상부/하부 포트 관계**다.
+- 현재 demo scene은 특정 objectType을 주연으로 두기보다 **scene object의 metadata와 배치 문맥이 잘 읽히는 샘플**이어야 한다.
 - 따라서 fab-wide OHT overview 장면은 보조 참고로만 쓰고,
-- **upper port / lower port / vertical transfer**를 읽을 수 있는 장면을 우선 참고한다.
+- stocker / access point / overhead context / vertical transfer를 읽을 수 있는 장면을 우선 참고한다.
 
 ---
 

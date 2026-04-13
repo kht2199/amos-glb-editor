@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { cn, round } from '../lib/utils'
 import { useEditorStore } from '../store/editor-store'
-import type { LiftEntity, PortEntity, BackgroundObjectEntity } from '../types'
+import type { BackgroundObjectEntity, LiftEntity, PortEntity, TopViewFrame } from '../types'
 
 interface Bounds {
   minX: number
@@ -11,40 +11,90 @@ interface Bounds {
   maxY: number
 }
 
-function computeBounds(lifts: LiftEntity[], ports: PortEntity[], backgroundObjects: BackgroundObjectEntity[]): Bounds {
+function axisDirectionSign(direction: TopViewFrame['xAxisDirection'] | TopViewFrame['yAxisDirection']) {
+  return direction === 'right' || direction === 'up' ? 1 : -1
+}
+
+function toFrameCoordinates(frame: TopViewFrame, x: number, y: number) {
+  return {
+    x: round((x - frame.originX) * axisDirectionSign(frame.xAxisDirection)),
+    y: round((y - frame.originY) * axisDirectionSign(frame.yAxisDirection)),
+  }
+}
+
+function fromFrameCoordinates(frame: TopViewFrame, x: number, y: number) {
+  return {
+    x: round(frame.originX + x * axisDirectionSign(frame.xAxisDirection)),
+    y: round(frame.originY + y * axisDirectionSign(frame.yAxisDirection)),
+  }
+}
+
+function computeBounds(
+  lifts: LiftEntity[],
+  ports: PortEntity[],
+  backgroundObjects: BackgroundObjectEntity[],
+  frame: TopViewFrame,
+): Bounds {
   const entities = [...lifts, ...ports.filter((port) => !port.deleted), ...backgroundObjects]
   if (!entities.length) return { minX: -100, maxX: 100, minY: -100, maxY: 100 }
-  return entities.reduce<Bounds>((acc, item) => ({
-    minX: Math.min(acc.minX, item.position.x - item.width / 2 - 20),
-    maxX: Math.max(acc.maxX, item.position.x + item.width / 2 + 20),
-    minY: Math.min(acc.minY, item.position.y - item.depth / 2 - 20),
-    maxY: Math.max(acc.maxY, item.position.y + item.depth / 2 + 20),
-  }), { minX: Number.POSITIVE_INFINITY, maxX: Number.NEGATIVE_INFINITY, minY: Number.POSITIVE_INFINITY, maxY: Number.NEGATIVE_INFINITY })
+  return entities.reduce<Bounds>((acc, item) => {
+    const point = toFrameCoordinates(frame, item.position.x, item.position.y)
+    return {
+      minX: Math.min(acc.minX, point.x - item.width / 2 - 20),
+      maxX: Math.max(acc.maxX, point.x + item.width / 2 + 20),
+      minY: Math.min(acc.minY, point.y - item.depth / 2 - 20),
+      maxY: Math.max(acc.maxY, point.y + item.depth / 2 + 20),
+    }
+  }, {
+    minX: Number.POSITIVE_INFINITY,
+    maxX: Number.NEGATIVE_INFINITY,
+    minY: Number.POSITIVE_INFINITY,
+    maxY: Number.NEGATIVE_INFINITY,
+  })
 }
 
-function project(bounds: Bounds, width: number, height: number, x: number, y: number) {
+function getProjectionScale(bounds: Bounds, width: number, height: number) {
   const padding = 40
   const usableWidth = width - padding * 2
   const usableHeight = height - padding * 2
   const worldWidth = Math.max(bounds.maxX - bounds.minX, 1)
   const worldHeight = Math.max(bounds.maxY - bounds.minY, 1)
-  const scale = Math.min(usableWidth / worldWidth, usableHeight / worldHeight)
-  return { x: padding + (x - bounds.minX) * scale, y: padding + (bounds.maxY - y) * scale, scale }
+  return Math.min(usableWidth / worldWidth, usableHeight / worldHeight)
 }
 
-function unproject(bounds: Bounds, width: number, height: number, px: number, py: number) {
+function project(bounds: Bounds, width: number, height: number, x: number, y: number, frame: TopViewFrame) {
   const padding = 40
-  const usableWidth = width - padding * 2
-  const usableHeight = height - padding * 2
-  const worldWidth = Math.max(bounds.maxX - bounds.minX, 1)
-  const worldHeight = Math.max(bounds.maxY - bounds.minY, 1)
-  const scale = Math.min(usableWidth / worldWidth, usableHeight / worldHeight)
-  return { x: round((px - padding) / scale + bounds.minX), y: round(bounds.maxY - (py - padding) / scale) }
+  const scale = getProjectionScale(bounds, width, height)
+  const point = toFrameCoordinates(frame, x, y)
+  return {
+    x: padding + (point.x - bounds.minX) * scale,
+    y: padding + (bounds.maxY - point.y) * scale,
+    scale,
+  }
+}
+
+function unproject(bounds: Bounds, width: number, height: number, px: number, py: number, frame: TopViewFrame) {
+  const padding = 40
+  const scale = getProjectionScale(bounds, width, height)
+  const point = {
+    x: round((px - padding) / scale + bounds.minX),
+    y: round(bounds.maxY - (py - padding) / scale),
+  }
+  return fromFrameCoordinates(frame, point.x, point.y)
 }
 
 export function TopViewCanvas() {
   const canvasRef = useRef<HTMLDivElement | null>(null)
   const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [frameDragStart, setFrameDragStart] = useState<null | {
+    pointerX: number
+    pointerY: number
+    scale: number
+    originX: number
+    originY: number
+    xAxisDirection: TopViewFrame['xAxisDirection']
+    yAxisDirection: TopViewFrame['yAxisDirection']
+  }>(null)
   const [canvasSize, setCanvasSize] = useState({ width: 1000, height: 700 })
   const {
     lifts,
@@ -56,6 +106,8 @@ export function TopViewCanvas() {
     mode,
     collisionIndex,
     collisionIssues,
+    topViewFrame,
+    setTopViewFrame,
   } = useEditorStore(useShallow((state) => ({
     lifts: state.draftLifts,
     ports: state.draftPorts,
@@ -66,11 +118,19 @@ export function TopViewCanvas() {
     mode: state.mode,
     collisionIndex: state.collisionIndex,
     collisionIssues: state.collisionIssues,
+    topViewFrame: state.topViewFrame,
+    setTopViewFrame: state.setTopViewFrame,
   })))
 
   const visiblePorts = useMemo(() => ports.filter((port) => !port.deleted), [ports])
-  const bounds = useMemo(() => computeBounds(lifts, visiblePorts, backgroundObjects), [lifts, backgroundObjects, visiblePorts])
-  const visibleEntities = useMemo(() => Object.fromEntries([...lifts, ...visiblePorts, ...backgroundObjects].map((entity) => [entity.editorId, entity] as const)), [lifts, backgroundObjects, visiblePorts])
+  const bounds = useMemo(
+    () => computeBounds(lifts, visiblePorts, backgroundObjects, topViewFrame),
+    [backgroundObjects, lifts, topViewFrame, visiblePorts],
+  )
+  const visibleEntities = useMemo(
+    () => Object.fromEntries([...lifts, ...visiblePorts, ...backgroundObjects].map((entity) => [entity.editorId, entity] as const)),
+    [backgroundObjects, lifts, visiblePorts],
+  )
   const collisionConnections = useMemo(() => {
     const seen = new Set<string>()
     return collisionIssues.flatMap((issue) => {
@@ -83,6 +143,7 @@ export function TopViewCanvas() {
       return [{ key, source, target, severity: issue.severity }]
     })
   }, [collisionIssues, visibleEntities])
+  const frameSummary = `Origin (${topViewFrame.originX}, ${topViewFrame.originY}) · X+ ${topViewFrame.xAxisDirection} · Y+ ${topViewFrame.yAxisDirection}`
 
   useEffect(() => {
     if (!canvasRef.current || typeof window === 'undefined') return
@@ -109,31 +170,121 @@ export function TopViewCanvas() {
     }
   }, [])
 
+  function handleFrameNumberChange(key: 'originX' | 'originY', value: string) {
+    const parsed = Number(value)
+    setTopViewFrame({ [key]: Number.isFinite(parsed) ? parsed : 0 })
+  }
+
+  function clearDragState() {
+    setDraggingId(null)
+    setFrameDragStart(null)
+  }
+
+  function handleCanvasPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (event.target !== event.currentTarget || !canvasRef.current) return
+
+    const rect = canvasRef.current.getBoundingClientRect()
+    setFrameDragStart({
+      pointerX: event.clientX,
+      pointerY: event.clientY,
+      scale: getProjectionScale(bounds, rect.width, rect.height),
+      originX: topViewFrame.originX,
+      originY: topViewFrame.originY,
+      xAxisDirection: topViewFrame.xAxisDirection,
+      yAxisDirection: topViewFrame.yAxisDirection,
+    })
+  }
+
   function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    if (frameDragStart) {
+      const deltaX = (event.clientX - frameDragStart.pointerX) / frameDragStart.scale
+      const deltaY = (event.clientY - frameDragStart.pointerY) / frameDragStart.scale
+      setTopViewFrame({
+        originX: round(frameDragStart.originX - deltaX * axisDirectionSign(frameDragStart.xAxisDirection)),
+        originY: round(frameDragStart.originY - deltaY * axisDirectionSign(frameDragStart.yAxisDirection)),
+      })
+      return
+    }
+
     if (!draggingId || !canvasRef.current) return
     const rect = canvasRef.current.getBoundingClientRect()
-    const world = unproject(bounds, rect.width, rect.height, event.clientX - rect.left, event.clientY - rect.top)
+    const world = unproject(bounds, rect.width, rect.height, event.clientX - rect.left, event.clientY - rect.top, topViewFrame)
     if (mode !== 'move') return
     if ([...lifts, ...visiblePorts, ...backgroundObjects].some((entity) => entity.editorId === draggingId)) moveEntity(draggingId, world.x, world.y)
   }
 
   return (
     <section className="relative flex min-h-[52dvh] flex-col bg-slate-950/30 lg:h-full lg:min-h-0">
-      <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3 text-sm text-slate-300">
+      <div className="flex flex-col gap-3 border-b border-slate-800 px-4 py-3 text-sm text-slate-300 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <h2 className="font-semibold text-slate-100">XY Plane Editor</h2>
           <p className="text-xs text-slate-500">XY plane editing · lift-to-lift snap · port-to-nearest-lift attach</p>
+          <p className="mt-1 text-xs text-slate-400">{frameSummary}</p>
+        </div>
+
+        <div className="grid gap-2 text-xs text-slate-300 sm:grid-cols-2 xl:grid-cols-4">
+          <label className="flex min-w-[8rem] flex-col gap-1">
+            <span>Reference X</span>
+            <input
+              aria-label="Reference X"
+              type="number"
+              value={topViewFrame.originX}
+              onChange={(event) => handleFrameNumberChange('originX', event.target.value)}
+              className="rounded-md border border-slate-700 bg-slate-950/80 px-2 py-1 text-slate-100"
+            />
+          </label>
+          <label className="flex min-w-[8rem] flex-col gap-1">
+            <span>Reference Y</span>
+            <input
+              aria-label="Reference Y"
+              type="number"
+              value={topViewFrame.originY}
+              onChange={(event) => handleFrameNumberChange('originY', event.target.value)}
+              className="rounded-md border border-slate-700 bg-slate-950/80 px-2 py-1 text-slate-100"
+            />
+          </label>
+          <label className="flex min-w-[8rem] flex-col gap-1">
+            <span>X Axis Positive</span>
+            <select
+              aria-label="X Axis Positive"
+              value={topViewFrame.xAxisDirection}
+              onChange={(event) => setTopViewFrame({ xAxisDirection: event.target.value as TopViewFrame['xAxisDirection'] })}
+              className="rounded-md border border-slate-700 bg-slate-950/80 px-2 py-1 text-slate-100"
+            >
+              <option value="right">right</option>
+              <option value="left">left</option>
+            </select>
+          </label>
+          <label className="flex min-w-[8rem] flex-col gap-1">
+            <span>Y Axis Positive</span>
+            <select
+              aria-label="Y Axis Positive"
+              value={topViewFrame.yAxisDirection}
+              onChange={(event) => setTopViewFrame({ yAxisDirection: event.target.value as TopViewFrame['yAxisDirection'] })}
+              className="rounded-md border border-slate-700 bg-slate-950/80 px-2 py-1 text-slate-100"
+            >
+              <option value="up">up</option>
+              <option value="down">down</option>
+            </select>
+          </label>
         </div>
       </div>
 
-      <div ref={canvasRef} className="editor-grid relative flex-1 overflow-hidden" onPointerMove={handlePointerMove} onPointerUp={() => setDraggingId(null)} onPointerLeave={() => setDraggingId(null)}>
+      <div
+        ref={canvasRef}
+        className="editor-grid relative flex-1 overflow-hidden"
+        onPointerDown={handleCanvasPointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={clearDragState}
+        onPointerLeave={clearDragState}
+      >
         <div className="absolute left-4 top-4 rounded-lg border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs text-slate-400">Ports {visiblePorts.length} · {mode}{collisionIssues.length ? ` · collisions ${collisionIssues.length}` : ''}</div>
 
         {collisionConnections.length > 0 && (
           <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true">
             {collisionConnections.map((connection) => {
-              const source = project(bounds, canvasSize.width, canvasSize.height, connection.source.position.x, connection.source.position.y)
-              const target = project(bounds, canvasSize.width, canvasSize.height, connection.target.position.x, connection.target.position.y)
+              const source = project(bounds, canvasSize.width, canvasSize.height, connection.source.position.x, connection.source.position.y, topViewFrame)
+              const target = project(bounds, canvasSize.width, canvasSize.height, connection.target.position.x, connection.target.position.y, topViewFrame)
               const stroke = connection.severity === 'error' ? 'rgba(251, 113, 133, 0.9)' : 'rgba(251, 191, 36, 0.8)'
               return (
                 <g key={connection.key}>
@@ -147,7 +298,7 @@ export function TopViewCanvas() {
         )}
 
         {backgroundObjects.map((item) => {
-          const center = project(bounds, canvasSize.width, canvasSize.height, item.position.x, item.position.y)
+          const center = project(bounds, canvasSize.width, canvasSize.height, item.position.x, item.position.y, topViewFrame)
           const colliding = Boolean(collisionIndex[item.editorId]?.length)
           return (
             <div
@@ -171,7 +322,7 @@ export function TopViewCanvas() {
         })}
 
         {lifts.map((lift) => {
-          const center = project(bounds, canvasSize.width, canvasSize.height, lift.position.x, lift.position.y)
+          const center = project(bounds, canvasSize.width, canvasSize.height, lift.position.x, lift.position.y, topViewFrame)
           const colliding = Boolean(collisionIndex[lift.editorId]?.length)
           return (
             <div
@@ -199,7 +350,7 @@ export function TopViewCanvas() {
         })}
 
         {visiblePorts.map((port) => {
-          const center = project(bounds, canvasSize.width, canvasSize.height, port.position.x, port.position.y)
+          const center = project(bounds, canvasSize.width, canvasSize.height, port.position.x, port.position.y, topViewFrame)
           const colliding = Boolean(collisionIndex[port.editorId]?.length)
           return (
             <button

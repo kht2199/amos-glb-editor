@@ -1,10 +1,17 @@
-export type ObjectKind = 'Lift' | 'Port' | 'Bridge' | 'Rail' | 'Stocker' | 'Transport'
+export type ObjectKind = string
 export type PortType = 'IN' | 'OUT' | 'INOUT'
 export type Face = 'FRONT' | 'BACK' | 'LEFT' | 'RIGHT'
 export type EditorMode = 'select' | 'move'
 export type ValidationSeverity = 'error' | 'warning'
-export type DomainParentType = 'Lift' | 'Stocker' | 'Transport' | 'Bridge' | 'Rail'
+export type DomainParentType = string
 export type PortSemanticRole = 'LIFT_DOCK' | 'STOCKER_ACCESS' | 'TOOL_LOAD' | 'BUFFER_HANDOFF'
+export type TopViewAxisDirection = 'right' | 'left' | 'up' | 'down'
+export type ObjectTypeCategory = 'lift' | 'port' | 'background'
+
+export interface ObjectTypeDefinition {
+  name: string
+  category: ObjectTypeCategory
+}
 
 export interface Vec3 {
   x: number
@@ -60,7 +67,7 @@ export interface PortEntity extends BaseEntity {
 }
 
 export interface BackgroundObjectEntity extends BaseEntity {
-  objectType: 'Bridge' | 'Rail' | 'Stocker' | 'Transport'
+  objectType: string
 }
 
 export interface ValidationIssue {
@@ -76,6 +83,13 @@ export interface CollisionIssue {
   targetId: string
   severity: 'error' | 'warning'
   message: string
+}
+
+export interface TopViewFrame {
+  originX: number
+  originY: number
+  xAxisDirection: Extract<TopViewAxisDirection, 'right' | 'left'>
+  yAxisDirection: Extract<TopViewAxisDirection, 'up' | 'down'>
 }
 
 export interface EditorSnapshot {

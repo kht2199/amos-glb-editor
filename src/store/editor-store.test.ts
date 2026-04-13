@@ -112,6 +112,37 @@ describe('editor store', () => {
     expect(next.selectedId).toBe(stocker!.editorId)
   })
 
+  it('allows adding a screen-configured type and reclassifying an object to it', () => {
+    const state = useEditorStore.getState()
+    const stocker = state.draftBackgroundObjects.find((item) => item.id === 'stocker_01')
+
+    expect(stocker).toBeTruthy()
+    state.addObjectTypeDefinition({ name: 'Tool', category: 'background' })
+    state.setObjectType(stocker!.editorId, 'Tool')
+
+    const next = useEditorStore.getState()
+    const converted = next.draftBackgroundObjects.find((item) => item.editorId === stocker!.editorId)
+
+    expect(next.objectTypeDefinitions.some((item) => item.name === 'Tool' && item.category === 'background')).toBe(true)
+    expect(converted?.objectType).toBe('Tool')
+    expect(next.selectedId).toBe(stocker!.editorId)
+  })
+
+  it('prevents removing a custom type while any draft or applied entity still uses it', () => {
+    const state = useEditorStore.getState()
+    const stocker = state.draftBackgroundObjects.find((item) => item.id === 'stocker_01')
+
+    expect(stocker).toBeTruthy()
+    state.addObjectTypeDefinition({ name: 'Tool', category: 'lift' })
+    state.setObjectType(stocker!.editorId, 'Tool')
+    state.applyDraftChanges()
+    state.removeObjectTypeDefinition('Tool')
+
+    const next = useEditorStore.getState()
+    expect(next.objectTypeDefinitions.some((item) => item.name === 'Tool')).toBe(true)
+    expect(next.statusMessage).toBe('Tool is in use and cannot be removed')
+  })
+
   it('applies draft changes into applied state and clears pending history', () => {
     const state = useEditorStore.getState()
     const lift = state.draftLifts[0]
@@ -154,6 +185,28 @@ describe('editor store', () => {
     expect(next.hasPendingChanges).toBe(false)
     expect(reverted?.position.x).toBe(originalApplied?.position.x)
     expect(applied?.position.x).toBe(originalApplied?.position.x)
+    expect(next.canUndo).toBe(false)
+    expect(next.canRedo).toBe(false)
+  })
+
+  it('updates top-view frame without affecting undo history or pending draft state', () => {
+    const state = useEditorStore.getState()
+
+    state.setTopViewFrame({
+      originX: 120,
+      originY: -35,
+      xAxisDirection: 'left',
+      yAxisDirection: 'down',
+    })
+
+    const next = useEditorStore.getState()
+    expect(next.topViewFrame).toEqual({
+      originX: 120,
+      originY: -35,
+      xAxisDirection: 'left',
+      yAxisDirection: 'down',
+    })
+    expect(next.hasPendingChanges).toBe(false)
     expect(next.canUndo).toBe(false)
     expect(next.canRedo).toBe(false)
   })

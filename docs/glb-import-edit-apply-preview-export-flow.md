@@ -328,10 +328,11 @@ Apply를 경계로 두면:
 - `Export GLB` — 구현됨, applied 기준 export, pending draft가 있으면 차단
 
 ### 5.2 상태 표시
-- 상단 pill: `fileName · DRAFT PENDING|DRAFT SYNCED · SAVED|UNSAVED`
-- 하단 status: `Save: Saved|Not saved`, `Draft: Pending|Synced`
+- 상단 pill: `fileName · DRAFT PENDING|DRAFT SYNCED`
+- 하단 status: `Draft: Pending|Synced`, export/validation 상태 메시지
+- top view header: `Origin(x, y) · X+ right|left · Y+ up|down`
 - preview label: `applied preview · draft pending|draft synced`
-- `Validation failed · apply blocked` — 아직 미구현
+- `Validation issues available` — validation은 참고 정보/검토 보조로 표시
 - `Export ready / blocked / success` — export feedback modal과 연결
 
 ---
@@ -348,7 +349,7 @@ Apply를 경계로 두면:
 - draft 검증
 - applied 반영
 - pending 상태 해제
-- validation 차단은 아직 미구현
+- validation은 참고 정보로만 유지하고 apply 차단 정책은 두지 않음
 
 ### 6.3 Preview를 applied 기준으로 정리
 - draft 실시간 반영 제거
@@ -360,12 +361,12 @@ Apply를 경계로 두면:
 - pending draft가 있으면 경고
 - applied만 export
 
-### 6.5 Save 의미 분리
-- `Save`는 localStorage에 현재 draft 작업 상태를 저장하는 의미다.
-- `Apply`는 preview/export 기준 상태를 갱신하는 의미다.
-- 두 상태는 분리되므로 `DRAFT SYNCED`와 `UNSAVED`가 동시에 존재할 수 있다.
-- 현재 Save는 `draftLifts / draftPorts / draftBackgroundObjects`와 UI 옵션을 저장한다.
-- `pristineScene`과 animation/runtime은 직렬화하지 않으므로, Save는 GLB 원본 복원 기능과 동일하지 않다.
+### 6.5 Top view 기준 좌표와 축 방향
+- top view는 scene 좌표 자체를 바꾸지 않고 **2D 작업 기준 프레임**만 조정한다.
+- 사용자는 `Reference X / Reference Y`로 기준 원점을 바꿀 수 있다.
+- 사용자는 `X Axis Positive`, `Y Axis Positive`로 양의 축이 화면의 어느 방향인지 바꿀 수 있다.
+- drag/unproject는 이 프레임을 따라 동작하므로, 화면상 이동 방향과 좌표 읽기가 선택한 기준과 일치한다.
+- 이 설정은 현재 작업 세션의 view state이며, draft/applied/export 데이터와 undo/redo 이력에는 포함하지 않는다.
 
 ---
 
@@ -373,7 +374,7 @@ Apply를 경계로 두면:
 
 이 문서의 권장 구조는 한 줄로 요약하면 다음과 같다.
 
-> **GLB는 import 시 entity로 해석하고, 중앙은 draft를 편집하며, 새 오브젝트 생성은 Duplicate를 기본으로 하고, Apply 버튼으로 applied를 만들고, preview와 export는 applied 기준으로 통일한다.**
+> **GLB는 import 시 entity로 해석하고, 중앙은 draft를 편집하며, 새 오브젝트 생성은 Duplicate를 기본으로 하고, Apply 버튼으로 applied를 만들고, preview와 export는 applied 기준으로 통일하며, top view는 별도 기준 좌표/축 방향 프레임으로 읽는다.**
 
 이 구조를 따르면:
 - 원본 / 편집 중 / 적용 결과의 역할이 분리되고
