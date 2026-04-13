@@ -41,7 +41,7 @@ async function main() {
     pristineScene: scene,
     lifts: bundle.lifts,
     ports: bundle.ports,
-    readonlyObjects: bundle.readonlyObjects,
+    backgroundObjects: bundle.backgroundObjects,
     animations: [],
   })
 
@@ -50,7 +50,7 @@ async function main() {
 
   assert(loaded.bundle.lifts.length === bundle.lifts.length, `Lift count mismatch: ${loaded.bundle.lifts.length} !== ${bundle.lifts.length}`)
   assert(loaded.bundle.ports.length === bundle.ports.length, `Port count mismatch: ${loaded.bundle.ports.length} !== ${bundle.ports.length}`)
-  assert(loaded.bundle.readonlyObjects.length === bundle.readonlyObjects.length, `Read-only count mismatch: ${loaded.bundle.readonlyObjects.length} !== ${bundle.readonlyObjects.length}`)
+  assert(loaded.bundle.backgroundObjects.length === bundle.backgroundObjects.length, `Background object count mismatch: ${loaded.bundle.backgroundObjects.length} !== ${bundle.backgroundObjects.length}`)
 
   const liftA = loaded.bundle.lifts.find((lift) => lift.id === 'lift_a')
   assert(liftA, 'lift_a missing after round-trip')
@@ -75,7 +75,7 @@ async function main() {
       z: port.position.z,
       zOffset: port.zOffset ?? null,
     })),
-    readonlyObjects: loaded.bundle.readonlyObjects.map((item) => ({ id: item.id, objectType: item.objectType })),
+    backgroundObjects: loaded.bundle.backgroundObjects.map((item) => ({ id: item.id, objectType: item.objectType })),
   }
 
   console.log(JSON.stringify(summary, null, 2))

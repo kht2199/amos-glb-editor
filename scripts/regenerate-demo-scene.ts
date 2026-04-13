@@ -35,7 +35,7 @@ async function main() {
     pristineScene: scene,
     lifts: bundle.lifts,
     ports: bundle.ports,
-    readonlyObjects: bundle.readonlyObjects,
+    backgroundObjects: bundle.backgroundObjects,
     animations: [],
   })
 
@@ -46,7 +46,7 @@ async function main() {
     fileName: bundle.fileName,
     lifts: bundle.lifts.length,
     ports: bundle.ports.length,
-    readonlyObjects: bundle.readonlyObjects.length,
+    backgroundObjects: bundle.backgroundObjects.length,
     bytes: buffer.length,
   }, null, 2))
 }

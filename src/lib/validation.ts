@@ -1,8 +1,8 @@
-import type { LiftEntity, PortEntity, ReadOnlyEntity, ValidationIssue } from '../types'
+import type { LiftEntity, PortEntity, BackgroundObjectEntity, ValidationIssue } from '../types'
 
 const ID_PATTERN = /^[A-Za-z0-9_-]+$/
 
-export function validateEntities(lifts: LiftEntity[], ports: PortEntity[], readonlyObjects: ReadOnlyEntity[] = []): ValidationIssue[] {
+export function validateEntities(lifts: LiftEntity[], ports: PortEntity[], backgroundObjects: BackgroundObjectEntity[] = []): ValidationIssue[] {
   const issues: ValidationIssue[] = []
   const ids = new Map<string, string>()
 
@@ -46,7 +46,7 @@ export function validateEntities(lifts: LiftEntity[], ports: PortEntity[], reado
   }
 
   const liftMap = new Map(lifts.map((lift) => [lift.editorId, lift]))
-  const readonlyMap = new Map(readonlyObjects.map((item) => [item.editorId, item]))
+  const backgroundObjectMap = new Map(backgroundObjects.map((item) => [item.editorId, item]))
   const occupied = new Map<string, string>()
 
   for (const port of ports.filter((item) => !item.deleted)) {
@@ -71,8 +71,8 @@ export function validateEntities(lifts: LiftEntity[], ports: PortEntity[], reado
         })
       }
 
-      const readonlyParent = readonlyMap.get(port.domainParentId)
-      if (!readonlyParent || readonlyParent.objectType !== port.domainParentType) {
+      const backgroundParent = backgroundObjectMap.get(port.domainParentId)
+      if (!backgroundParent || backgroundParent.objectType !== port.domainParentType) {
         issues.push({
           id: `invalid-domain-parent-${port.editorId}`,
           severity: 'error',

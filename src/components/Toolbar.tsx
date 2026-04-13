@@ -1,4 +1,4 @@
-import { Check, Copy, Eye, FileDown, FileUp, Layers3, Move, Redo2, RefreshCcw, RotateCw, Save, SearchCheck, Undo2 } from 'lucide-react'
+import { Check, Copy, Eye, FileDown, FileUp, Layers3, Move, Redo2, RefreshCcw, RotateCw, SearchCheck, Undo2 } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { cn } from '../lib/utils'
 import { useEditorStore } from '../store/editor-store'
@@ -20,7 +20,6 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
     lifts,
     mode,
     snapEnabled,
-    saveState,
     hasPendingChanges,
     validationIssues,
     collisionIssues,
@@ -32,7 +31,6 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
     rotateLift,
     duplicateSelectedObject,
     runValidation,
-    saveSession,
     exportCurrentGlb,
     applyDraftChanges,
     revertDraftChanges,
@@ -44,7 +42,6 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
     lifts: state.draftLifts,
     mode: state.mode,
     snapEnabled: state.snapEnabled,
-    saveState: state.saveState,
     hasPendingChanges: state.hasPendingChanges,
     validationIssues: state.validationIssues,
     collisionIssues: state.collisionIssues,
@@ -56,7 +53,6 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
     rotateLift: state.rotateLift,
     duplicateSelectedObject: state.duplicateSelectedObject,
     runValidation: state.runValidation,
-    saveSession: state.saveSession,
     exportCurrentGlb: state.exportCurrentGlb,
     applyDraftChanges: state.applyDraftChanges,
     revertDraftChanges: state.revertDraftChanges,
@@ -77,7 +73,7 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs lg:gap-3">
           <div className="max-w-full rounded-full border border-slate-700 px-3 py-1 text-slate-300">
-            {fileName ?? 'No file loaded'} · {hasPendingChanges ? 'DRAFT PENDING' : 'DRAFT SYNCED'} · {saveState === 'saved' ? 'SAVED' : 'UNSAVED'}
+            {fileName ?? 'No file loaded'} · {hasPendingChanges ? 'DRAFT PENDING' : 'DRAFT SYNCED'}
           </div>
           <div className={cn('rounded-full border px-3 py-1', errorCount ? 'border-rose-500/40 text-rose-100' : 'border-emerald-500/30 text-emerald-100')}>
             Errors {errorCount} · Collisions {collisionIssues.length}
@@ -88,7 +84,6 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
       <div className="flex flex-wrap gap-2 overflow-x-auto pb-1 lg:overflow-visible lg:pb-0">
         <ToolGroup title="File">
           <ToolButton icon={FileUp} onClick={onOpenFile}>Open GLB</ToolButton>
-          <ToolButton icon={Save} disabled={disabled} onClick={saveSession}>Save</ToolButton>
           <ToolButton icon={FileDown} disabled={disabled} onClick={() => void exportCurrentGlb()}>Export GLB</ToolButton>
           <ToolButton icon={Check} disabled={disabled || !hasPendingChanges} onClick={applyDraftChanges}>Apply</ToolButton>
           <ToolButton icon={RefreshCcw} disabled={disabled || !hasPendingChanges} onClick={revertDraftChanges}>Revert</ToolButton>

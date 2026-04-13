@@ -11,6 +11,7 @@
 - 새 오브젝트 생성의 기본은 **타입 전용 추가가 아니라 선택된 오브젝트 복사(`Duplicate`)**다.
 - 높이 편집의 1차 입력은 **실제 Z 위치 수정**으로 다룬다.
 - Lift 소속 Port 높이는 `face + slot + zOffset`으로 복원하고, Inspector에서는 `Z`를 직접 수정한다.
+- `Bridge / Rail / Stocker / Transport`도 같은 scene object 흐름 안에서 다루며, 현재 내부 구현명만 `backgroundObjects`로 남아 있다.
 
 즉 이 문서의 목적은 현재 구현 설명을 나열하는 것이 아니라,
 **앞으로 맞춰갈 기준 흐름**을 분명히 정하는 것이다.
@@ -21,9 +22,10 @@
 
 먼저 구분할 점이 있다.
 
-- **현재 구현**은 `draftLifts / draftPorts / draftReadonlyObjects`처럼 타입별 배열을 유지한다.
+- **현재 구현**은 `draftLifts / draftPorts / draftBackgroundObjects`처럼 타입별 배열을 유지한다.
 - **이 문서의 목표 방향**은 여러 `objectType`을 하나의 공통 오브젝트 편집 흐름으로 다루는 것이다.
 - 따라서 아래 타입별 계층 설명은 현재 구현과의 연결을 위한 과도기 표기이며, 장기적으로는 `draftObjects / appliedObjects` 같은 통합 모델로 수렴할 수 있다.
+- 여기서 `draftBackgroundObjects`라는 이름은 내부 타입명일 뿐, 사용자-facing 개념은 **배경/문맥 오브젝트를 포함한 scene object**다.
 
 ### 1.1 원본 계층
 - `fileName`
@@ -38,7 +40,7 @@
 > 현재 구현(과도기) 기준
 > - `draftLifts`
 > - `draftPorts`
-> - `draftReadonlyObjects`
+> - `draftBackgroundObjects`
 
 역할:
 - 중앙 편집 캔버스가 직접 사용하는 작업 상태
@@ -47,13 +49,13 @@
 
 메모:
 - 현재 구현은 타입별 배열로 분리되어 있지만, 문서 기준의 방향은 **scene object 전반을 같은 편집 모델로 다루는 것**이다.
-- 따라서 `draftLifts / draftPorts / draftReadonlyObjects`는 과도기 구조로 볼 수 있으며, 장기적으로는 통합된 object 계층으로 수렴할 수 있다.
+- 따라서 `draftLifts / draftPorts / draftBackgroundObjects`는 과도기 구조로 볼 수 있으며, 장기적으로는 통합된 object 계층으로 수렴할 수 있다.
 
 ### 1.3 applied 계층
 > 현재 구현(과도기) 기준
 > - `appliedLifts`
 > - `appliedPorts`
-> - `appliedReadonlyObjects`
+> - `appliedBackgroundObjects`
 
 역할:
 - Apply 버튼을 통해 반영된 안정 상태
@@ -102,7 +104,7 @@
 5. 감지 결과를 편집용 entity로 정규화
    - `lifts`
    - `ports`
-   - `readonlyObjects`
+   - `backgroundObjects`
 6. objectType, transform, parent 관계, 기타 metadata 같은 편집 단위 해석
 7. `draft*`와 `applied*`를 동일한 초기값으로 세팅
 8. `hasPendingChanges = false`
@@ -121,7 +123,7 @@
 #### source-of-truth
 - `draftLifts`
 - `draftPorts`
-- `draftReadonlyObjects`
+- `draftBackgroundObjects`
 
 #### 역할
 - 선택
@@ -133,8 +135,8 @@
 - Z 직접 수정 기반 편집
 
 #### 현재 구현 메모
-- `Move` 모드는 Lift 전용이 아니라 Lift / Port / 배경 구조물 전체의 XY 이동 모드다.
-- 배경 구조물(`Bridge / Rail / Stocker / Transport`)도 draft/applied entity로 유지되며 Inspector에서 X / Y / Z를 직접 수정할 수 있다.
+- `Move` 모드는 Lift 전용이 아니라 Lift / Port / 배경 오브젝트 전체의 XY 이동 모드다.
+- 배경 오브젝트(`Bridge / Rail / Stocker / Transport`)도 draft/applied entity로 유지되며 Inspector에서 X / Y / Z를 직접 수정할 수 있다.
 - 현재 코드에는 Port 관련 전용 로직이 남아 있을 수 있으나, 문서 기준의 목표 방향은 **오브젝트 복사 + objectType/metadata 수정 중심 흐름**이다.
 - 높이 차이는 `TOP/BOTTOM` 단계값이 아니라 **Z 좌표 직접 수정**으로 표현한다.
 
@@ -210,7 +212,7 @@ preview는 applied만 본다.
 #### source-of-truth
 - `appliedLifts`
 - `appliedPorts`
-- `appliedReadonlyObjects`
+- `appliedBackgroundObjects`
 - `pristineScene`
 
 preview는 export와 동일하게,
@@ -226,7 +228,7 @@ preview는 export와 동일하게,
 1. preview가 필요해짐
 2. `pristineScene.clone(true)` 생성
 3. applied 상태 반영
-   - 현재 구현(과도기) 기준: `applyLift(...)`, `applyPort(...)`, `applyReadOnly(...)`
+   - 현재 구현(과도기) 기준: `applyLift(...)`, `applyPort(...)`, `applyBackgroundObject(...)`
 4. 재구성된 scene을 preview canvas에 마운트
 
 #### 원칙
@@ -257,7 +259,7 @@ export는 applied 기준으로만 진행한다.
 4. applied 상태 반영
    - `applyLift(...)`
    - `applyPort(...)`
-   - `applyReadOnly(...)`
+   - `applyBackgroundObject(...)`
 5. `GLTFExporter.parseAsync(..., { binary: true, animations })`
 6. GLB Blob 생성
 7. 다운로드 URL 생성
@@ -362,7 +364,7 @@ Apply를 경계로 두면:
 - `Save`는 localStorage에 현재 draft 작업 상태를 저장하는 의미다.
 - `Apply`는 preview/export 기준 상태를 갱신하는 의미다.
 - 두 상태는 분리되므로 `DRAFT SYNCED`와 `UNSAVED`가 동시에 존재할 수 있다.
-- 현재 Save는 `draftLifts / draftPorts / draftReadonlyObjects`와 UI 옵션을 저장한다.
+- 현재 Save는 `draftLifts / draftPorts / draftBackgroundObjects`와 UI 옵션을 저장한다.
 - `pristineScene`과 animation/runtime은 직렬화하지 않으므로, Save는 GLB 원본 복원 기능과 동일하지 않다.
 
 ---
@@ -388,15 +390,15 @@ Apply를 경계로 두면:
 
 - `loadGlbFile(file)`
 - `pristineScene`
-- entity 정규화 (`lifts / ports / readonlyObjects`) — 현재 구현(과도기) 기준
+- entity 정규화 (`lifts / ports / backgroundObjects`) — 현재 구현(과도기) 기준
 - `deriveScene(...)`
 - `applyLift(...)` — 현재 구현(과도기) 기준
 - `applyPort(...)` — 현재 구현(과도기) 기준
-- `applyReadOnly(...)` — 현재 구현(과도기) 기준
+- `applyBackgroundObject(...)` — 현재 구현(과도기) 기준
 - `exportGlb(...)`
 
 메모:
-- `applyLift / applyPort / applyReadOnly` 같은 분리 함수는 현재 구현과 연결되는 과도기 구조다.
+- `applyLift / applyPort / applyBackgroundObject` 같은 분리 함수는 현재 구현과 연결되는 과도기 구조다.
 - 장기적으로는 공통 object 계층에 맞춰 `applyObject(...)` 같은 통합 경로로 수렴할 수 있다.
 
 즉 전면 재작성보다,

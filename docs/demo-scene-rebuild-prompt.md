@@ -16,7 +16,7 @@
 2. 상부/하부 Port의 face/slot/Z 기반 배치
 3. Lift 소속 Port와 Lift 외부 Port(예: Stocker access)의 구분
 4. `domainParentId` / `domainParentType` / `semanticRole` 유지
-5. read-only 구조물은 문맥만 제공하고 편집 핵심보다 앞에 서지 않도록 시각적 우선순위를 낮추기
+5. 배경 구조물은 문맥만 제공하고 편집 핵심보다 앞에 서지 않도록 시각적 우선순위를 낮추기
 
 ---
 
@@ -92,13 +92,13 @@
   - `slot = 1`
   - `portType = INOUT`
 
-### 3) Read-only object
+### 3) Background/context object
 - 최소 4개 포함
   - Bridge 1개
   - Rail 1개
   - Stocker 1개
   - Transport 1개
-- 이 오브젝트들은 편집 대상이 아니라 **배경 문맥**이다.
+- 이 오브젝트들은 장면의 **배경 문맥**이다.
 - 존재감은 있되, **층간 Lift와 상부/하부 Port 관계보다 강하게 보이면 안 된다.**
 
 예시 의미:
@@ -214,14 +214,14 @@
 - `slot`
 - `portType`
 
-### Read-only structure
+### Background/context structure
 - `objectType`
   - `Bridge`
   - `Rail`
   - `Stocker`
   - `Transport`는 타입 체계상 유지 가능
-- read-only로 유지
-- 직접 편집 대상 아님
+- 내부 구현상 별도 배열로 보관될 수 있음
+- 사용자-facing 개념에서는 scene object 흐름 안에 포함
 
 ### 핵심 규칙
 - Lift 소속 포트는 `face + slot + Z`로 배치 가능해야 함
@@ -237,7 +237,7 @@
 
 1. 이 editor의 핵심은 층간 Lift와 상부/하부 Port 편집이다.
 2. Stocker access 같은 lift 외부 포트도 다룰 수 있다.
-3. read-only 구조물은 배치 문맥용이다.
+3. 배경 구조물은 배치 문맥용이다.
 4. cleanroom/building-like 구조물은 배경일 뿐이며 편집 주제가 아니다.
 5. 이 scene은 정교한 fab replica가 아니라, domain-aware editing 규칙 검증용 샘플이다.
 
@@ -261,7 +261,7 @@
 
 1. `src/lib/demoScene.ts`
    - demo scene 구성
-   - Lift / Port / Read-only object / cleanroom shell 생성
+   - Lift / Port / background object / cleanroom shell 생성
 2. `docs/demo-scene-ontology-tagging.md`
    - 엔티티 구성과 domain 의미 정리
 3. 필요 시 preview 관련 기본값
@@ -281,12 +281,12 @@
 목표는 반도체 FAB 전체를 사실적으로 재현하는 것이 아니라, Lift/Port 중심의 제약형 편집기에서 배치 편집, domain parent 복원, semantic role 표현을 검증하는 축약 샘플을 만드는 것이다.
 
 필수 요구사항:
-- Lift 2개, Port 4개, Read-only object 4개(Bridge/Rail/Stocker/Transport), cleanroom shell 포함
+- Lift 2개, Port 4개, background object 4개(Bridge/Rail/Stocker/Transport), cleanroom shell 포함
 - Port는 Lift dock 3개 + Stocker access 1개
 - scene graph parent보다 domain parent가 중요하도록 metadata 중심 구조 유지
 - Lift/Port가 시각적 중심이어야 함
 - Stocker는 단순 박스보다 **높은 vertical storage body**로 읽혀야 함
-- Stocker read-only geometry에는 **white vertical lift carriage가 Z축으로 직선 이동**하는 듯한 시각적 인상이 포함되면 좋다. 이는 별도 Lift 엔티티를 추가하라는 뜻이 아니라, stocker access의 맥락을 설명하는 내부 표현이다. carriage 앞에는 **짧은 horizontal transfer shelf** 표현이 붙어 있는 것이 자연스러움
+- Stocker geometry에는 **white vertical lift carriage가 Z축으로 직선 이동**하는 듯한 시각적 인상이 포함되면 좋다. 이는 별도 Lift 엔티티를 추가하라는 뜻이 아니라, stocker access의 맥락을 설명하는 내부 표현이다. carriage 앞에는 **짧은 horizontal transfer shelf** 표현이 붙어 있는 것이 자연스러움
 - overhead rail/OHT는 바닥 교통수단이 아니라 **ceiling guideway context**로 보여야 함
 - cleanroom/building-like 배경 구조는 조금 더 보이게 반투명 처리
 - preview 초기 카메라는 정면 기준 45도 ISO 뷰이며, 좌표계상 Z 높이 차와 주요 Lift/Port가 즉시 읽혀야 함
@@ -297,7 +297,7 @@
 포함해야 할 metadata:
 - Lift: id, editorId, position, rotation, slotsPerFace, animation
 - Port: id, editorId, semanticRole, domainParentId, domainParentType, parentLiftId, face, slot, portType, zOffset
-- Read-only: Bridge/Rail/Stocker/Transport 타입 체계 유지 가능
+- Background object: Bridge/Rail/Stocker/Transport 타입 체계 유지 가능
 
 예시 포트 구성:
 - port_a_01: lift_a, LIFT_DOCK, TOP, FRONT, slot 2, IN

@@ -12,14 +12,14 @@ const fieldClass = 'w-full rounded-xl border border-slate-700 bg-slate-950 px-3 
 const dangerButton = 'inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm font-medium text-rose-100 hover:bg-rose-500/20'
 
 export function InspectorPanel() {
-  const { selectedId, draftLifts, draftPorts, draftReadonlyObjects, updateLift, updatePort, updateReadonlyObject, setObjectType, deletePort, validationIssues } = useEditorStore(useShallow((state) => ({
+  const { selectedId, draftLifts, draftPorts, draftBackgroundObjects, updateLift, updatePort, updateBackgroundObject, setObjectType, deletePort, validationIssues } = useEditorStore(useShallow((state) => ({
     selectedId: state.selectedId,
     draftLifts: state.draftLifts,
     draftPorts: state.draftPorts,
-    draftReadonlyObjects: state.draftReadonlyObjects,
+    draftBackgroundObjects: state.draftBackgroundObjects,
     updateLift: state.updateLift,
     updatePort: state.updatePort,
-    updateReadonlyObject: state.updateReadonlyObject,
+    updateBackgroundObject: state.updateBackgroundObject,
     setObjectType: state.setObjectType,
     deletePort: state.deletePort,
     validationIssues: state.validationIssues,
@@ -27,7 +27,7 @@ export function InspectorPanel() {
 
   const selectedLift = draftLifts.find((item) => item.editorId === selectedId) ?? null
   const selectedPort = draftPorts.find((item) => item.editorId === selectedId && !item.deleted) ?? null
-  const selectedReadonly = draftReadonlyObjects.find((item) => item.editorId === selectedId) ?? null
+  const selectedReadonly = draftBackgroundObjects.find((item) => item.editorId === selectedId) ?? null
   const issues = useMemo(() => validationIssues.filter((issue) => issue.targetId === selectedId), [selectedId, validationIssues])
 
   return (
@@ -97,13 +97,13 @@ export function InspectorPanel() {
           <section className="space-y-3 rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4">
             <HeaderBadge title={selectedReadonly.id} badge={selectedReadonly.objectType} />
             <Field label="Object Type"><select aria-label="Object Type" className={fieldClass} value={selectedReadonly.objectType} onChange={(event) => setObjectType(selectedReadonly.editorId, event.target.value as ObjectKind)}>{OBJECT_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
-            <Field label="ID"><input className={fieldClass} value={selectedReadonly.id} onChange={(event) => updateReadonlyObject(selectedReadonly.editorId, { id: event.target.value, nodeName: event.target.value })} /></Field>
+            <Field label="ID"><input className={fieldClass} value={selectedReadonly.id} onChange={(event) => updateBackgroundObject(selectedReadonly.editorId, { id: event.target.value, nodeName: event.target.value })} /></Field>
             <DoubleField>
-              <NumberField label="X" value={selectedReadonly.position.x} onChange={(value) => updateReadonlyObject(selectedReadonly.editorId, { position: { ...selectedReadonly.position, x: value } })} />
-              <NumberField label="Y" value={selectedReadonly.position.y} onChange={(value) => updateReadonlyObject(selectedReadonly.editorId, { position: { ...selectedReadonly.position, y: value } })} />
+              <NumberField label="X" value={selectedReadonly.position.x} onChange={(value) => updateBackgroundObject(selectedReadonly.editorId, { position: { ...selectedReadonly.position, x: value } })} />
+              <NumberField label="Y" value={selectedReadonly.position.y} onChange={(value) => updateBackgroundObject(selectedReadonly.editorId, { position: { ...selectedReadonly.position, y: value } })} />
             </DoubleField>
-            <NumberField label="Z" value={selectedReadonly.position.z} onChange={(value) => updateReadonlyObject(selectedReadonly.editorId, { position: { ...selectedReadonly.position, z: value } })} />
-            <p className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-3 py-2 text-sm text-violet-100">보조 구조물도 Move 모드와 Inspector에서 좌표를 조정할 수 있습니다.</p>
+            <NumberField label="Z" value={selectedReadonly.position.z} onChange={(value) => updateBackgroundObject(selectedReadonly.editorId, { position: { ...selectedReadonly.position, z: value } })} />
+            <p className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-3 py-2 text-sm text-violet-100">배경 오브젝트도 Move 모드와 Inspector에서 좌표를 조정하고 objectType을 재분류할 수 있습니다.</p>
             <IssueList issues={issues} />
           </section>
         ) : null}

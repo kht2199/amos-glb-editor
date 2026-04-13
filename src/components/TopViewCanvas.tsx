@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { cn, round } from '../lib/utils'
 import { useEditorStore } from '../store/editor-store'
-import type { LiftEntity, PortEntity, ReadOnlyEntity } from '../types'
+import type { LiftEntity, PortEntity, BackgroundObjectEntity } from '../types'
 
 interface Bounds {
   minX: number
@@ -11,8 +11,8 @@ interface Bounds {
   maxY: number
 }
 
-function computeBounds(lifts: LiftEntity[], ports: PortEntity[], readonlyObjects: ReadOnlyEntity[]): Bounds {
-  const entities = [...lifts, ...ports.filter((port) => !port.deleted), ...readonlyObjects]
+function computeBounds(lifts: LiftEntity[], ports: PortEntity[], backgroundObjects: BackgroundObjectEntity[]): Bounds {
+  const entities = [...lifts, ...ports.filter((port) => !port.deleted), ...backgroundObjects]
   if (!entities.length) return { minX: -100, maxX: 100, minY: -100, maxY: 100 }
   return entities.reduce<Bounds>((acc, item) => ({
     minX: Math.min(acc.minX, item.position.x - item.width / 2 - 20),
@@ -49,7 +49,7 @@ export function TopViewCanvas() {
   const {
     lifts,
     ports,
-    readonlyObjects,
+    backgroundObjects,
     selectedId,
     selectObject,
     moveEntity,
@@ -59,7 +59,7 @@ export function TopViewCanvas() {
   } = useEditorStore(useShallow((state) => ({
     lifts: state.draftLifts,
     ports: state.draftPorts,
-    readonlyObjects: state.draftReadonlyObjects,
+    backgroundObjects: state.draftBackgroundObjects,
     selectedId: state.selectedId,
     selectObject: state.selectObject,
     moveEntity: state.moveEntity,
@@ -69,8 +69,8 @@ export function TopViewCanvas() {
   })))
 
   const visiblePorts = useMemo(() => ports.filter((port) => !port.deleted), [ports])
-  const bounds = useMemo(() => computeBounds(lifts, visiblePorts, readonlyObjects), [lifts, readonlyObjects, visiblePorts])
-  const visibleEntities = useMemo(() => Object.fromEntries([...lifts, ...visiblePorts, ...readonlyObjects].map((entity) => [entity.editorId, entity] as const)), [lifts, readonlyObjects, visiblePorts])
+  const bounds = useMemo(() => computeBounds(lifts, visiblePorts, backgroundObjects), [lifts, backgroundObjects, visiblePorts])
+  const visibleEntities = useMemo(() => Object.fromEntries([...lifts, ...visiblePorts, ...backgroundObjects].map((entity) => [entity.editorId, entity] as const)), [lifts, backgroundObjects, visiblePorts])
   const collisionConnections = useMemo(() => {
     const seen = new Set<string>()
     return collisionIssues.flatMap((issue) => {
@@ -114,7 +114,7 @@ export function TopViewCanvas() {
     const rect = canvasRef.current.getBoundingClientRect()
     const world = unproject(bounds, rect.width, rect.height, event.clientX - rect.left, event.clientY - rect.top)
     if (mode !== 'move') return
-    if ([...lifts, ...visiblePorts, ...readonlyObjects].some((entity) => entity.editorId === draggingId)) moveEntity(draggingId, world.x, world.y)
+    if ([...lifts, ...visiblePorts, ...backgroundObjects].some((entity) => entity.editorId === draggingId)) moveEntity(draggingId, world.x, world.y)
   }
 
   return (
@@ -146,7 +146,7 @@ export function TopViewCanvas() {
           </svg>
         )}
 
-        {readonlyObjects.map((item) => {
+        {backgroundObjects.map((item) => {
           const center = project(bounds, canvasSize.width, canvasSize.height, item.position.x, item.position.y)
           const colliding = Boolean(collisionIndex[item.editorId]?.length)
           return (

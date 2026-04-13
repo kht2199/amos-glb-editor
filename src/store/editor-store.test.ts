@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { useEditorStore } from './editor-store'
 
 beforeEach(() => {
-  localStorage.clear()
   useEditorStore.getState().openDemoScene()
 })
 
@@ -19,7 +18,7 @@ describe('editor store', () => {
     const next = useEditorStore.getState().draftLifts.find((item) => item.editorId === lift.editorId)
     expect(next?.position.x).toBe(25)
     expect(next?.position.y).toBe(35)
-    expect(useEditorStore.getState().saveState).toBe('unsaved')
+    expect(useEditorStore.getState().statusMessage).toBe('Lift moved')
   })
 
   it('duplicates the selected port as a new draft port', () => {
@@ -68,19 +67,19 @@ describe('editor store', () => {
     expect(moved?.parentLiftId).toBe(targetLift.editorId)
   })
 
-  it('moves readonly objects in move mode', () => {
+  it('moves background objects in move mode', () => {
     const state = useEditorStore.getState()
-    const stocker = state.draftReadonlyObjects.find((item) => item.id === 'stocker_01')
+    const stocker = state.draftBackgroundObjects.find((item) => item.id === 'stocker_01')
 
     expect(stocker).toBeTruthy()
     state.selectObject(stocker!.editorId)
     state.setMode('move')
     state.moveEntity(stocker!.editorId, stocker!.position.x + 20, stocker!.position.y - 15)
 
-    const moved = useEditorStore.getState().draftReadonlyObjects.find((item) => item.editorId === stocker!.editorId)
+    const moved = useEditorStore.getState().draftBackgroundObjects.find((item) => item.editorId === stocker!.editorId)
     expect(moved?.position.x).toBe(stocker!.position.x + 20)
     expect(moved?.position.y).toBe(stocker!.position.y - 15)
-    expect(useEditorStore.getState().saveState).toBe('unsaved')
+    expect(useEditorStore.getState().statusMessage).toBe('Stocker moved')
   })
 
   it('keeps a custom port z offset when face or slot changes', () => {
@@ -95,9 +94,9 @@ describe('editor store', () => {
     expect(updated?.position.z).toBe(port!.position.z + 17)
   })
 
-  it('reclassifies a readonly object into a lift', () => {
+  it('reclassifies a background object into a lift', () => {
     const state = useEditorStore.getState()
-    const stocker = state.draftReadonlyObjects.find((item) => item.id === 'stocker_01')
+    const stocker = state.draftBackgroundObjects.find((item) => item.id === 'stocker_01')
 
     expect(stocker).toBeTruthy()
     state.selectObject(stocker!.editorId)
@@ -109,7 +108,7 @@ describe('editor store', () => {
     expect(convertedLift).toBeTruthy()
     expect(convertedLift?.objectType).toBe('Lift')
     expect(convertedLift?.animation.enabled).toBe(true)
-    expect(next.draftReadonlyObjects.some((item) => item.editorId === stocker!.editorId)).toBe(false)
+    expect(next.draftBackgroundObjects.some((item) => item.editorId === stocker!.editorId)).toBe(false)
     expect(next.selectedId).toBe(stocker!.editorId)
   })
 

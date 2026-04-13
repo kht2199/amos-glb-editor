@@ -110,7 +110,7 @@ re-export는 원본을 전부 재구성하지 않고, import 시점의 pristine 
 - 모든 장면 객체의 XY 이동 (`Move` 모드)
 - Lift 회전
 - Inspector 기반 속성 수정
-- Inspector에서 선택 객체의 X / Y / Z 직접 수정 (현재 일부 objectType 지원, 전체 objectType 지원 목표)
+- Inspector에서 선택 객체의 X / Y / Z 직접 수정
 - Validation drawer
 - Preview overlay
 - Undo / Redo
@@ -131,7 +131,7 @@ re-export는 원본을 전부 재구성하지 않고, import 시점의 pristine 
 
 ## UI 구성
 
-- **Toolbar**: import, demo 열기, 저장/검증/preview, Move/Duplicate/Snap 등 주요 액션
+- **Toolbar**: import, demo 열기, apply/revert/export, 검증, Move/Duplicate/Snap 등 주요 액션
 - **Structure Panel**: scene object 구조 탐색
 - **Top View Editor**: object 배치 작업 공간
 - **Inspector Panel**: 선택한 객체의 속성 및 좌표 편집
@@ -197,6 +197,27 @@ src/
 └─ types.ts           # 도메인 타입 정의
 ```
 
+## 관련 문서
+- [AGENTS.md](AGENTS.md)
+- [docs/concept-code-mapping.md](docs/concept-code-mapping.md)
+- [docs/glb-import-edit-apply-preview-export-flow.md](docs/glb-import-edit-apply-preview-export-flow.md)
+- [docs/domain-entity-table.md](docs/domain-entity-table.md)
+- [../domain/docs/programs/implementation-repo-reference-guide.md](../domain/docs/programs/implementation-repo-reference-guide.md)
+
+## Domain reference guide
+
+구현 정렬이 필요하면 아래 순서로 본다.
+
+1. [../domain/docs/programs/implementation-repo-reference-guide.md](../domain/docs/programs/implementation-repo-reference-guide.md)
+2. [../domain/docs/ontology/minimal-runtime-model.md](../domain/docs/ontology/minimal-runtime-model.md)
+3. [../domain/docs/ontology/common-semiconductor-amhs.md](../domain/docs/ontology/common-semiconductor-amhs.md)
+4. [docs/concept-code-mapping.md](docs/concept-code-mapping.md)
+
+원칙:
+- domain은 object/entity 의미와 경계를 제공한다.
+- `glb-editor`는 실제 objectType, metadata, import/export, validation, interaction 구현을 소유한다.
+- 구현 변경 시 domain 문서를 복제하지 말고, glb-editor 문서에 대응 관계와 gap을 남긴다.
+
 ## 시작하기
 
 ```bash
@@ -204,7 +225,13 @@ pnpm install
 pnpm dev
 ```
 
-브라우저에서 표시된 로컬 주소로 접속합니다.
+고정 dev 포트 `5175`로 실행되며, 브라우저는 `http://127.0.0.1:5175`로 접속합니다. 포트가 이미 점유 중이면 자동 증분 없이 실행이 실패합니다.
+
+```bash
+pnpm preview
+```
+
+preview는 고정 포트 `4175`를 사용합니다.
 
 ## 테스트와 검증
 

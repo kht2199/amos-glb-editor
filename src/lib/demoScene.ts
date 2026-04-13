@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { DEFAULT_ANIMATION } from './constants'
 import { createPortNode, createPortTemplateNode } from './portVisual'
-import type { LiftEntity, PortEntity, ReadOnlyEntity, SceneBundle } from '../types'
+import type { LiftEntity, PortEntity, BackgroundObjectEntity, SceneBundle } from '../types'
 import { computePortPosition } from './utils'
 
 function meta(id: string, objectType: string, extra: Record<string, unknown> = {}) {
@@ -158,7 +158,7 @@ function createLiftVisual(lift: LiftEntity) {
   return group
 }
 
-function createBridgeVisual(item: ReadOnlyEntity) {
+function createBridgeVisual(item: BackgroundObjectEntity) {
   const group = new THREE.Group()
   group.name = item.nodeName
   group.position.set(item.position.x, item.position.y, item.position.z)
@@ -175,7 +175,7 @@ function createBridgeVisual(item: ReadOnlyEntity) {
   return group
 }
 
-function createRailVisual(item: ReadOnlyEntity) {
+function createRailVisual(item: BackgroundObjectEntity) {
   const group = new THREE.Group()
   group.name = item.nodeName
   group.position.set(item.position.x, item.position.y, item.position.z)
@@ -192,7 +192,7 @@ function createRailVisual(item: ReadOnlyEntity) {
   return group
 }
 
-function createStockerVisual(item: ReadOnlyEntity) {
+function createStockerVisual(item: BackgroundObjectEntity) {
   const group = new THREE.Group()
   group.name = item.nodeName
   group.position.set(item.position.x, item.position.y, item.position.z)
@@ -234,7 +234,7 @@ function createStockerVisual(item: ReadOnlyEntity) {
   return group
 }
 
-function createTransportVisual(item: ReadOnlyEntity) {
+function createTransportVisual(item: BackgroundObjectEntity) {
   const group = new THREE.Group()
   group.name = item.nodeName
   group.position.set(item.position.x, item.position.y, item.position.z)
@@ -267,7 +267,7 @@ export function createDemoScene() {
     },
   ]
 
-  const readonlyObjects: ReadOnlyEntity[] = [
+  const backgroundObjects: BackgroundObjectEntity[] = [
     { id: 'bridge_01', editorId: 'bridge_01', label: 'Bridge 01', objectType: 'Bridge', nodeName: 'Bridge_01', position: { x: 0, y: -72, z: 0 }, width: 180, depth: 12, height: 10, domainLabel: 'Overhead bridge frame' },
     { id: 'rail_01', editorId: 'rail_01', label: 'Rail 01', objectType: 'Rail', nodeName: 'Rail_01', position: { x: 0, y: 62, z: 0 }, width: 180, depth: 8, height: 8, domainLabel: 'Ceiling guide rail' },
     { id: 'stocker_01', editorId: 'stocker_01', label: 'Stocker 01', objectType: 'Stocker', nodeName: 'Stocker_01', position: { x: 8, y: 100, z: 0 }, width: 32, depth: 24, height: 28, domainLabel: 'Secondary stocker cabinet context' },
@@ -315,7 +315,7 @@ export function createDemoScene() {
     scene.add(createPortNode(port))
   }
 
-  for (const item of readonlyObjects) {
+  for (const item of backgroundObjects) {
     if (item.objectType === 'Bridge') {
       scene.add(createBridgeVisual(item))
     } else if (item.objectType === 'Rail') {
@@ -327,6 +327,6 @@ export function createDemoScene() {
     }
   }
 
-  const bundle: SceneBundle = { fileName: 'demo-scene.glb', lifts, ports, readonlyObjects, originalAnimationsCount: 0 }
+  const bundle: SceneBundle = { fileName: 'demo-scene.glb', lifts, ports, backgroundObjects, originalAnimationsCount: 0 }
   return { scene, bundle }
 }

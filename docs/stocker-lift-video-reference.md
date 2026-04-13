@@ -283,7 +283,7 @@ scene prompt에는 이렇게 쓰면 좋다.
   - stocker 바로 앞 또는 side access 위치
 - **Rail/Transport는 상부 guideway 문맥만 제공**
   - 과도한 rail network 재현은 불필요
-- **Bridge/Rail은 read-only context**
+- **Bridge/Rail은 배경 context object**
   - 핵심은 stocker-lift-port 관계를 설명하는 보조물
 
 ---

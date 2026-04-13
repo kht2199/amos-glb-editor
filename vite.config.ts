@@ -2,6 +2,9 @@ import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
+const devPort = Number(process.env.VITE_DEV_PORT ?? 5175)
+const previewPort = Number(process.env.VITE_PREVIEW_PORT ?? 4175)
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   build: {
@@ -17,13 +20,13 @@ export default defineConfig({
   },
   server: {
     host: '0.0.0.0',
-    port: 5175,
+    port: devPort,
     strictPort: true,
     allowedHosts: true,
   },
   preview: {
     host: '0.0.0.0',
-    port: 4175,
+    port: previewPort,
     strictPort: true,
     allowedHosts: true,
   },

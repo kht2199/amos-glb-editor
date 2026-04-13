@@ -13,7 +13,7 @@
 - Port 4개
   - Lift dock port 3개
   - Stocker access port 1개
-- Read-only object 4개
+- 배경/문맥 object 4개
   - Bridge 1개
   - Rail 1개
   - Stocker 1개
@@ -38,8 +38,8 @@
 - `Port`는 **상부/하부 handoff를 나타내는 핵심 인터페이스**
 - `Transport`는 ceiling guideway 위를 흐르는 OHT 보조 문맥
 - `Rail`, `Bridge`는 guideway 배경 구조
-- `Stocker`는 저장 장치 본체이며, 내부 carriage / slot rhythm / top handoff hint를 read-only geometry로 읽을 수 있음
-- `Transport`/`OHT`는 현재 scene의 중심 오브젝트가 아니라 ceiling logistics를 암시하는 read-only reference
+- `Stocker`는 저장 장치 본체이며, 내부 carriage / slot rhythm / top handoff hint를 하나의 object geometry 안에서 읽을 수 있음
+- `Transport`/`OHT`는 현재 scene의 중심 오브젝트가 아니라 ceiling logistics를 암시하는 배경 object
 - cleanroom shell은 도메인 엔티티라기보다 lightweight visual context
 - 시각 표현은 현실 복제보다 **upper/lower 구분과 vertical transfer 가독성**을 우선할 수 있음
 
@@ -52,10 +52,10 @@
 | Port A-02 | `port_a_02` | `Interface.DockingPoint` | Port | `Lift(lift_a)` | `semanticRole=LIFT_DOCK`, `zOffset=0`, `face=FRONT`, `slot=4`, `portType=OUT` | lift 전면 도킹 포인트(기준 높이 배치) |
 | Port B-01 | `port_b_01` | `Interface.DockingPoint` | Port | `Lift(lift_b)` | `semanticRole=LIFT_DOCK`, `zOffset=0`, `face=LEFT`, `slot=3`, `portType=INOUT` | 보조 lift의 좌측 도킹 포인트 |
 | Stocker Access 01 | `stocker_access_01` | `Interface.AccessPoint` | Port | `Stocker(stocker_01)` | `semanticRole=STOCKER_ACCESS`, `zOffset=null`, `face=FRONT`, `slot=1`, `portType=INOUT` | stocker 접근/인계 지점 |
-| Bridge 01 | `bridge_01` | `Guideway.Bridge` | Bridge | - | read-only | 배경 연결 구조 |
-| Rail 01 | `rail_01` | `Guideway.Rail` | Rail | - | read-only | transport path reference |
-| Stocker 01 | `stocker_01` | `Storage.Stocker` | Stocker | - | read-only | 저장 장치 본체 |
-| Transport 01 | `transport_01` | `Transport.OHTCarrier` | Transport | `Rail(rail_01)` | read-only | 상부 guideway를 따라 이동하는 OHT carrier 문맥 |
+| Bridge 01 | `bridge_01` | `Guideway.Bridge` | Bridge | - | context object | 배경 연결 구조 |
+| Rail 01 | `rail_01` | `Guideway.Rail` | Rail | - | context object | transport path reference |
+| Stocker 01 | `stocker_01` | `Storage.Stocker` | Stocker | - | context object | 저장 장치 본체 |
+| Transport 01 | `transport_01` | `Transport.OHTCarrier` | Transport | `Rail(rail_01)` | context object | 상부 guideway를 따라 이동하는 OHT carrier 문맥 |
 | CleanroomShell | - | `Context.CleanroomShell` | visual context only | - | non-editable / non-domain | 천장 grid, floor, column, rear wall로 구성된 lightweight 시각 배경 |
 
 ## domain parent 해석

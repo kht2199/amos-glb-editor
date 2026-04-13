@@ -42,7 +42,7 @@ describe('GLB round-trip and visual bounds', () => {
       pristineScene: scene,
       lifts: bundle.lifts,
       ports: bundle.ports,
-      readonlyObjects: bundle.readonlyObjects,
+      backgroundObjects: bundle.backgroundObjects,
       animations: [],
     })
 
@@ -51,7 +51,7 @@ describe('GLB round-trip and visual bounds', () => {
 
     expect(loaded.bundle.lifts).toHaveLength(bundle.lifts.length)
     expect(loaded.bundle.ports).toHaveLength(bundle.ports.length)
-    expect(loaded.bundle.readonlyObjects).toHaveLength(bundle.readonlyObjects.length)
+    expect(loaded.bundle.backgroundObjects).toHaveLength(bundle.backgroundObjects.length)
 
     const originalLift = bundle.lifts.find((lift) => lift.id === 'lift_a')
     const loadedLift = loaded.bundle.lifts.find((lift) => lift.id === 'lift_a')
@@ -86,7 +86,7 @@ describe('GLB round-trip and visual bounds', () => {
       pristineScene: scene,
       lifts: bundle.lifts,
       ports: shiftedPorts,
-      readonlyObjects: bundle.readonlyObjects,
+      backgroundObjects: bundle.backgroundObjects,
       animations: [],
     })
 
@@ -99,9 +99,9 @@ describe('GLB round-trip and visual bounds', () => {
     expect(reloaded?.position.z).toBe(expected?.position.z)
   })
 
-  it('preserves explicit readonly objectType metadata over name heuristics during round-trip', async () => {
+  it('preserves explicit background-object objectType metadata over name heuristics during round-trip', async () => {
     const { scene, bundle } = createDemoScene()
-    const reclassified = bundle.readonlyObjects.map((item) => item.id === 'stocker_01'
+    const reclassified = bundle.backgroundObjects.map((item) => item.id === 'stocker_01'
       ? { ...item, objectType: 'Bridge' as const }
       : item)
 
@@ -109,15 +109,65 @@ describe('GLB round-trip and visual bounds', () => {
       pristineScene: scene,
       lifts: bundle.lifts,
       ports: bundle.ports,
-      readonlyObjects: reclassified,
+      backgroundObjects: reclassified,
       animations: [],
     })
 
     const file = new File([blob], 'object-type-priority.glb', { type: 'model/gltf-binary' })
     const loaded = await loadGlbFile(file)
-    const reloaded = loaded.bundle.readonlyObjects.find((item) => item.id === 'stocker_01')
+    const reloaded = loaded.bundle.backgroundObjects.find((item) => item.id === 'stocker_01')
 
     expect(reloaded?.objectType).toBe('Bridge')
+  })
+
+  it('exports duplicated lifts even when the pristine scene has no matching node', async () => {
+    const { scene, bundle } = createDemoScene()
+    const duplicatedLift = {
+      ...bundle.lifts[0],
+      id: 'lift_a_copy_1',
+      editorId: 'lift_a_copy_1',
+      label: 'Lift A Copy 1',
+      nodeName: 'Lift_A_Copy_1',
+      position: { ...bundle.lifts[0].position, x: bundle.lifts[0].position.x + 24, y: bundle.lifts[0].position.y + 24 },
+    }
+
+    const blob = await exportGlb({
+      pristineScene: scene,
+      lifts: [...bundle.lifts, duplicatedLift],
+      ports: bundle.ports,
+      backgroundObjects: bundle.backgroundObjects,
+      animations: [],
+    })
+
+    const file = new File([blob], 'duplicated-lift.glb', { type: 'model/gltf-binary' })
+    const loaded = await loadGlbFile(file)
+
+    expect(loaded.bundle.lifts.some((lift) => lift.id === duplicatedLift.id)).toBe(true)
+  })
+
+  it('exports duplicated background objects even when the pristine scene has no matching node', async () => {
+    const { scene, bundle } = createDemoScene()
+    const duplicatedBackgroundObject = {
+      ...bundle.backgroundObjects[0],
+      id: 'bridge_01_copy_1',
+      editorId: 'bridge_01_copy_1',
+      label: 'Bridge 01 Copy 1',
+      nodeName: 'Bridge_01_Copy_1',
+      position: { ...bundle.backgroundObjects[0].position, x: bundle.backgroundObjects[0].position.x + 18, y: bundle.backgroundObjects[0].position.y + 12 },
+    }
+
+    const blob = await exportGlb({
+      pristineScene: scene,
+      lifts: bundle.lifts,
+      ports: bundle.ports,
+      backgroundObjects: [...bundle.backgroundObjects, duplicatedBackgroundObject],
+      animations: [],
+    })
+
+    const file = new File([blob], 'duplicated-background-object.glb', { type: 'model/gltf-binary' })
+    const loaded = await loadGlbFile(file)
+
+    expect(loaded.bundle.backgroundObjects.some((item) => item.id === duplicatedBackgroundObject.id)).toBe(true)
   })
 
   it('infers stocker access metadata from raw node names when editorMeta is missing', async () => {
@@ -164,7 +214,7 @@ describe('GLB round-trip and visual bounds', () => {
     const loaded = await loadGlbFile(await exportRawSceneToFile(scene, 'nested-children.glb'))
 
     expect(loaded.bundle.lifts).toHaveLength(1)
-    expect(loaded.bundle.readonlyObjects).toHaveLength(0)
+    expect(loaded.bundle.backgroundObjects).toHaveLength(0)
     expect(loaded.bundle.ports).toHaveLength(0)
   })
 

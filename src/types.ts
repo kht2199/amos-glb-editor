@@ -59,7 +59,7 @@ export interface PortEntity extends BaseEntity {
   zOffset?: number
 }
 
-export interface ReadOnlyEntity extends BaseEntity {
+export interface BackgroundObjectEntity extends BaseEntity {
   objectType: 'Bridge' | 'Rail' | 'Stocker' | 'Transport'
 }
 
@@ -78,24 +78,16 @@ export interface CollisionIssue {
   message: string
 }
 
-export interface SerializableSession {
-  fileName: string
-  snapEnabled: boolean
-  lifts: LiftEntity[]
-  ports: PortEntity[]
-  readonlyObjects: ReadOnlyEntity[]
-}
-
 export interface EditorSnapshot {
   draftLifts: LiftEntity[]
   draftPorts: PortEntity[]
-  draftReadonlyObjects: ReadOnlyEntity[]
+  draftBackgroundObjects: BackgroundObjectEntity[]
 }
 
 export interface SceneBundle {
   fileName: string
   lifts: LiftEntity[]
   ports: PortEntity[]
-  readonlyObjects: ReadOnlyEntity[]
+  backgroundObjects: BackgroundObjectEntity[]
   originalAnimationsCount: number
 }

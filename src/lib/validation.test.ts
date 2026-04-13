@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_ANIMATION } from './constants'
 import { validateEntities } from './validation'
-import type { LiftEntity, PortEntity, ReadOnlyEntity } from '../types'
+import type { LiftEntity, PortEntity, BackgroundObjectEntity } from '../types'
 
 function lift(overrides: Partial<LiftEntity> = {}): LiftEntity {
   return {
@@ -44,7 +44,7 @@ function port(overrides: Partial<PortEntity> = {}): PortEntity {
   }
 }
 
-function stocker(overrides: Partial<ReadOnlyEntity> = {}): ReadOnlyEntity {
+function stocker(overrides: Partial<BackgroundObjectEntity> = {}): BackgroundObjectEntity {
   return {
     id: 'stocker_01',
     editorId: 'stocker_01',

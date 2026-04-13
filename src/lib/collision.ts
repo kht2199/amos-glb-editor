@@ -1,4 +1,4 @@
-import type { CollisionIssue, LiftEntity, PortEntity, ReadOnlyEntity } from '../types'
+import type { CollisionIssue, LiftEntity, PortEntity, BackgroundObjectEntity } from '../types'
 import { worldToLocal } from './utils'
 
 interface Rect {
@@ -21,7 +21,7 @@ function intersects(a: Rect, b: Rect, padding = 0) {
   return !(a.maxX <= b.minX + padding || a.minX >= b.maxX - padding || a.maxY <= b.minY + padding || a.minY >= b.maxY - padding)
 }
 
-export function detectCollisions(lifts: LiftEntity[], ports: PortEntity[], readonlyObjects: ReadOnlyEntity[]): CollisionIssue[] {
+export function detectCollisions(lifts: LiftEntity[], ports: PortEntity[], backgroundObjects: BackgroundObjectEntity[]): CollisionIssue[] {
   const issues: CollisionIssue[] = []
   const activePorts = ports.filter((port) => !port.deleted)
 
@@ -42,14 +42,14 @@ export function detectCollisions(lifts: LiftEntity[], ports: PortEntity[], reado
   for (const port of activePorts) {
     const parentLift = lifts.find((lift) => lift.editorId === port.parentLiftId)
     if (!parentLift) continue
-    for (const readonlyObject of readonlyObjects) {
-      if (intersects(rectFromEntity(port), rectFromEntity(readonlyObject), 0)) {
+    for (const backgroundObject of backgroundObjects) {
+      if (intersects(rectFromEntity(port), rectFromEntity(backgroundObject), 0)) {
         issues.push({
-          id: `readonly-collision-${port.editorId}-${readonlyObject.editorId}`,
+          id: `background-object-collision-${port.editorId}-${backgroundObject.editorId}`,
           sourceId: port.editorId,
-          targetId: readonlyObject.editorId,
+          targetId: backgroundObject.editorId,
           severity: 'warning',
-          message: `Port가 ${readonlyObject.objectType} 영역과 겹칩니다: ${port.id}`,
+          message: `Port가 ${backgroundObject.objectType} 영역과 겹칩니다: ${port.id}`,
         })
       }
     }

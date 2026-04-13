@@ -10,10 +10,10 @@ beforeEach(() => {
 })
 
 describe('InspectorPanel', () => {
-  it('shows object type selector for readonly selection and updates the store', async () => {
+  it('shows object type selector for background-object selection and updates the store', async () => {
     const user = userEvent.setup()
     const state = useEditorStore.getState()
-    const stocker = state.draftReadonlyObjects.find((item) => item.id === 'stocker_01')
+    const stocker = state.draftBackgroundObjects.find((item) => item.id === 'stocker_01')
 
     expect(stocker).toBeTruthy()
     useEditorStore.getState().selectObject(stocker!.editorId)
@@ -26,6 +26,6 @@ describe('InspectorPanel', () => {
 
     const next = useEditorStore.getState()
     expect(next.draftLifts.some((item) => item.editorId === stocker!.editorId)).toBe(true)
-    expect(next.draftReadonlyObjects.some((item) => item.editorId === stocker!.editorId)).toBe(false)
+    expect(next.draftBackgroundObjects.some((item) => item.editorId === stocker!.editorId)).toBe(false)
   })
 })

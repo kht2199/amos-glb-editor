@@ -13,6 +13,16 @@ import { useEditorStore } from './store/editor-store'
 
 const PreviewOverlay = lazy(async () => import('./components/PreviewOverlay').then((module) => ({ default: module.PreviewOverlay })))
 
+function isEditableTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false
+  const tagName = target.tagName.toLowerCase()
+  return target.isContentEditable
+    || tagName === 'input'
+    || tagName === 'textarea'
+    || tagName === 'select'
+    || target.closest('input, textarea, select, [contenteditable="true"]') !== null
+}
+
 export default function App() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const { fileName, loadFile, openDemoScene } = useEditorStore(useShallow((state) => ({
@@ -23,13 +33,11 @@ export default function App() {
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
+      if (isEditableTarget(event.target)) return
+
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'o') {
         event.preventDefault()
         fileInputRef.current?.click()
-      }
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
-        event.preventDefault()
-        useEditorStore.getState().saveSession()
       }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z' && !event.shiftKey) {
         event.preventDefault()

@@ -5,17 +5,17 @@ import { useShallow } from 'zustand/react/shallow'
 import * as THREE from 'three'
 import { useEditorStore } from '../store/editor-store'
 import { buildAppliedScene } from '../lib/glb'
-import type { LiftEntity, PortEntity, ReadOnlyEntity } from '../types'
+import type { LiftEntity, PortEntity, BackgroundObjectEntity } from '../types'
 
-type SceneEntity = LiftEntity | PortEntity | ReadOnlyEntity
+type SceneEntity = LiftEntity | PortEntity | BackgroundObjectEntity
 type OrbitControlsHandle = ComponentRef<typeof OrbitControls>
 
 function visiblePorts(ports: PortEntity[]) {
   return ports.filter((port) => !port.deleted)
 }
 
-function allEntities(lifts: LiftEntity[], ports: PortEntity[], readonlyObjects: ReadOnlyEntity[]) {
-  return [...readonlyObjects, ...lifts, ...visiblePorts(ports)]
+function allEntities(lifts: LiftEntity[], ports: PortEntity[], backgroundObjects: BackgroundObjectEntity[]) {
+  return [...backgroundObjects, ...lifts, ...visiblePorts(ports)]
 }
 
 function entityCenter(entity: SceneEntity) {
@@ -132,24 +132,24 @@ function CameraRig({
 
 export function PreviewSceneCanvas() {
   const controlsRef = useRef<OrbitControlsHandle | null>(null)
-  const { lifts, ports, readonlyObjects, selectedId, pristineScene } = useEditorStore(useShallow((state) => ({
+  const { lifts, ports, backgroundObjects, selectedId, pristineScene } = useEditorStore(useShallow((state) => ({
     lifts: state.appliedLifts,
     ports: state.appliedPorts,
-    readonlyObjects: state.appliedReadonlyObjects,
+    backgroundObjects: state.appliedBackgroundObjects,
     selectedId: state.selectedId,
     pristineScene: state.runtime.pristineScene,
   })))
 
-  const entities = useMemo(() => allEntities(lifts, ports, readonlyObjects), [lifts, ports, readonlyObjects])
+  const entities = useMemo(() => allEntities(lifts, ports, backgroundObjects), [lifts, ports, backgroundObjects])
   const previewScene = useMemo(() => {
     if (!pristineScene) return null
     return buildAppliedScene({
       pristineScene,
       lifts,
       ports,
-      readonlyObjects,
+      backgroundObjects,
     })
-  }, [pristineScene, lifts, ports, readonlyObjects])
+  }, [pristineScene, lifts, ports, backgroundObjects])
 
   return (
     <Canvas

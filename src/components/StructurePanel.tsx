@@ -10,10 +10,10 @@ const FILTERS: Array<'All' | ObjectKind> = ['All', 'Lift', 'Port', 'Rail', 'Brid
 export function StructurePanel() {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<'All' | ObjectKind>('All')
-  const { draftLifts, draftPorts, draftReadonlyObjects, selectedId, selectObject, collisionIndex, validationIssues } = useEditorStore(useShallow((state) => ({
+  const { draftLifts, draftPorts, draftBackgroundObjects, selectedId, selectObject, collisionIndex, validationIssues } = useEditorStore(useShallow((state) => ({
     draftLifts: state.draftLifts,
     draftPorts: state.draftPorts,
-    draftReadonlyObjects: state.draftReadonlyObjects,
+    draftBackgroundObjects: state.draftBackgroundObjects,
     selectedId: state.selectedId,
     selectObject: state.selectObject,
     collisionIndex: state.collisionIndex,
@@ -30,7 +30,7 @@ export function StructurePanel() {
     return {
       lifts: draftLifts.filter((lift) => (filter === 'All' || filter === 'Lift') && match(lift.id)),
       ports: visiblePorts.filter((port) => (filter === 'All' || filter === 'Port') && match(port.id)),
-      readonlyObjects: draftReadonlyObjects.filter((item) => (filter === 'All' || filter === item.objectType) && match(item.id)),
+      backgroundObjects: draftBackgroundObjects.filter((item) => (filter === 'All' || filter === item.objectType) && match(item.id)),
     }
   })()
 
@@ -107,7 +107,7 @@ export function StructurePanel() {
           </div>
         ) : null}
 
-        {filtered.readonlyObjects.map((item) => {
+        {filtered.backgroundObjects.map((item) => {
           const itemIssues = issueCount(item.editorId)
           return (
             <button key={item.editorId} type="button" onClick={() => selectObject(item.editorId)} className={cn('mb-2 flex w-full items-center justify-between rounded-xl border border-slate-800 px-3 py-2 text-left', selectedId === item.editorId ? 'bg-violet-500/15 text-violet-100' : 'bg-slate-900/60 text-slate-300 hover:bg-slate-800')}>
@@ -115,7 +115,7 @@ export function StructurePanel() {
                 {item.id}
                 {itemIssues > 0 && <AlertTriangle className="h-3.5 w-3.5 text-rose-300" />}
               </span>
-              <span className="rounded-full border border-slate-700 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-500">{item.objectType} · RO{itemIssues > 0 ? ` · ${itemIssues}` : ''}</span>
+              <span className="rounded-full border border-slate-700 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-500">{item.objectType}{itemIssues > 0 ? ` · ${itemIssues}` : ''}</span>
             </button>
           )
         })}

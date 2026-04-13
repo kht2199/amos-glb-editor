@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
 import { DEFAULT_ANIMATION } from './constants'
 import { createPortNode } from './portVisual'
-import type { DomainParentType, Face, LiftEntity, PortEntity, PortSemanticRole, PortType, ReadOnlyEntity, SceneBundle, Vec3 } from '../types'
+import type { DomainParentType, Face, LiftEntity, PortEntity, PortSemanticRole, PortType, BackgroundObjectEntity, SceneBundle, Vec3 } from '../types'
 import { computePortPosition, inferFaceAndSlot, round } from './utils'
 
 type DetectableObjectType = 'Lift' | 'Port' | 'Bridge' | 'Rail' | 'Stocker' | 'Transport'
@@ -173,7 +173,7 @@ function makeLiftEntity(object: THREE.Object3D): LiftEntity {
   }
 }
 
-function makeReadOnlyEntity(object: THREE.Object3D, objectType: 'Bridge' | 'Rail' | 'Stocker' | 'Transport'): ReadOnlyEntity {
+function makeBackgroundObjectEntity(object: THREE.Object3D, objectType: 'Bridge' | 'Rail' | 'Stocker' | 'Transport'): BackgroundObjectEntity {
   const { size, center } = computeBounds(object)
   const meta = editorMeta(object)
   object.userData.editorMeta = { ...(object.userData.editorMeta ?? {}), id: meta.id, entityId: meta.entityId, objectType }
@@ -196,8 +196,8 @@ function nearestLift(position: Vec3, lifts: LiftEntity[]) {
     .sort((a, b) => a.distance - b.distance)[0]?.lift
 }
 
-function nearestReadOnly(position: Vec3, readonlyObjects: ReadOnlyEntity[], kind: 'Stocker' | 'Transport') {
-  return readonlyObjects
+function nearestBackgroundObject(position: Vec3, backgroundObjects: BackgroundObjectEntity[], kind: 'Stocker' | 'Transport') {
+  return backgroundObjects
     .filter((item) => item.objectType === kind)
     .map((item) => ({ item, distance: Math.hypot(position.x - item.position.x, position.y - item.position.y) }))
     .sort((a, b) => a.distance - b.distance)[0]?.item
@@ -209,9 +209,9 @@ function matchLiftByNameHint(name: string, lifts: LiftEntity[]) {
   return lifts.find((lift) => normalizedEntityKey(lift.id) === key || normalizedEntityKey(lift.nodeName) === key || normalizedEntityKey(lift.editorId) === key)
 }
 
-function matchReadOnlyByHint(name: string, readonlyObjects: ReadOnlyEntity[], kind: 'Stocker' | 'Transport') {
+function matchBackgroundObjectByHint(name: string, backgroundObjects: BackgroundObjectEntity[], kind: 'Stocker' | 'Transport') {
   const normalized = normalizedEntityKey(name) ?? ''
-  return readonlyObjects.find((item) => {
+  return backgroundObjects.find((item) => {
     if (item.objectType !== kind) return false
     const candidates = [item.id, item.nodeName, item.editorId, item.label]
       .map(normalizedEntityKey)
@@ -231,7 +231,7 @@ function assignExternalPortSlot(base: PortEntity, ports: PortEntity[]) {
   return slot
 }
 
-function makePortEntity(object: THREE.Object3D, lifts: LiftEntity[], readonlyObjects: ReadOnlyEntity[], existingPorts: PortEntity[]): PortEntity | null {
+function makePortEntity(object: THREE.Object3D, lifts: LiftEntity[], backgroundObjects: BackgroundObjectEntity[], existingPorts: PortEntity[]): PortEntity | null {
   const { size, center } = computeBounds(object)
   const meta = editorMeta(object)
   const inferredNameMeta = inferPortNameMeta(object.name)
@@ -244,19 +244,19 @@ function makePortEntity(object: THREE.Object3D, lifts: LiftEntity[], readonlyObj
   const semanticRole: PortSemanticRole = meta.semanticRole ?? inferredNameMeta.semanticRole ?? 'LIFT_DOCK'
 
   if (domainParentType === 'Stocker' && !meta.domainParentId) {
-    const stocker = matchReadOnlyByHint(object.name, readonlyObjects, 'Stocker')
-      ?? nearestReadOnly({ x: center.x, y: center.y, z: center.z }, readonlyObjects, 'Stocker')
+    const stocker = matchBackgroundObjectByHint(object.name, backgroundObjects, 'Stocker')
+      ?? nearestBackgroundObject({ x: center.x, y: center.y, z: center.z }, backgroundObjects, 'Stocker')
     if (stocker) domainParentId = stocker.editorId
   }
 
   if (domainParentType === 'Transport' && !meta.domainParentId) {
-    const transport = matchReadOnlyByHint(object.name, readonlyObjects, 'Transport')
-      ?? nearestReadOnly({ x: center.x, y: center.y, z: center.z }, readonlyObjects, 'Transport')
+    const transport = matchBackgroundObjectByHint(object.name, backgroundObjects, 'Transport')
+      ?? nearestBackgroundObject({ x: center.x, y: center.y, z: center.z }, backgroundObjects, 'Transport')
     if (transport) domainParentId = transport.editorId
   }
 
   if (semanticRole === 'STOCKER_ACCESS' && !meta.domainParentId) {
-    const stocker = nearestReadOnly({ x: center.x, y: center.y, z: center.z }, readonlyObjects, 'Stocker')
+    const stocker = nearestBackgroundObject({ x: center.x, y: center.y, z: center.z }, backgroundObjects, 'Stocker')
     if (stocker) {
       domainParentType = 'Stocker'
       domainParentId = stocker.editorId
@@ -324,7 +324,7 @@ export async function loadGlbFile(file: File) {
   const scene = gltf.scene
   const lifts: LiftEntity[] = []
   const ports: PortEntity[] = []
-  const readonlyObjects: ReadOnlyEntity[] = []
+  const backgroundObjects: BackgroundObjectEntity[] = []
 
   scene.traverse((object: THREE.Object3D) => {
     if (object === scene) return
@@ -332,14 +332,14 @@ export async function loadGlbFile(file: File) {
     const kind = detectObjectType(object)
     if (!kind) return
     if (kind === 'Lift') lifts.push(makeLiftEntity(object))
-    if (kind === 'Bridge' || kind === 'Rail' || kind === 'Stocker' || kind === 'Transport') readonlyObjects.push(makeReadOnlyEntity(object, kind))
+    if (kind === 'Bridge' || kind === 'Rail' || kind === 'Stocker' || kind === 'Transport') backgroundObjects.push(makeBackgroundObjectEntity(object, kind))
   })
 
   scene.traverse((object: THREE.Object3D) => {
     if (object === scene) return
     if (hasTypedAncestor(object)) return
     if (detectObjectType(object) === 'Port') {
-      const port = makePortEntity(object, lifts, readonlyObjects, ports)
+      const port = makePortEntity(object, lifts, backgroundObjects, ports)
       if (port) ports.push(port)
     }
   })
@@ -348,7 +348,7 @@ export async function loadGlbFile(file: File) {
     fileName: file.name,
     lifts,
     ports,
-    readonlyObjects,
+    backgroundObjects,
     originalAnimationsCount: gltf.animations.length,
   }
 
@@ -378,9 +378,33 @@ function placeNodeByBottom(node: THREE.Object3D, position: Vec3) {
   }
 }
 
+function createLiftNode(lift: LiftEntity) {
+  const group = new THREE.Group()
+  const shell = new THREE.Mesh(
+    new THREE.BoxGeometry(lift.width, lift.depth, lift.height),
+    new THREE.MeshStandardMaterial({ color: '#d8dee9', roughness: 0.58, metalness: 0.18 }),
+  )
+  shell.position.set(0, 0, lift.height / 2)
+  group.add(shell)
+  group.name = lift.nodeName
+  group.rotation.z = (lift.rotation * Math.PI) / 180
+  group.userData.editorMeta = {
+    id: lift.editorId,
+    entityId: lift.id,
+    objectType: 'Lift',
+    slotsPerFace: lift.slotsPerFace,
+    animation: lift.animation,
+  }
+  placeNodeByBottom(group, lift.position)
+  return group
+}
+
 function applyLift(scene: THREE.Object3D, lift: LiftEntity) {
-  const node = findByEditorId(scene, lift.editorId)
-  if (!node) return
+  let node: THREE.Object3D | null = findByEditorId(scene, lift.editorId)
+  if (!node) {
+    node = createLiftNode(lift)
+    scene.add(node)
+  }
   node.name = lift.nodeName
   placeNodeByBottom(node, lift.position)
   node.rotation.z = (lift.rotation * Math.PI) / 180
@@ -426,9 +450,30 @@ function applyPort(scene: THREE.Object3D, port: PortEntity) {
   }
 }
 
-function applyReadOnly(scene: THREE.Object3D, entity: ReadOnlyEntity) {
-  const node = findByEditorId(scene, entity.editorId)
-  if (!node) return
+function createBackgroundObjectNode(entity: BackgroundObjectEntity) {
+  const group = new THREE.Group()
+  const shell = new THREE.Mesh(
+    new THREE.BoxGeometry(entity.width, entity.depth, entity.height),
+    new THREE.MeshStandardMaterial({ color: '#94a3b8', roughness: 0.7, metalness: 0.18 }),
+  )
+  shell.position.set(0, 0, entity.height / 2)
+  group.add(shell)
+  group.name = entity.nodeName
+  group.userData.editorMeta = {
+    id: entity.editorId,
+    entityId: entity.id,
+    objectType: entity.objectType,
+  }
+  placeNodeByBottom(group, entity.position)
+  return group
+}
+
+function applyBackgroundObject(scene: THREE.Object3D, entity: BackgroundObjectEntity) {
+  let node: THREE.Object3D | null = findByEditorId(scene, entity.editorId)
+  if (!node) {
+    node = createBackgroundObjectNode(entity)
+    scene.add(node)
+  }
   node.visible = true
   node.name = entity.nodeName
   placeNodeByBottom(node, entity.position)
@@ -444,12 +489,12 @@ export function buildAppliedScene(payload: {
   pristineScene: THREE.Group
   lifts: LiftEntity[]
   ports: PortEntity[]
-  readonlyObjects: ReadOnlyEntity[]
+  backgroundObjects: BackgroundObjectEntity[]
 }) {
   const scene = payload.pristineScene.clone(true)
   for (const lift of payload.lifts) applyLift(scene, lift)
   for (const port of payload.ports) applyPort(scene, port)
-  for (const readonlyObject of payload.readonlyObjects) applyReadOnly(scene, readonlyObject)
+  for (const backgroundObject of payload.backgroundObjects) applyBackgroundObject(scene, backgroundObject)
   return scene
 }
 
@@ -457,7 +502,7 @@ export async function exportGlb(payload: {
   pristineScene: THREE.Group
   lifts: LiftEntity[]
   ports: PortEntity[]
-  readonlyObjects: ReadOnlyEntity[]
+  backgroundObjects: BackgroundObjectEntity[]
   animations: THREE.AnimationClip[]
 }) {
   const scene = buildAppliedScene(payload)

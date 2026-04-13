@@ -1,7 +1,5 @@
 import type { EditorAnimation } from '../types'
 
-export const STORAGE_KEY = 'threejs-object-editor-session'
-
 export const DEFAULT_ANIMATION: EditorAnimation = {
   enabled: false,
   speed: 1,
