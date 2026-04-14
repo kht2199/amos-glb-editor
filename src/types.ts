@@ -2,7 +2,6 @@ export type ObjectKind = string
 export type PortType = 'IN' | 'OUT' | 'INOUT'
 export type Face = 'FRONT' | 'BACK' | 'LEFT' | 'RIGHT'
 export type EditorMode = 'select' | 'move'
-export type ValidationSeverity = 'error' | 'warning'
 export type DomainParentType = string
 export type PortSemanticRole = 'LIFT_DOCK' | 'STOCKER_ACCESS' | 'TOOL_LOAD' | 'BUFFER_HANDOFF'
 export type TopViewAxisDirection = 'right' | 'left' | 'up' | 'down'
@@ -73,13 +72,6 @@ export interface PortEntity extends BaseEntity {
 
 export interface BackgroundObjectEntity extends BaseEntity {
   objectType: string
-}
-
-export interface ValidationIssue {
-  id: string
-  targetId?: string
-  severity: ValidationSeverity
-  message: string
 }
 
 export interface CollisionIssue {

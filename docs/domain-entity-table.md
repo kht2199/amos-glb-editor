@@ -4,7 +4,7 @@
 
 ## 목적
 - 실제 장비 용어와 editor 내부 엔티티를 분리한다.
-- import / selection / inspector / export와 validation 참고 정보의 공통 기준을 고정한다.
+- import / selection / inspector / export와 collision 참고 정보의 공통 기준을 고정한다.
 - `scene graph 관계`와 `domain 관계`를 혼동하지 않도록 한다.
 
 ## 핵심 해석 원칙
@@ -62,7 +62,7 @@
 - Lift 소속 포트는 `face + slot + Z`로 위치를 복원한다.
 - Lift 외부 포트는 `domainParentId/domainParentType`가 1차 기준이다.
 - scene graph 상에서 Lift child가 아니어도 domain 관계는 유지해야 한다.
-- validation 참고 정보는 geometry보다 `same domain parent + same face + same slot` 충돌 규칙을 우선적으로 보여준다.
+- collision 참고 정보는 geometry보다 `same domain parent + same face + same slot` 충돌 규칙을 우선적으로 보여준다.
 
 ## 배경/문맥 오브젝트 규칙
 ### Bridge

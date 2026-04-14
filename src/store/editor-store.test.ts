@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import * as THREE from 'three'
 import { createDemoScene } from '../lib/demoScene'
 import { exportGlb } from '../lib/glb'
+import { computePortPosition } from '../lib/utils'
 import { useEditorStore } from './editor-store'
 
 beforeEach(() => {
@@ -57,17 +58,58 @@ describe('editor store', () => {
     expect(useEditorStore.getState().draftLifts[0].position.x).toBe(originalX + 40)
   })
 
-  it('reassigns a port to the nearest lift when dragged', () => {
+  it('moves a port freely without snapping it back to a lift', () => {
     const state = useEditorStore.getState()
     const sourcePort = state.draftPorts.find((port) => !port.deleted)
     const targetLift = state.draftLifts[1]
     expect(sourcePort).toBeTruthy()
     expect(targetLift).toBeTruthy()
 
-    useEditorStore.getState().movePortByWorld(sourcePort!.editorId, targetLift.position.x, targetLift.position.y)
+    useEditorStore.getState().movePortByWorld(sourcePort!.editorId, targetLift.position.x + 23, targetLift.position.y - 19)
     const moved = useEditorStore.getState().draftPorts.find((port) => port.editorId === sourcePort!.editorId)
 
-    expect(moved?.parentLiftId).toBe(targetLift.editorId)
+    expect(moved?.position.x).toBe(targetLift.position.x + 23)
+    expect(moved?.position.y).toBe(targetLift.position.y - 19)
+    expect(moved?.parentLiftId).toBeUndefined()
+    expect(moved?.domainParentType).toBe('Transport')
+  })
+
+  it('detaches a lift-linked port when x/y is edited directly', () => {
+    const state = useEditorStore.getState()
+    const port = state.draftPorts.find((item) => !item.deleted && item.parentLiftId)
+
+    expect(port).toBeTruthy()
+    state.updatePort(port!.editorId, {
+      position: {
+        x: port!.position.x + 11,
+        y: port!.position.y + 7,
+        z: port!.position.z,
+      },
+    })
+
+    const updated = useEditorStore.getState().draftPorts.find((item) => item.editorId === port!.editorId)
+    expect(updated?.position.x).toBe(port!.position.x + 11)
+    expect(updated?.position.y).toBe(port!.position.y + 7)
+    expect(updated?.parentLiftId).toBeUndefined()
+    expect(updated?.domainParentId).toBe('')
+    expect(updated?.domainParentType).toBe('Transport')
+  })
+
+  it('keeps lift-linked ports synchronized when the parent lift moves', () => {
+    const state = useEditorStore.getState()
+    const port = state.draftPorts.find((item) => !item.deleted && item.parentLiftId)
+    const lift = state.draftLifts.find((item) => item.editorId === port?.parentLiftId)
+
+    expect(port).toBeTruthy()
+    expect(lift).toBeTruthy()
+
+    state.moveEntity(lift!.editorId, lift!.position.x + 15, lift!.position.y - 9)
+
+    const updatedLift = useEditorStore.getState().draftLifts.find((item) => item.editorId === lift!.editorId)
+    const updatedPort = useEditorStore.getState().draftPorts.find((item) => item.editorId === port!.editorId)
+    const expectedPosition = computePortPosition(updatedLift!, port!.face, port!.slot, port!.zOffset ?? (port!.position.z - lift!.position.z))
+
+    expect(updatedPort?.position).toEqual(expectedPosition)
   })
 
   it('moves background objects in move mode', () => {
@@ -97,6 +139,24 @@ describe('editor store', () => {
     expect(updated?.position.z).toBe(port!.position.z + 17)
   })
 
+  it('keeps a lift-linked port attached when only z changes', () => {
+    const state = useEditorStore.getState()
+    const port = state.draftPorts.find((item) => !item.deleted && item.parentLiftId)
+
+    expect(port).toBeTruthy()
+    state.updatePort(port!.editorId, {
+      position: {
+        ...port!.position,
+        z: port!.position.z + 9,
+      },
+    })
+
+    const updated = useEditorStore.getState().draftPorts.find((item) => item.editorId === port!.editorId)
+    expect(updated?.parentLiftId).toBe(port!.parentLiftId)
+    expect(updated?.domainParentType).toBe('Lift')
+    expect(updated?.position.z).toBe(port!.position.z + 9)
+  })
+
   it('reclassifies a background object into a lift', () => {
     const state = useEditorStore.getState()
     const stocker = state.draftBackgroundObjects.find((item) => item.id === 'stocker_01')
@@ -113,6 +173,21 @@ describe('editor store', () => {
     expect(convertedLift?.animation.enabled).toBe(true)
     expect(next.draftBackgroundObjects.some((item) => item.editorId === stocker!.editorId)).toBe(false)
     expect(next.selectedId).toBe(stocker!.editorId)
+  })
+
+  it('reclassifies a background object into a standalone port', () => {
+    const state = useEditorStore.getState()
+    const stocker = state.draftBackgroundObjects.find((item) => item.id === 'stocker_01')
+
+    expect(stocker).toBeTruthy()
+    state.setObjectType(stocker!.editorId, 'Port')
+
+    const next = useEditorStore.getState()
+    const convertedPort = next.draftPorts.find((item) => item.editorId === stocker!.editorId)
+
+    expect(convertedPort).toBeTruthy()
+    expect(convertedPort?.domainParentId).toBe('')
+    expect(convertedPort?.domainParentType).toBe('Transport')
   })
 
   it('allows adding a screen-configured type and reclassifying an object to it', () => {

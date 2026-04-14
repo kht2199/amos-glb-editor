@@ -1,4 +1,4 @@
-import { Check, Copy, Eye, FileDown, FileUp, Layers3, Move, Redo2, RefreshCcw, RotateCw, SearchCheck, Settings2, Trash2, Undo2 } from 'lucide-react'
+import { Check, Copy, Eye, FileDown, FileUp, Layers3, Move, Redo2, RefreshCcw, RotateCw, Settings2, Trash2, Undo2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { cn } from '../lib/utils'
@@ -33,7 +33,6 @@ export function Toolbar({ onOpenFile, onImportFile }: ToolbarProps) {
     mode,
     snapEnabled,
     hasPendingChanges,
-    validationIssues,
     collisionIssues,
     canUndo,
     canRedo,
@@ -44,7 +43,6 @@ export function Toolbar({ onOpenFile, onImportFile }: ToolbarProps) {
     removeObjectTypeDefinition,
     rotateLift,
     duplicateSelectedObject,
-    runValidation,
     exportCurrentGlb,
     applyDraftChanges,
     revertDraftChanges,
@@ -63,7 +61,6 @@ export function Toolbar({ onOpenFile, onImportFile }: ToolbarProps) {
     mode: state.mode,
     snapEnabled: state.snapEnabled,
     hasPendingChanges: state.hasPendingChanges,
-    validationIssues: state.validationIssues,
     collisionIssues: state.collisionIssues,
     canUndo: state.canUndo,
     canRedo: state.canRedo,
@@ -74,7 +71,6 @@ export function Toolbar({ onOpenFile, onImportFile }: ToolbarProps) {
     removeObjectTypeDefinition: state.removeObjectTypeDefinition,
     rotateLift: state.rotateLift,
     duplicateSelectedObject: state.duplicateSelectedObject,
-    runValidation: state.runValidation,
     exportCurrentGlb: state.exportCurrentGlb,
     applyDraftChanges: state.applyDraftChanges,
     revertDraftChanges: state.revertDraftChanges,
@@ -84,7 +80,6 @@ export function Toolbar({ onOpenFile, onImportFile }: ToolbarProps) {
 
   const selectedLift = lifts.find((lift) => lift.editorId === selectedId)
   const disabled = !fileName
-  const errorCount = validationIssues.filter((issue) => issue.severity === 'error').length
   const typeUsage = useMemo(() => {
     const usage = new Map<string, Set<string>>()
     for (const entity of [
@@ -114,15 +109,15 @@ export function Toolbar({ onOpenFile, onImportFile }: ToolbarProps) {
     <header className="border-b border-slate-800 bg-slate-950/80 px-3 py-2 backdrop-blur sm:px-4 sm:py-3">
       <div className="mb-2 flex flex-col gap-2 lg:mb-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
         <div>
-          <h1 className="text-lg font-semibold text-slate-50">Three.js Object Editor</h1>
-          <p className="hidden text-xs text-slate-400 sm:block">Lift / Port constrained editor · React + TypeScript + R3F</p>
+          <h1 className="text-lg font-semibold text-slate-50">GLB Scene Object Editor</h1>
+          <p className="hidden text-xs text-slate-400 sm:block">Top-view scene object editor · React + TypeScript + R3F</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-[11px] sm:text-xs lg:gap-3">
           <div className="max-w-full rounded-full border border-slate-700 px-2.5 py-1 text-slate-300 sm:px-3">
             {fileName ?? 'No file loaded'} · {hasPendingChanges ? 'Draft pending' : 'Draft synced'}
           </div>
-          <div className={cn('rounded-full border px-2.5 py-1 sm:px-3', errorCount ? 'border-rose-500/40 text-rose-100' : 'border-emerald-500/30 text-emerald-100')}>
-            Err {errorCount} · Col {collisionIssues.length}
+          <div className={cn('rounded-full border px-2.5 py-1 sm:px-3', collisionIssues.length ? 'border-amber-500/40 text-amber-100' : 'border-emerald-500/30 text-emerald-100')}>
+            Col {collisionIssues.length}
           </div>
         </div>
       </div>
@@ -151,9 +146,8 @@ export function Toolbar({ onOpenFile, onImportFile }: ToolbarProps) {
           <ToolButton icon={RotateCw} disabled={!selectedLift} onClick={() => selectedLift && rotateLift(selectedLift.editorId)}>Rotate 90°</ToolButton>
         </ToolGroup>
 
-        <ToolGroup title="View & Validate">
+        <ToolGroup title="View">
           <ToolButton icon={Layers3} disabled={disabled} active={snapEnabled} onClick={() => setSnapEnabled(!snapEnabled)}>Snap {snapEnabled ? 'ON' : 'OFF'}</ToolButton>
-          <ToolButton icon={SearchCheck} disabled={disabled} onClick={runValidation}>Validate</ToolButton>
           <ToolButton icon={Eye} disabled={disabled} onClick={() => setPreviewOpen(true)}>Expand Preview</ToolButton>
           <ToolButton icon={Settings2} disabled={disabled} active={isTypeSettingsOpen} onClick={() => setIsTypeSettingsOpen((open) => !open)}>Type Settings</ToolButton>
         </ToolGroup>

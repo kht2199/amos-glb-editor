@@ -2,14 +2,13 @@ import { useShallow } from 'zustand/react/shallow'
 import { useEditorStore } from '../store/editor-store'
 
 export function StatusBar() {
-  const { selectedId, lifts, ports, backgroundObjects, snapEnabled, statusMessage, validationIssues, collisionIssues, hasPendingChanges, canUndo, canRedo } = useEditorStore(useShallow((state) => ({
+  const { selectedId, lifts, ports, backgroundObjects, snapEnabled, statusMessage, collisionIssues, hasPendingChanges, canUndo, canRedo } = useEditorStore(useShallow((state) => ({
     selectedId: state.selectedId,
     lifts: state.draftLifts,
     ports: state.draftPorts,
     backgroundObjects: state.draftBackgroundObjects,
     snapEnabled: state.snapEnabled,
     statusMessage: state.statusMessage,
-    validationIssues: state.validationIssues,
     collisionIssues: state.collisionIssues,
     hasPendingChanges: state.hasPendingChanges,
     canUndo: state.canUndo,
@@ -31,7 +30,6 @@ export function StatusBar() {
       <div className="flex min-w-0 flex-wrap items-center gap-3">
         <span>Snap: <strong className="text-slate-200">{snapEnabled ? 'ON' : 'OFF'}</strong></span>
         <span>Ports: <strong className="text-slate-200">{visiblePortCount}</strong></span>
-        <span>Issues: <strong className="text-slate-200">{validationIssues.length}</strong></span>
         <span>Collisions: <strong className="text-slate-200">{collisionIssues.length}</strong></span>
         <span>Undo/Redo: <strong className="text-slate-200">{canUndo ? 'Y' : 'N'} / {canRedo ? 'Y' : 'N'}</strong></span>
         <span>{statusMessage}</span>

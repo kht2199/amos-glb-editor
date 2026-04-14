@@ -9,6 +9,20 @@ beforeEach(() => {
 })
 
 describe('InspectorPanel', () => {
+  it('keeps a stable mobile viewport height when selection details appear', () => {
+    const { container, rerender } = render(<InspectorPanel />)
+
+    expect(container.firstElementChild).toHaveClass('min-h-[220px]')
+    expect(container.firstElementChild).toHaveClass('max-h-[42svh]')
+
+    const lift = useEditorStore.getState().draftLifts[0]
+    useEditorStore.getState().selectObject(lift.editorId)
+    rerender(<InspectorPanel />)
+
+    expect(container.firstElementChild).toHaveClass('min-h-[220px]')
+    expect(container.firstElementChild).toHaveClass('max-h-[42svh]')
+  })
+
   it('shows object type selector for background-object selection and updates the store', async () => {
     const user = userEvent.setup()
     const state = useEditorStore.getState()
@@ -18,7 +32,7 @@ describe('InspectorPanel', () => {
     useEditorStore.getState().selectObject(stocker!.editorId)
     render(<InspectorPanel />)
 
-    const typeSelect = screen.getByLabelText('Object Type')
+    const typeSelect = screen.getAllByLabelText('Object Type')[0]
     expect(typeSelect).toHaveValue('Stocker')
 
     await user.selectOptions(typeSelect, 'Lift')

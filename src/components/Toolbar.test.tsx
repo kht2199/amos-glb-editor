@@ -34,4 +34,11 @@ describe('Toolbar', () => {
 
     expect(onImportFile).toHaveBeenCalled()
   })
+
+  it('does not show any removed review-drawer action in the toolbar anymore', () => {
+    render(<Toolbar onOpenFile={vi.fn()} />)
+
+    expect(screen.queryByRole('button', { name: /validate/i })).not.toBeInTheDocument()
+    expect(screen.queryByText(/review drawer/i)).not.toBeInTheDocument()
+  })
 })

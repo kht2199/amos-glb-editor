@@ -1,5 +1,4 @@
 import { Trash2 } from 'lucide-react'
-import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useEditorStore } from '../store/editor-store'
 import type { BackgroundObjectEntity, Face, LiftEntity, ObjectKind, PortEntity, PortSemanticRole, PortType } from '../types'
@@ -11,7 +10,7 @@ const fieldClass = 'w-full rounded-xl border border-slate-700 bg-slate-950 px-3 
 const dangerButton = 'inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm font-medium text-rose-100 hover:bg-rose-500/20'
 
 export function InspectorPanel() {
-  const { selectedId, draftLifts, draftPorts, draftBackgroundObjects, objectTypeDefinitions, updateLift, updatePort, updateBackgroundObject, setObjectType, deletePort, validationIssues } = useEditorStore(useShallow((state) => ({
+  const { selectedId, draftLifts, draftPorts, draftBackgroundObjects, objectTypeDefinitions, updateLift, updatePort, updateBackgroundObject, setObjectType, deletePort } = useEditorStore(useShallow((state) => ({
     selectedId: state.selectedId,
     draftLifts: state.draftLifts,
     draftPorts: state.draftPorts,
@@ -22,17 +21,15 @@ export function InspectorPanel() {
     updateBackgroundObject: state.updateBackgroundObject,
     setObjectType: state.setObjectType,
     deletePort: state.deletePort,
-    validationIssues: state.validationIssues,
   })))
 
   const selectedLift = draftLifts.find((item) => item.editorId === selectedId) ?? null
   const selectedPort = draftPorts.find((item) => item.editorId === selectedId && !item.deleted) ?? null
   const selectedReadonly = draftBackgroundObjects.find((item) => item.editorId === selectedId) ?? null
-  const issues = useMemo(() => validationIssues.filter((issue) => issue.targetId === selectedId), [selectedId, validationIssues])
   const objectTypeOptions = objectTypeDefinitions.map((definition) => definition.name as ObjectKind)
 
   return (
-    <aside className="flex min-h-[220px] flex-col border-t border-slate-800 bg-slate-950/40 lg:h-full lg:min-h-0 lg:border-t-0 lg:border-l">
+    <aside className="flex min-h-[220px] max-h-[42svh] flex-col border-t border-slate-800 bg-slate-950/40 lg:h-full lg:max-h-none lg:min-h-0 lg:border-t-0 lg:border-l">
       <div className="border-b border-slate-800 p-4">
         <h2 className="text-sm font-semibold text-slate-100">Inspector</h2>
         <p className="mt-1 text-xs text-slate-500">Selection-aware editing with inline rules.</p>
@@ -66,7 +63,6 @@ export function InspectorPanel() {
                 <NumberField label="Max Z" value={selectedLift.animation.maxZ} onChange={(value) => updateLift(selectedLift.editorId, { animation: { ...selectedLift.animation, maxZ: value } })} />
               </DoubleField>
             </div>
-            <IssueList issues={issues} />
           </section>
         ) : null}
 
@@ -91,7 +87,6 @@ export function InspectorPanel() {
               <Field label="Type"><select className={fieldClass} value={selectedPort.portType} onChange={(event) => updatePort(selectedPort.editorId, { portType: event.target.value as PortType })}>{PORT_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
             </DoubleField>
             <ScaleField value={scalePercent(selectedPort)} onChange={(value) => updatePort(selectedPort.editorId, { scale: uniformScaleFromPercent(value) })} />
-            <IssueList issues={issues} />
             <button type="button" className={dangerButton} onClick={() => deletePort(selectedPort.editorId)}><Trash2 className="h-4 w-4" />Delete Port</button>
           </section>
         ) : null}
@@ -108,7 +103,6 @@ export function InspectorPanel() {
             <NumberField label="Z" value={selectedReadonly.position.z} onChange={(value) => updateBackgroundObject(selectedReadonly.editorId, { position: { ...selectedReadonly.position, z: value } })} />
             <ScaleField value={scalePercent(selectedReadonly)} onChange={(value) => updateBackgroundObject(selectedReadonly.editorId, { scale: uniformScaleFromPercent(value) })} />
             <p className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-3 py-2 text-sm text-violet-100">배경 오브젝트도 Move 모드와 Inspector에서 좌표를 조정하고 objectType을 재분류할 수 있습니다.</p>
-            <IssueList issues={issues} />
           </section>
         ) : null}
       </div>
@@ -145,7 +139,4 @@ function uniformScaleFromPercent(value: number) {
   return { x: normalized, y: normalized, z: normalized }
 }
 
-function IssueList({ issues }: { issues: Array<{ id: string; message: string }> }) {
-  if (!issues.length) return <p className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100">Validation: OK</p>
-  return <div className="space-y-2 rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-sm text-rose-100"><p className="font-medium">Validation issues</p><ul className="list-disc space-y-1 pl-5">{issues.map((issue) => <li key={issue.id}>{issue.message}</li>)}</ul></div>
-}
+

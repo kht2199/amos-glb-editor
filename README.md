@@ -74,8 +74,8 @@ GLB scene을 웹에서 읽고, **일반 오브젝트를 선택·복사·이동·
 - preview는 XYZ axis와 Z-up 기준을 유지한다
 - 높이 차이는 별도 단계 전환이 아니라 Z 좌표로 직접 다룸
 
-### 2. Geometry-agnostic editing
-이 에디터는 mesh 모양이 아니라 다음 정보를 기준으로 편집합니다.
+### 2. Metadata-first editing + actual mesh-projected 2D view
+이 에디터의 편집 규칙은 raw mesh 자체가 아니라 다음 정보를 기준으로 동작합니다.
 
 - `editorMeta`
 - transform
@@ -86,6 +86,7 @@ GLB scene을 웹에서 읽고, **일반 오브젝트를 선택·복사·이동·
 - 기타 object metadata
 
 즉, 원본 GLB의 오브젝트가 단순 박스형이든 상세 모델이든 **편집 규칙은 동일**해야 합니다.
+다만 top view 2D 표현은 generic box/circle이나 고정 타입 템플릿으로 단순화하지 않고, **현재 draft가 반영된 실제 mesh를 편집 평면(XY/XZ/YZ)으로 투영한 outline/footprint**로 보여주는 것을 기본 원칙으로 합니다.
 
 ### 3. Duplicate-first editing
 새 오브젝트 생성의 기본은 `Add Port` 같은 타입 전용 생성이 아니라 **선택된 오브젝트 복사(`Duplicate`)**입니다.
@@ -111,15 +112,15 @@ re-export는 원본을 전부 재구성하지 않고, import 시점의 pristine 
 - `.glb` import / export
 - demo scene 제공
 - 모든 장면 객체의 XY 이동 (`Move` 모드)
+- 선택 객체 복사(`Duplicate`) 기반 생성 시작점 제공
 - Lift 회전
 - Inspector 기반 속성 수정
 - Inspector에서 선택 객체의 X / Y / Z 직접 수정
-- Validation drawer
 - Preview overlay
 - Undo / Redo
 - draft / applied pending 상태 추적
 - 2D 기준 좌표(origin)와 축 방향 수정
-- 충돌 표시
+- 충돌/상태 표시를 참고 정보로 제공
 
 ## 목표 구현 방향
 
@@ -135,11 +136,10 @@ re-export는 원본을 전부 재구성하지 않고, import 시점의 pristine 
 
 ## UI 구성
 
-- **Toolbar**: import, demo 열기, apply/revert/export, validation 참고 정보 열기, Move/Duplicate/Snap 등 주요 액션
+- **Toolbar**: import, demo 열기, apply/revert/export, Move/Duplicate/Snap 등 주요 액션
 - **Structure Panel**: scene object 구조 탐색
 - **Top View Editor**: object 배치 작업 공간
 - **Inspector Panel**: 선택한 객체의 속성 및 좌표 편집
-- **Validation Drawer**: 오류와 경고 확인
 - **Preview Overlay**: 결과를 자유롭게 보는 3D 미리보기
 - **Status Bar**: 파일 이름, 저장 상태 등 표시
 
@@ -194,7 +194,8 @@ src/
 │  ├─ demoScene.ts    # 샘플 장면 생성
 │  ├─ glb.ts          # import / export / round-trip 핵심 로직
 │  ├─ portVisual.ts   # 현재 포트 관련 visual 유틸 (정리 대상 포함)
-│  ├─ validation.ts   # ID / 충돌 / 관계 검증
+│  ├─ collision.ts    # 동일 슬롯/부모 충돌 탐지
+│  ├─ topViewProjection.ts # 편집 평면 투영/outline 계산
 │  └─ utils.ts        # 좌표/배치 계산 유틸
 ├─ store/
 │  └─ editor-store.ts # Zustand 기반 편집 상태
@@ -219,7 +220,7 @@ src/
 
 원칙:
 - domain은 object/entity 의미와 경계를 제공한다.
-- `glb-editor`는 실제 objectType, metadata, import/export, validation, interaction 구현을 소유한다.
+- `glb-editor`는 실제 objectType, metadata, import/export, collision/interaction 구현을 소유한다.
 - 구현 변경 시 domain 문서를 복제하지 말고, glb-editor 문서에 대응 관계와 gap을 남긴다.
 
 ## 시작하기

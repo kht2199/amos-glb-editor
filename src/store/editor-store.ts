@@ -4,8 +4,7 @@ import { detectCollisions, collisionMap } from '../lib/collision'
 import { DEFAULT_ANIMATION } from '../lib/constants'
 import { createDemoScene } from '../lib/demoScene'
 import { exportGlb, loadGlbFile } from '../lib/glb'
-import { computePortPosition, findNearestLift, inferFaceAndSlot, round, snapLiftToNeighbors } from '../lib/utils'
-import { validateEntities } from '../lib/validation'
+import { computePortPosition, round, snapLiftToNeighbors } from '../lib/utils'
 import type {
   CollisionIssue,
   EditorMode,
@@ -17,7 +16,6 @@ import type {
   PortEntity,
   BackgroundObjectEntity,
   TopViewFrame,
-  ValidationIssue,
   Vec3,
 } from '../types'
 
@@ -81,10 +79,8 @@ interface EditorState {
   mode: EditorMode
   topViewFrame: TopViewFrame
   snapEnabled: boolean
-  validationIssues: ValidationIssue[]
   collisionIssues: CollisionIssue[]
   collisionIndex: Record<string, CollisionIssue[]>
-  isValidationOpen: boolean
   isPreviewOpen: boolean
   statusMessage: string
   exportFeedback: ExportFeedback
@@ -101,7 +97,6 @@ interface EditorState {
   setMode: (mode: EditorMode) => void
   setTopViewFrame: (frame: Partial<TopViewFrame>) => void
   setSnapEnabled: (enabled: boolean) => void
-  setValidationOpen: (open: boolean) => void
   setPreviewOpen: (open: boolean) => void
   addObjectTypeDefinition: (definition: ObjectTypeDefinition) => void
   removeObjectTypeDefinition: (name: string) => void
@@ -117,7 +112,6 @@ interface EditorState {
   deletePort: (editorId: string) => void
   applyDraftChanges: () => void
   revertDraftChanges: () => void
-  runValidation: () => ValidationIssue[]
   exportCurrentGlb: () => Promise<void>
   closeExportFeedback: () => void
   undo: () => void
@@ -158,16 +152,13 @@ function hydratePortPositions(lifts: LiftEntity[], ports: PortEntity[]) {
   })
 }
 
-function withUpdatedPortPosition(lifts: LiftEntity[], port: PortEntity) {
-  if (port.domainParentType !== 'Lift' || !port.parentLiftId) return port
-  const lift = lifts.find((item) => item.editorId === port.parentLiftId)
-  if (!lift || port.deleted) return port
-  const basePosition = computePortPosition(lift, port.face, port.slot)
-  const zOffset = port.zOffset ?? (port.position.z - basePosition.z)
+function detachPortParent(port: PortEntity) {
   return {
     ...port,
-    zOffset,
-    position: computePortPosition(lift, port.face, port.slot, zOffset),
+    parentLiftId: undefined,
+    domainParentId: port.domainParentType === 'Lift' ? '' : port.domainParentId,
+    domainParentType: port.domainParentType === 'Lift' ? 'Transport' : port.domainParentType,
+    zOffset: undefined,
   }
 }
 
@@ -476,15 +467,11 @@ function duplicateSceneEntity(state: EditorState) {
       created: true,
       deleted: false,
     }
-    const duplicatedPort = sourcePort.parentLiftId
-      ? withUpdatedPortPosition(state.draftLifts, {
-        ...duplicatedPortBase,
-        slot: nextAvailablePortSlot(state.draftPorts, duplicatedPortBase),
-      })
-      : {
-        ...duplicatedPortBase,
-        position: { ...sourcePort.position, x: sourcePort.position.x + DUPLICATE_OFFSET, y: sourcePort.position.y + DUPLICATE_OFFSET },
-      }
+    const duplicatedPort = detachPortParent({
+      ...duplicatedPortBase,
+      slot: sourcePort.parentLiftId ? nextAvailablePortSlot(state.draftPorts, duplicatedPortBase) : duplicatedPortBase.slot,
+      position: { ...sourcePort.position, x: sourcePort.position.x + DUPLICATE_OFFSET, y: sourcePort.position.y + DUPLICATE_OFFSET },
+    })
 
     return applyMutation(state, {
       draftPorts: [...state.draftPorts, duplicatedPort],
@@ -558,51 +545,8 @@ function makeBackgroundObjectFromEntity(entity: SceneEntity, objectType: string)
   }
 }
 
-function makePortFromEntity(entity: SceneEntity, lifts: LiftEntity[]): PortEntity {
+function makePortFromEntity(entity: SceneEntity): PortEntity {
   const normalized = normalizeEntityScale(entity)
-  const remainingLifts = lifts.filter((lift) => lift.editorId !== normalized.editorId)
-  const nearestLift = findNearestLift(remainingLifts, normalized.position.x, normalized.position.y)
-
-  if (nearestLift) {
-    const provisional: PortEntity = {
-      id: normalized.id,
-      editorId: normalized.editorId,
-      label: normalized.label,
-      objectType: 'Port',
-      nodeName: normalized.nodeName,
-      parentLiftId: nearestLift.editorId,
-      domainParentId: nearestLift.editorId,
-      domainParentType: 'Lift',
-      semanticRole: 'LIFT_DOCK',
-      portType: 'IN',
-      face: 'FRONT',
-      slot: 1,
-      position: structuredClone(normalized.position),
-      zOffset: normalized.position.z - nearestLift.position.z,
-      width: Math.min(normalized.width, 12),
-      depth: Math.min(normalized.depth, 12),
-      height: Math.min(normalized.height, 12),
-      baseWidth: Math.min(normalized.baseWidth ?? normalized.width, 12),
-      baseDepth: Math.min(normalized.baseDepth ?? normalized.depth, 12),
-      baseHeight: Math.min(normalized.baseHeight ?? normalized.height, 12),
-      scale: structuredClone(normalized.scale ?? DEFAULT_ENTITY_SCALE),
-      created: true,
-      templateNodeName: 'Port_Template',
-      domainLabel: normalized.domainLabel,
-    }
-    const inferred = inferFaceAndSlot(nearestLift, provisional)
-    return withUpdatedPortPosition(remainingLifts.length ? [...remainingLifts, nearestLift] : [nearestLift], {
-      ...provisional,
-      face: inferred.face,
-      slot: inferred.slot,
-    })
-  }
-
-  const externalParentType = normalized.objectType === 'Stocker'
-    ? 'Stocker'
-    : normalized.objectType === 'Lift' || normalized.objectType === 'Port'
-      ? 'Transport'
-      : normalized.objectType
   return {
     id: normalized.id,
     editorId: normalized.editorId,
@@ -610,9 +554,9 @@ function makePortFromEntity(entity: SceneEntity, lifts: LiftEntity[]): PortEntit
     objectType: 'Port',
     nodeName: normalized.nodeName,
     parentLiftId: undefined,
-    domainParentId: normalized.editorId,
-    domainParentType: externalParentType,
-    semanticRole: externalParentType === 'Stocker' ? 'STOCKER_ACCESS' : 'BUFFER_HANDOFF',
+    domainParentId: '',
+    domainParentType: 'Transport',
+    semanticRole: 'BUFFER_HANDOFF',
     portType: 'IN',
     face: 'FRONT',
     slot: 1,
@@ -655,7 +599,7 @@ function convertSceneEntity(state: EditorState, editorId: string, objectType: Ob
   if (targetCategory === 'port') {
     return applyMutation(state, {
       draftLifts,
-      draftPorts: [...draftPorts, makePortFromEntity(source, state.draftLifts)],
+      draftPorts: [...draftPorts, makePortFromEntity(source)],
       draftBackgroundObjects,
       selectedId: editorId,
     }, 'Object reclassified as Port')
@@ -672,21 +616,11 @@ function convertSceneEntity(state: EditorState, editorId: string, objectType: Ob
 function deriveScene(lifts: LiftEntity[], ports: PortEntity[], backgroundObjects: BackgroundObjectEntity[]) {
   const hydratedPorts = hydratePortPositions(lifts, ports)
   const collisions = detectCollisions(lifts, hydratedPorts, backgroundObjects)
-  const validation = [
-    ...validateEntities(lifts, hydratedPorts, backgroundObjects),
-    ...collisions.map<ValidationIssue>((issue) => ({
-      id: issue.id,
-      severity: issue.severity,
-      targetId: issue.sourceId,
-      message: issue.message,
-    })),
-  ]
 
   return {
     ports: hydratedPorts,
     collisionIssues: collisions,
     collisionIndex: collisionMap(collisions),
-    validationIssues: validation,
   }
 }
 
@@ -748,10 +682,8 @@ function initializeScene(
     topViewFrame: { ...DEFAULT_TOP_VIEW_FRAME },
     snapEnabled: true,
     runtime,
-    validationIssues: derived.validationIssues,
     collisionIssues: derived.collisionIssues,
     collisionIndex: derived.collisionIndex,
-    isValidationOpen: false,
     isPreviewOpen: false,
     exportFeedback: { status: 'idle' as const },
     statusMessage,
@@ -786,7 +718,6 @@ function applyMutation(
     draftBackgroundObjects,
     selectedId: nextScene.selectedId ?? state.selectedId,
     mode: nextScene.mode ?? state.mode,
-    validationIssues: derived.validationIssues,
     collisionIssues: derived.collisionIssues,
     collisionIndex: derived.collisionIndex,
     hasPendingChanges,
@@ -808,10 +739,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   mode: 'select',
   topViewFrame: { ...DEFAULT_TOP_VIEW_FRAME },
   snapEnabled: true,
-  validationIssues: [],
   collisionIssues: [],
   collisionIndex: {},
-  isValidationOpen: false,
   isPreviewOpen: false,
   statusMessage: 'No file loaded',
   exportFeedback: { status: 'idle' },
@@ -859,7 +788,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     statusMessage: 'Top view frame updated',
   })),
   setSnapEnabled: (snapEnabled) => set({ snapEnabled }),
-  setValidationOpen: (isValidationOpen) => set({ isValidationOpen }),
   setPreviewOpen: (isPreviewOpen) => set({ isPreviewOpen }),
   addObjectTypeDefinition: (definition) => set((state) => {
     const name = normalizeTypeName(definition.name)
@@ -902,21 +830,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
 
     if (state.draftPorts.some((port) => port.editorId === editorId)) {
-      const target = state.draftPorts.find((port) => port.editorId === editorId)
-      if (!target) return state
-      const nextLift = findNearestLift(state.draftLifts, x, y)
-      if (!nextLift) return state
-      const inferred = inferFaceAndSlot(nextLift, { ...target, position: { ...target.position, x, y } })
-      const draftPorts = state.draftPorts.map((port) => port.editorId === editorId ? withUpdatedPortPosition(state.draftLifts, {
-        ...port,
-        parentLiftId: nextLift.editorId,
-        domainParentId: nextLift.editorId,
-        domainParentType: 'Lift',
-        semanticRole: 'LIFT_DOCK',
-        face: inferred.face,
-        slot: inferred.slot,
-      }) : port)
-      return applyMutation(state, { draftPorts, selectedId: editorId }, `Port snapped to ${nextLift.id}`)
+      const draftPorts = state.draftPorts.map((port) => port.editorId === editorId
+        ? detachPortParent({ ...port, position: { ...port.position, x, y } })
+        : port)
+      return applyMutation(state, { draftPorts, selectedId: editorId }, 'Port moved')
     }
 
     return moveBackgroundObject(state, editorId, x, y)
@@ -934,11 +851,19 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   }),
   updatePort: (editorId, patch) => set((state) => {
     const draftPorts = state.draftPorts.map((port) => port.editorId === editorId
-      ? withUpdatedPortPosition(state.draftLifts, {
-        ...port,
-        ...patch,
-        position: patch.position ? { ...port.position, ...patch.position } : port.position,
-      })
+      ? (() => {
+        const nextPort = {
+          ...port,
+          ...patch,
+          position: patch.position ? { ...port.position, ...patch.position } : port.position,
+        }
+        const changedXY = Boolean(
+          patch.position
+          && ((patch.position.x !== undefined && patch.position.x !== port.position.x)
+            || (patch.position.y !== undefined && patch.position.y !== port.position.y)),
+        )
+        return changedXY ? detachPortParent(nextPort) : nextPort
+      })()
       : port)
     return applyMutation(state, { draftPorts }, 'Port updated')
   }),
@@ -980,7 +905,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       draftBackgroundObjects,
       selectedId: resolveSelectedId(state.selectedId, draftLifts, derived.ports, draftBackgroundObjects),
       mode: 'select',
-      validationIssues: derived.validationIssues,
       collisionIssues: derived.collisionIssues,
       collisionIndex: derived.collisionIndex,
       hasPendingChanges: false,
@@ -988,26 +912,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ...historyState([], []),
     }
   }),
-  runValidation: () => {
-    const state = get()
-    const issues = state.validationIssues
-    set({
-      validationIssues: issues,
-      isValidationOpen: true,
-      statusMessage: issues.length ? `${issues.length} validation issues` : 'Validation passed',
-    })
-    return issues
-  },
   exportCurrentGlb: async () => {
     const state = get()
     if (state.hasPendingChanges) {
       set({ exportFeedback: { status: 'blocked', message: 'Draft changes are pending. Apply or revert them before export.' } })
-      return
-    }
-    const exportDerived = deriveScene(state.appliedLifts, state.appliedPorts, state.appliedBackgroundObjects)
-    const issues = exportDerived.validationIssues.filter((issue) => issue.severity === 'error')
-    if (issues.length) {
-      set({ exportFeedback: { status: 'blocked', message: 'Applied scene validation failed. Export blocked.' } })
       return
     }
 
@@ -1044,7 +952,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       draftLifts: snapshot.draftLifts,
       draftPorts: derived.ports,
       draftBackgroundObjects: snapshot.draftBackgroundObjects,
-      validationIssues: derived.validationIssues,
       collisionIssues: derived.collisionIssues,
       collisionIndex: derived.collisionIndex,
       hasPendingChanges: hasPendingSceneChanges({
@@ -1071,7 +978,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       draftLifts: snapshot.draftLifts,
       draftPorts: derived.ports,
       draftBackgroundObjects: snapshot.draftBackgroundObjects,
-      validationIssues: derived.validationIssues,
       collisionIssues: derived.collisionIssues,
       collisionIndex: derived.collisionIndex,
       hasPendingChanges: hasPendingSceneChanges({

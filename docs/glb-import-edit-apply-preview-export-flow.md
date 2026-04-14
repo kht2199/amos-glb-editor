@@ -65,14 +65,14 @@
 - applied 계층 역시 현재 구현에서는 타입별 배열로 분리되어 있으나, 편집 원칙 자체는 **objectType이 다른 여러 오브젝트를 동일한 흐름으로 다루는 것**이다.
 
 ### 1.4 파생 상태
-- `validationIssues`
 - `collisionIssues`
+- `collisionIndex`
 - `history / future`
 - `hasPendingChanges`
 
 역할:
 - draft와 applied 차이 여부를 추적한다.
-- Apply 가능 여부와 export 가능 여부를 판단한다.
+- collision 참고 정보와 export 가능 여부를 판단한다.
 
 ---
 
@@ -144,8 +144,9 @@
 - XY plane 중심의 편집 친화 표현
 - raw GLB fidelity 확인보다 구조/관계 편집 우선
 - 특정 타입 전용 추가 모드보다 **공통 오브젝트 편집 UX**를 우선
+- 단, 중앙 2D 캔버스는 generic box/circle이나 고정 타입 silhouette이 아니라 **draft 변경이 반영된 실제 mesh를 현재 편집 평면으로 투영한 outline/footprint**를 보여준다
 
-즉 중앙 캔버스는 **draft entity editor**다.
+즉 중앙 캔버스는 **draft entity editor**이면서, 동시에 사용자가 실제 오브젝트의 top/side mesh projection을 읽을 수 있는 2D 작업면이다.
 
 ---
 
@@ -157,8 +158,8 @@
 1. 사용자 입력 발생
 2. draft entity 갱신
 3. 필요 시 관계/metadata 재계산
-4. validation 재계산
-5. collision 재계산
+4. collision 재계산
+5. 선택/상태 메시지 갱신
 6. history stack 기록
 7. `hasPendingChanges = true`
 
@@ -188,8 +189,8 @@ Apply는 이 문서에서 가장 중요한 단계다.
 
 #### 처리 순서
 1. Apply 요청
-2. 현재 draft 기준 validation 수행
-3. 현재 구현은 validation 결과를 표시하지만, apply 자체를 validation으로 차단하지는 않는다.
+2. 현재 draft 기준 collision 상태 확인
+3. Apply 자체는 collision 경고와 별개로 draft를 applied로 승격한다.
 4. `draft* -> applied*` 복사
 5. `hasPendingChanges = false`
 
@@ -305,7 +306,7 @@ Apply를 경계로 두면:
 
 ### 이유
 1. 이 프로젝트의 핵심은 mesh editor보다 domain-aware object editor에 가깝다.
-2. 관계 수정, metadata 유지, validation/collision 계산은 entity 모델이 더 안정적이다.
+2. 관계 수정, metadata 유지, collision 계산은 entity 모델이 더 안정적이다.
 3. Duplicate 기반 생성도 raw mesh 직접 수정보다 entity 흐름 위에서 다루는 편이 안전하다.
 4. XY plane 중심의 작업 UX와도 더 잘 맞는다.
 
@@ -329,10 +330,10 @@ Apply를 경계로 두면:
 
 ### 5.2 상태 표시
 - 상단 pill: `fileName · DRAFT PENDING|DRAFT SYNCED`
-- 하단 status: `Draft: Pending|Synced`, export/validation 상태 메시지
+- 하단 status: `Draft: Pending|Synced`, export/collision 상태 메시지
 - top view header: `Origin(x, y) · X+ right|left · Y+ up|down`
 - preview label: `applied preview · draft pending|draft synced`
-- `Validation issues available` — validation은 참고 정보/검토 보조로 표시
+- `Collision issues available` — collision은 참고 정보/검토 보조로 표시
 - `Export ready / blocked / success` — export feedback modal과 연결
 
 ---
@@ -346,10 +347,10 @@ Apply를 경계로 두면:
 - `hasPendingChanges`
 
 ### 6.2 Apply action 추가
-- draft 검증
+- draft collision 상태 확인
 - applied 반영
 - pending 상태 해제
-- validation은 참고 정보로만 유지하고 apply 차단 정책은 두지 않음
+- collision은 참고 정보로만 유지하고 apply 차단 정책은 두지 않음
 
 ### 6.3 Preview를 applied 기준으로 정리
 - draft 실시간 반영 제거

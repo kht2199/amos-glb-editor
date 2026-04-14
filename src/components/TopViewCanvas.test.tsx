@@ -1,4 +1,4 @@
-import { act, fireEvent, render, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { TopViewCanvas } from './TopViewCanvas'
@@ -58,23 +58,90 @@ describe('TopViewCanvas', () => {
     expect(settingsGrid).toHaveClass('xl:grid-cols-6')
   })
 
-  it('shows the non-plane axis position and lets users edit it directly when working in XY view', async () => {
-    const user = userEvent.setup()
+  it('shows locked-axis coordinates as read-only status text in the header instead of an editable input', () => {
+    const { container } = render(<TopViewCanvas />)
+    const settingsGrid = container.querySelector('[data-testid="top-view-settings-grid"]')
+
+    expect(within(settingsGrid as HTMLElement).queryByLabelText('Z Position')).not.toBeInTheDocument()
+    expect(screen.getAllByTestId('top-view-coordinate-status').some((node) => node.textContent === 'No selection')).toBe(true)
+  })
+
+  it('renders actual mesh projection polygons in top view instead of fixed type silhouettes', () => {
+    const state = useEditorStore.getState()
+    const lift = state.draftLifts[0]
+    const port = state.draftPorts.find((item) => !item.deleted)
+    const stocker = state.draftBackgroundObjects.find((item) => item.objectType === 'Stocker')
+
+    expect(lift).toBeTruthy()
+    expect(port).toBeTruthy()
+    expect(stocker).toBeTruthy()
+
+    render(<TopViewCanvas />)
+
+    expect(document.querySelector(`[data-testid="top-view-mesh-shape-${lift!.editorId}"]`)).toBeInTheDocument()
+    expect(document.querySelector(`[data-testid="top-view-mesh-shape-${port!.editorId}"]`)).toBeInTheDocument()
+    expect(document.querySelector(`[data-testid="top-view-mesh-shape-${stocker!.editorId}"]`)).toBeInTheDocument()
+    expect(document.querySelector(`[data-testid="top-view-lift-shape-${lift!.editorId}"]`)).not.toBeInTheDocument()
+  })
+
+  it('shows plane-aware coordinate status for the selected object in the header', () => {
     const state = useEditorStore.getState()
     const selectedLift = state.draftLifts[0]
     state.selectObject(selectedLift.editorId)
 
-    const { container } = render(<TopViewCanvas />)
-    const settingsGrid = container.querySelector('[data-testid="top-view-settings-grid"]')
-    const zInput = within(settingsGrid as HTMLElement).getByLabelText('Z Position')
+    render(<TopViewCanvas />)
 
-    expect(zInput).toHaveValue(selectedLift.position.z)
+    expect(screen.getAllByTestId('top-view-coordinate-status').some((node) => node.textContent === `${selectedLift.id} · XY (${selectedLift.position.x}, ${selectedLift.position.y}) · Z ${selectedLift.position.z}`)).toBe(true)
+  })
 
-    await user.clear(zInput)
-    await user.type(zInput, '42')
+  it('shows a locked-axis drag handle only in move mode and updates only the locked axis when dragged', async () => {
+    const state = useEditorStore.getState()
+    const selectedLift = state.draftLifts[0]
+    state.selectObject(selectedLift.editorId)
 
-    expect(useEditorStore.getState().draftLifts[0].position.z).toBe(42)
-    expect(within(settingsGrid as HTMLElement).getByText('XY plane에서 이동되지 않는 축: Z')).toBeInTheDocument()
+    const { rerender } = render(<TopViewCanvas />)
+    expect(screen.queryAllByTestId(`top-view-locked-axis-handle-${selectedLift.editorId}`)).toHaveLength(0)
+
+    act(() => {
+      useEditorStore.getState().setMode('move')
+    })
+    rerender(<TopViewCanvas />)
+
+    const handle = screen.getAllByTestId(`top-view-locked-axis-handle-${selectedLift.editorId}`)[0]
+    const before = useEditorStore.getState().draftLifts[0].position
+
+    const canvasSurface = screen.getAllByTestId('top-view-canvas-surface')[0]
+
+    await act(async () => {
+      fireEvent.pointerDown(handle, { clientX: 200, clientY: 240, pointerId: 1 })
+    })
+    rerender(<TopViewCanvas />)
+
+    await act(async () => {
+      fireEvent.pointerMove(canvasSurface, { clientX: 200, clientY: 180, pointerId: 1 })
+      fireEvent.pointerUp(canvasSurface, { pointerId: 1 })
+    })
+
+    const after = useEditorStore.getState().draftLifts[0].position
+    expect(after.x).toBe(before.x)
+    expect(after.y).toBe(before.y)
+    expect(after.z).toBeGreaterThan(before.z)
+  })
+
+  it('renders a clearer locked-axis drag affordance instead of the minimal + axis value - text stack', () => {
+    const state = useEditorStore.getState()
+    const selectedLift = state.draftLifts[0]
+    state.selectObject(selectedLift.editorId)
+    state.setMode('move')
+
+    render(<TopViewCanvas />)
+
+    const handle = screen.getAllByTestId(`top-view-locked-axis-handle-${selectedLift.editorId}`)[0]
+    expect(within(handle).getByText('Drag')).toBeInTheDocument()
+    expect(within(handle).getByText('↑↓')).toBeInTheDocument()
+    expect(within(handle).getByText('Adjust Z')).toBeInTheDocument()
+    expect(handle).not.toHaveTextContent('+')
+    expect(handle).not.toHaveTextContent('-')
   })
 
   it('lets users edit the 2D axis directions and reference coordinates', async () => {

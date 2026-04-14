@@ -10,8 +10,7 @@
 2. `lg` 미만에서만 레이아웃을 바꾼다.
 3. 중앙 편집 캔버스는 항상 우선 노출한다.
 4. Structure / Inspector / Preview는 모바일에서 하단 탭 전환 영역으로 내린다.
-5. Validation Drawer는 모바일에서 전체 폭으로 확장되게 한다.
-6. Toolbar/StatusBar는 모바일에서 줄바꿈/가로 스크롤/정보 축약만 적용한다.
+5. Toolbar/StatusBar는 모바일에서 줄바꿈/가로 스크롤/정보 축약만 적용한다.
 
 ## Claude 검토 반영
 - 1차 적용은 **깨짐 방지 + 세로 스택 + 내부 폼 반응형**까지만 한다.
@@ -37,11 +36,7 @@
 - 모바일에서는 세부 정보 2줄 이상 wrap 허용
 - 좌표/상태/이슈 텍스트가 잘리지 않도록 `break`/`wrap` 중심으로만 조정
 
-### 4. ValidationDrawer
-- PC: 현재 360px 사이드 드로어 유지
-- 모바일: `w-full max-w-none`로 전체 폭 오버레이
-
-### 5. Inspector / Panel 내부 최소 보완
+### 4. Inspector / Panel 내부 최소 보완
 - `InspectorPanel`의 2열 입력 영역은 모바일에서 1열, `sm` 이상에서만 2열
 - `StructurePanel`, `InspectorPanel`, `PreviewPanel`은 모바일에서 자연스럽게 세로 길이를 가지도록 조정
 

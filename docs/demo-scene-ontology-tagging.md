@@ -95,7 +95,7 @@
 - Port inspector에서는 `semanticRole`, `domain parent`, `zOffset`, `face`, `slot`, `portType` 같은 필드를 다룬다.
 - Lift inspector에서는 회전, 슬롯 수, 애니메이션 같은 필드를 다룬다.
 
-### validation 참고 정보
+### 충돌 참고 정보
 - Lift 소속 포트는 `same lift + same face + same slot` 충돌 정보를 볼 수 있다.
 - 현재 구현에서 `zOffset`은 높이 복원용 값이며, 슬롯 유일성 키에는 포함하지 않는다.
 - Lift 외부 포트도 동일하게 `same domain parent + same face + same slot` 규칙을 참고 정보로 본다.

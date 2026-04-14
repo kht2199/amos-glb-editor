@@ -8,7 +8,6 @@ import { StatusBar } from './components/StatusBar'
 import { StructurePanel } from './components/StructurePanel'
 import { Toolbar } from './components/Toolbar'
 import { TopViewCanvas } from './components/TopViewCanvas'
-import { ValidationDrawer } from './components/ValidationDrawer'
 import { useEditorStore } from './store/editor-store'
 
 const PreviewOverlay = lazy(async () => import('./components/PreviewOverlay').then((module) => ({ default: module.PreviewOverlay })))
@@ -141,7 +140,6 @@ export default function App() {
           </div>
         )}
 
-        <ValidationDrawer />
         <Suspense fallback={null}>
           <PreviewOverlay />
         </Suspense>

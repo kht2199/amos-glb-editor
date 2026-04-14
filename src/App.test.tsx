@@ -26,8 +26,6 @@ beforeEach(() => {
     mode: 'select',
     topViewFrame: { originX: 0, originY: 0, xAxisDirection: 'right', yAxisDirection: 'up', editPlane: 'xy' },
     snapEnabled: true,
-    validationIssues: [],
-    isValidationOpen: false,
     isPreviewOpen: false,
     statusMessage: 'No file loaded',
     exportFeedback: { status: 'idle' },
@@ -53,7 +51,7 @@ describe('App', () => {
 
     expect(screen.getByText('GLB 파일을 열어 작업을 시작하세요.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Load Demo Scene' }))
-    expect(await screen.findByText('Three.js Object Editor')).toBeInTheDocument()
+    expect(await screen.findByText('GLB Scene Object Editor')).toBeInTheDocument()
     expect(screen.getByText(/demo-scene\.glb\s*·\s*DRAFT SYNCED/i)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
     expect(screen.queryByText(/saved/i)).not.toBeInTheDocument()
@@ -124,5 +122,15 @@ describe('App', () => {
     })
 
     expect(importFile).toHaveBeenCalledWith(file)
+  })
+
+  it('does not render the removed review drawer UI after loading a scene', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Load Demo Scene' }))
+
+    expect(screen.queryByText('Review Results')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Review passed\. Export can proceed\./i)).not.toBeInTheDocument()
   })
 })
