@@ -12,6 +12,7 @@ dist
 dist-ssr
 coverage
 test-results
+.pnpm-store/
 *.local
 
 # Editor directories and files
