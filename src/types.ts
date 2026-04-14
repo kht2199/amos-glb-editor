@@ -39,6 +39,10 @@ export interface BaseEntity {
   width: number
   depth: number
   height: number
+  baseWidth?: number
+  baseDepth?: number
+  baseHeight?: number
+  scale?: Vec3
   nodeName: string
   editorId: string
   domainLabel?: string

@@ -4,7 +4,7 @@ import { detectCollisions, collisionMap } from '../lib/collision'
 import { DEFAULT_ANIMATION } from '../lib/constants'
 import { createDemoScene } from '../lib/demoScene'
 import { exportGlb, loadGlbFile } from '../lib/glb'
-import { computePortPosition, findNearestLift, inferFaceAndSlot, snapLiftToNeighbors } from '../lib/utils'
+import { computePortPosition, findNearestLift, inferFaceAndSlot, round, snapLiftToNeighbors } from '../lib/utils'
 import { validateEntities } from '../lib/validation'
 import type {
   CollisionIssue,
@@ -18,6 +18,7 @@ import type {
   BackgroundObjectEntity,
   TopViewFrame,
   ValidationIssue,
+  Vec3,
 } from '../types'
 
 interface ExportFeedback {
@@ -95,6 +96,7 @@ interface EditorState {
   hasPendingChanges: boolean
   openDemoScene: () => void
   loadFile: (file: File) => Promise<void>
+  importFile: (file: File) => Promise<void>
   selectObject: (editorId: string | null) => void
   setMode: (mode: EditorMode) => void
   setTopViewFrame: (frame: Partial<TopViewFrame>) => void
@@ -169,6 +171,62 @@ function withUpdatedPortPosition(lifts: LiftEntity[], port: PortEntity) {
   }
 }
 
+const DEFAULT_ENTITY_SCALE: Vec3 = { x: 1, y: 1, z: 1 }
+const MIN_ENTITY_SCALE = 0.1
+
+type ScalableEntity = LiftEntity | PortEntity | BackgroundObjectEntity
+
+function normalizeScaleValue(value?: number) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 1
+  return Math.max(MIN_ENTITY_SCALE, round(value, 4))
+}
+
+function inferEntityScale(entity: Pick<ScalableEntity, 'width' | 'depth' | 'height' | 'baseWidth' | 'baseDepth' | 'baseHeight' | 'scale'>): Vec3 {
+  if (entity.scale) {
+    return {
+      x: normalizeScaleValue(entity.scale.x),
+      y: normalizeScaleValue(entity.scale.y),
+      z: normalizeScaleValue(entity.scale.z),
+    }
+  }
+
+  return {
+    x: normalizeScaleValue(entity.baseWidth ? entity.width / entity.baseWidth : 1),
+    y: normalizeScaleValue(entity.baseDepth ? entity.depth / entity.baseDepth : 1),
+    z: normalizeScaleValue(entity.baseHeight ? entity.height / entity.baseHeight : 1),
+  }
+}
+
+function normalizeEntityScale<T extends ScalableEntity>(entity: T): T {
+  const scale = inferEntityScale(entity)
+  const baseWidth = round(entity.baseWidth ?? (scale.x ? entity.width / scale.x : entity.width))
+  const baseDepth = round(entity.baseDepth ?? (scale.y ? entity.depth / scale.y : entity.depth))
+  const baseHeight = round(entity.baseHeight ?? (scale.z ? entity.height / scale.z : entity.height))
+
+  return {
+    ...entity,
+    width: round(baseWidth * scale.x),
+    depth: round(baseDepth * scale.y),
+    height: round(baseHeight * scale.z),
+    baseWidth,
+    baseDepth,
+    baseHeight,
+    scale,
+  }
+}
+
+function normalizeLiftList(lifts: LiftEntity[]) {
+  return lifts.map((lift) => normalizeEntityScale(lift))
+}
+
+function normalizePortList(ports: PortEntity[]) {
+  return ports.map((port) => normalizeEntityScale(port))
+}
+
+function normalizeBackgroundObjectList(backgroundObjects: BackgroundObjectEntity[]) {
+  return backgroundObjects.map((entity) => normalizeEntityScale(entity))
+}
+
 function moveBackgroundObject(state: EditorState, editorId: string, x: number, y: number) {
   const target = state.draftBackgroundObjects.find((item) => item.editorId === editorId)
   if (!target) return state
@@ -200,6 +258,173 @@ function makeDuplicateId(baseId: string, existingIds: Set<string>) {
     candidate = `${sanitizedBase}_copy_${String(index).padStart(2, '0')}`
   }
   return candidate
+}
+
+type SceneBundle = {
+  fileName: string
+  lifts: LiftEntity[]
+  ports: PortEntity[]
+  backgroundObjects: BackgroundObjectEntity[]
+}
+
+type LoadedSceneFile = Awaited<ReturnType<typeof loadGlbFile>>
+
+type ImportIdentityMaps = {
+  idMap: Map<string, string>
+  editorIdMap: Map<string, string>
+  nodeNameMap: Map<string, string>
+}
+
+function makeUniqueValue(baseValue: string, usedValues: Set<string>, fallback = 'object') {
+  const normalizedBase = baseValue.trim() || fallback
+  let candidate = normalizedBase
+  let index = 1
+  while (usedValues.has(candidate)) {
+    index += 1
+    candidate = `${normalizedBase}_${String(index).padStart(2, '0')}`
+  }
+  usedValues.add(candidate)
+  return candidate
+}
+
+function remapImportedBundle(existingBundle: SceneBundle, importedBundle: SceneBundle) {
+  const usedIds = new Set([...existingBundle.lifts, ...existingBundle.ports, ...existingBundle.backgroundObjects].map((item) => item.id))
+  const usedEditorIds = new Set([...existingBundle.lifts, ...existingBundle.ports, ...existingBundle.backgroundObjects].map((item) => item.editorId))
+  const usedNodeNames = new Set([...existingBundle.lifts, ...existingBundle.ports, ...existingBundle.backgroundObjects].map((item) => item.nodeName))
+  const maps: ImportIdentityMaps = {
+    idMap: new Map(),
+    editorIdMap: new Map(),
+    nodeNameMap: new Map(),
+  }
+
+  const registerIdentity = <T extends SceneEntity>(entity: T) => {
+    const nextId = makeUniqueValue(entity.id, usedIds, entity.objectType.toLowerCase())
+    const nextEditorId = makeUniqueValue(entity.editorId, usedEditorIds, `${entity.objectType.toLowerCase()}_editor`)
+    const nextNodeName = makeUniqueValue(entity.nodeName, usedNodeNames, nextId)
+    maps.idMap.set(entity.id, nextId)
+    maps.editorIdMap.set(entity.editorId, nextEditorId)
+    maps.nodeNameMap.set(entity.nodeName, nextNodeName)
+    const nextLabel = entity.label === entity.id ? nextId : entity.label === entity.nodeName ? nextNodeName : entity.label
+    return {
+      ...structuredClone(entity),
+      id: nextId,
+      editorId: nextEditorId,
+      nodeName: nextNodeName,
+      label: nextLabel,
+    }
+  }
+
+  const lifts = importedBundle.lifts.map(registerIdentity)
+  const backgroundObjects = importedBundle.backgroundObjects.map(registerIdentity)
+  const ports = importedBundle.ports.map((port) => {
+    const remappedPort = registerIdentity(port)
+    return {
+      ...remappedPort,
+      parentLiftId: port.parentLiftId ? maps.editorIdMap.get(port.parentLiftId) ?? port.parentLiftId : port.parentLiftId,
+      domainParentId: port.domainParentId ? maps.editorIdMap.get(port.domainParentId) ?? port.domainParentId : port.domainParentId,
+      attachedToPortId: port.attachedToPortId ? maps.editorIdMap.get(port.attachedToPortId) ?? port.attachedToPortId : port.attachedToPortId,
+    }
+  })
+
+  return {
+    bundle: {
+      fileName: importedBundle.fileName,
+      lifts,
+      ports,
+      backgroundObjects,
+    },
+    maps,
+  }
+}
+
+function remapImportedPristineScene(scene: THREE.Group | null, maps: ImportIdentityMaps) {
+  if (!scene) return null
+  const clonedScene = scene.clone(true)
+  clonedScene.traverse((object) => {
+    if (maps.nodeNameMap.has(object.name)) {
+      object.name = maps.nodeNameMap.get(object.name) ?? object.name
+    }
+    const editorMeta = object.userData?.editorMeta
+    if (!editorMeta || typeof editorMeta !== 'object') return
+    if (typeof editorMeta.id === 'string') {
+      editorMeta.id = maps.editorIdMap.get(editorMeta.id) ?? editorMeta.id
+    }
+    if (typeof editorMeta.entityId === 'string') {
+      editorMeta.entityId = maps.idMap.get(editorMeta.entityId) ?? editorMeta.entityId
+    }
+    if (typeof editorMeta.domainParentId === 'string') {
+      editorMeta.domainParentId = maps.editorIdMap.get(editorMeta.domainParentId) ?? editorMeta.domainParentId
+    }
+    if (typeof editorMeta.parentLiftId === 'string') {
+      editorMeta.parentLiftId = maps.editorIdMap.get(editorMeta.parentLiftId) ?? editorMeta.parentLiftId
+    }
+    if (typeof editorMeta.attachedToPortId === 'string') {
+      editorMeta.attachedToPortId = maps.editorIdMap.get(editorMeta.attachedToPortId) ?? editorMeta.attachedToPortId
+    }
+  })
+  return clonedScene
+}
+
+function remapAnimationTrackName(trackName: string, maps: ImportIdentityMaps) {
+  const parsedTrack = THREE.PropertyBinding.parseTrackName(trackName)
+  const nodeName = parsedTrack.nodeName
+  if (!nodeName) return trackName
+  const nextNodeName = maps.nodeNameMap.get(nodeName)
+  if (!nextNodeName || nextNodeName === nodeName) return trackName
+  return `${nextNodeName}${trackName.slice(nodeName.length)}`
+}
+
+function remapImportedAnimations(animations: THREE.AnimationClip[], maps: ImportIdentityMaps) {
+  return animations.map((clip) => {
+    const nextClip = clip.clone()
+    nextClip.tracks = nextClip.tracks.map((track) => {
+      const nextTrack = track.clone()
+      nextTrack.name = remapAnimationTrackName(track.name, maps)
+      return nextTrack
+    })
+    return nextClip
+  })
+}
+
+function mergePristineScenes(baseScene: THREE.Group | null, importedScene: THREE.Group | null) {
+  if (!baseScene) return importedScene?.clone(true) ?? null
+  if (!importedScene) return baseScene.clone(true)
+  const mergedScene = baseScene.clone(true)
+  importedScene.children.forEach((child) => mergedScene.add(child.clone(true)))
+  return mergedScene
+}
+
+function mergeSceneFileName(currentFileName: string | null, importedFileName: string) {
+  if (!currentFileName) return importedFileName
+  const nextName = importedFileName.trim()
+  if (!nextName || currentFileName.includes(nextName)) return currentFileName
+  return `${currentFileName} + ${nextName}`
+}
+
+function buildImportedSceneState(state: EditorState, loaded: LoadedSceneFile, importedFileName: string) {
+  const baseBundle: SceneBundle = {
+    fileName: state.fileName ?? 'scene.glb',
+    lifts: state.draftLifts,
+    ports: state.draftPorts,
+    backgroundObjects: state.draftBackgroundObjects,
+  }
+  const { bundle: remappedBundle, maps } = remapImportedBundle(baseBundle, loaded.bundle)
+  const nextBundle: SceneBundle = {
+    fileName: mergeSceneFileName(state.fileName, importedFileName),
+    lifts: [...state.draftLifts, ...remappedBundle.lifts],
+    ports: [...state.draftPorts, ...remappedBundle.ports],
+    backgroundObjects: [...state.draftBackgroundObjects, ...remappedBundle.backgroundObjects],
+  }
+  const nextRuntime: SceneRuntime = {
+    pristineScene: mergePristineScenes(state.runtime.pristineScene, remapImportedPristineScene(loaded.pristineScene, maps)),
+    animations: [...state.runtime.animations, ...remapImportedAnimations(loaded.animations, maps)],
+  }
+  return {
+    ...initializeScene(nextBundle, nextRuntime, `${importedFileName} imported`, state.objectTypeDefinitions),
+    topViewFrame: { ...state.topViewFrame },
+    snapEnabled: state.snapEnabled,
+    isPreviewOpen: state.isPreviewOpen,
+  }
 }
 
 function nextAvailablePortSlot(ports: PortEntity[], port: PortEntity) {
@@ -287,53 +512,64 @@ function duplicateSceneEntity(state: EditorState) {
 }
 
 function makeLiftFromEntity(entity: SceneEntity): LiftEntity {
-  const baseAnimation = 'animation' in entity ? entity.animation : undefined
-  const slotsPerFace = 'slotsPerFace' in entity ? entity.slotsPerFace : Math.max(2, Math.round(Math.max(entity.width, entity.depth) / 10))
+  const normalized = normalizeEntityScale(entity)
+  const baseAnimation = 'animation' in normalized ? normalized.animation : undefined
+  const slotsPerFace = 'slotsPerFace' in normalized ? normalized.slotsPerFace : Math.max(2, Math.round(Math.max(normalized.width, normalized.depth) / 10))
 
   return {
-    id: entity.id,
-    editorId: entity.editorId,
-    label: entity.label,
+    id: normalized.id,
+    editorId: normalized.editorId,
+    label: normalized.label,
     objectType: 'Lift',
-    nodeName: entity.nodeName,
-    position: structuredClone(entity.position),
-    width: entity.width,
-    depth: entity.depth,
-    height: entity.height,
-    rotation: 'rotation' in entity ? entity.rotation : 0,
+    nodeName: normalized.nodeName,
+    position: structuredClone(normalized.position),
+    width: normalized.width,
+    depth: normalized.depth,
+    height: normalized.height,
+    baseWidth: normalized.baseWidth,
+    baseDepth: normalized.baseDepth,
+    baseHeight: normalized.baseHeight,
+    scale: structuredClone(normalized.scale ?? DEFAULT_ENTITY_SCALE),
+    rotation: 'rotation' in normalized ? normalized.rotation : 0,
     slotsPerFace,
     animation: baseAnimation
       ? { ...DEFAULT_ANIMATION, ...baseAnimation }
-      : { ...DEFAULT_ANIMATION, enabled: true, minZ: 0, maxZ: Math.max(entity.height, DEFAULT_ANIMATION.maxZ) },
+      : { ...DEFAULT_ANIMATION, enabled: true, minZ: 0, maxZ: Math.max(normalized.height, DEFAULT_ANIMATION.maxZ) },
   }
 }
 
 function makeBackgroundObjectFromEntity(entity: SceneEntity, objectType: string): BackgroundObjectEntity {
+  const normalized = normalizeEntityScale(entity)
   return {
-    id: entity.id,
-    editorId: entity.editorId,
-    label: entity.label,
+    id: normalized.id,
+    editorId: normalized.editorId,
+    label: normalized.label,
     objectType,
-    nodeName: entity.nodeName,
-    position: structuredClone(entity.position),
-    width: entity.width,
-    depth: entity.depth,
-    height: entity.height,
-    domainLabel: entity.domainLabel,
+    nodeName: normalized.nodeName,
+    position: structuredClone(normalized.position),
+    width: normalized.width,
+    depth: normalized.depth,
+    height: normalized.height,
+    baseWidth: normalized.baseWidth,
+    baseDepth: normalized.baseDepth,
+    baseHeight: normalized.baseHeight,
+    scale: structuredClone(normalized.scale ?? DEFAULT_ENTITY_SCALE),
+    domainLabel: normalized.domainLabel,
   }
 }
 
 function makePortFromEntity(entity: SceneEntity, lifts: LiftEntity[]): PortEntity {
-  const remainingLifts = lifts.filter((lift) => lift.editorId !== entity.editorId)
-  const nearestLift = findNearestLift(remainingLifts, entity.position.x, entity.position.y)
+  const normalized = normalizeEntityScale(entity)
+  const remainingLifts = lifts.filter((lift) => lift.editorId !== normalized.editorId)
+  const nearestLift = findNearestLift(remainingLifts, normalized.position.x, normalized.position.y)
 
   if (nearestLift) {
     const provisional: PortEntity = {
-      id: entity.id,
-      editorId: entity.editorId,
-      label: entity.label,
+      id: normalized.id,
+      editorId: normalized.editorId,
+      label: normalized.label,
       objectType: 'Port',
-      nodeName: entity.nodeName,
+      nodeName: normalized.nodeName,
       parentLiftId: nearestLift.editorId,
       domainParentId: nearestLift.editorId,
       domainParentType: 'Lift',
@@ -341,14 +577,18 @@ function makePortFromEntity(entity: SceneEntity, lifts: LiftEntity[]): PortEntit
       portType: 'IN',
       face: 'FRONT',
       slot: 1,
-      position: structuredClone(entity.position),
-      zOffset: entity.position.z - nearestLift.position.z,
-      width: Math.min(entity.width, 12),
-      depth: Math.min(entity.depth, 12),
-      height: Math.min(entity.height, 12),
+      position: structuredClone(normalized.position),
+      zOffset: normalized.position.z - nearestLift.position.z,
+      width: Math.min(normalized.width, 12),
+      depth: Math.min(normalized.depth, 12),
+      height: Math.min(normalized.height, 12),
+      baseWidth: Math.min(normalized.baseWidth ?? normalized.width, 12),
+      baseDepth: Math.min(normalized.baseDepth ?? normalized.depth, 12),
+      baseHeight: Math.min(normalized.baseHeight ?? normalized.height, 12),
+      scale: structuredClone(normalized.scale ?? DEFAULT_ENTITY_SCALE),
       created: true,
       templateNodeName: 'Port_Template',
-      domainLabel: entity.domainLabel,
+      domainLabel: normalized.domainLabel,
     }
     const inferred = inferFaceAndSlot(nearestLift, provisional)
     return withUpdatedPortPosition(remainingLifts.length ? [...remainingLifts, nearestLift] : [nearestLift], {
@@ -358,31 +598,35 @@ function makePortFromEntity(entity: SceneEntity, lifts: LiftEntity[]): PortEntit
     })
   }
 
-  const externalParentType = entity.objectType === 'Stocker'
+  const externalParentType = normalized.objectType === 'Stocker'
     ? 'Stocker'
-    : entity.objectType === 'Lift' || entity.objectType === 'Port'
+    : normalized.objectType === 'Lift' || normalized.objectType === 'Port'
       ? 'Transport'
-      : entity.objectType
+      : normalized.objectType
   return {
-    id: entity.id,
-    editorId: entity.editorId,
-    label: entity.label,
+    id: normalized.id,
+    editorId: normalized.editorId,
+    label: normalized.label,
     objectType: 'Port',
-    nodeName: entity.nodeName,
+    nodeName: normalized.nodeName,
     parentLiftId: undefined,
-    domainParentId: entity.editorId,
+    domainParentId: normalized.editorId,
     domainParentType: externalParentType,
     semanticRole: externalParentType === 'Stocker' ? 'STOCKER_ACCESS' : 'BUFFER_HANDOFF',
     portType: 'IN',
     face: 'FRONT',
     slot: 1,
-    position: structuredClone(entity.position),
-    width: Math.min(entity.width, 12),
-    depth: Math.min(entity.depth, 12),
-    height: Math.min(entity.height, 12),
+    position: structuredClone(normalized.position),
+    width: Math.min(normalized.width, 12),
+    depth: Math.min(normalized.depth, 12),
+    height: Math.min(normalized.height, 12),
+    baseWidth: Math.min(normalized.baseWidth ?? normalized.width, 12),
+    baseDepth: Math.min(normalized.baseDepth ?? normalized.depth, 12),
+    baseHeight: Math.min(normalized.baseHeight ?? normalized.height, 12),
+    scale: structuredClone(normalized.scale ?? DEFAULT_ENTITY_SCALE),
     created: true,
     templateNodeName: 'Port_Template',
-    domainLabel: entity.domainLabel,
+    domainLabel: normalized.domainLabel,
   }
 }
 
@@ -479,20 +723,26 @@ function initializeScene(
   statusMessage: string,
   objectTypeDefinitions: ObjectTypeDefinition[],
 ) {
-  const derived = deriveScene(bundle.lifts, bundle.ports, bundle.backgroundObjects)
+  const normalizedBundle = {
+    fileName: bundle.fileName,
+    lifts: normalizeLiftList(bundle.lifts),
+    ports: normalizePortList(bundle.ports),
+    backgroundObjects: normalizeBackgroundObjectList(bundle.backgroundObjects),
+  }
+  const derived = deriveScene(normalizedBundle.lifts, normalizedBundle.ports, normalizedBundle.backgroundObjects)
   const mergedObjectTypeDefinitions = [
     ...objectTypeDefinitions,
-    ...collectSceneObjectTypeDefinitions(bundle).filter((definition) => !objectTypeDefinitions.some((item) => item.name === definition.name)),
+    ...collectSceneObjectTypeDefinitions(normalizedBundle).filter((definition) => !objectTypeDefinitions.some((item) => item.name === definition.name)),
   ]
   return {
-    fileName: bundle.fileName,
+    fileName: normalizedBundle.fileName,
     objectTypeDefinitions: mergedObjectTypeDefinitions,
-    draftLifts: bundle.lifts,
+    draftLifts: normalizedBundle.lifts,
     draftPorts: derived.ports,
-    draftBackgroundObjects: bundle.backgroundObjects,
-    appliedLifts: structuredClone(bundle.lifts),
+    draftBackgroundObjects: normalizedBundle.backgroundObjects,
+    appliedLifts: structuredClone(normalizedBundle.lifts),
     appliedPorts: structuredClone(derived.ports),
-    appliedBackgroundObjects: structuredClone(bundle.backgroundObjects),
+    appliedBackgroundObjects: structuredClone(normalizedBundle.backgroundObjects),
     selectedId: null,
     mode: 'select' as const,
     topViewFrame: { ...DEFAULT_TOP_VIEW_FRAME },
@@ -515,9 +765,9 @@ function applyMutation(
   nextScene: Partial<Pick<EditorState, 'draftLifts' | 'draftPorts' | 'draftBackgroundObjects' | 'selectedId' | 'mode'>>,
   statusMessage = 'Unsaved changes',
 ) {
-  const draftLifts = nextScene.draftLifts ?? state.draftLifts
-  const draftBackgroundObjects = nextScene.draftBackgroundObjects ?? state.draftBackgroundObjects
-  const draftPortsSource = nextScene.draftPorts ?? state.draftPorts
+  const draftLifts = normalizeLiftList(nextScene.draftLifts ?? state.draftLifts)
+  const draftBackgroundObjects = normalizeBackgroundObjectList(nextScene.draftBackgroundObjects ?? state.draftBackgroundObjects)
+  const draftPortsSource = normalizePortList(nextScene.draftPorts ?? state.draftPorts)
   const derived = deriveScene(draftLifts, draftPortsSource, draftBackgroundObjects)
   const history = [...state.history, createSnapshot(state)].slice(-50)
   const hasPendingChanges = hasPendingSceneChanges({
@@ -588,6 +838,19 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       `${file.name} loaded`,
       get().objectTypeDefinitions,
     ))
+  },
+  importFile: async (file) => {
+    const state = get()
+    if (!state.fileName || !state.runtime.pristineScene) {
+      await state.loadFile(file)
+      return
+    }
+    if (state.hasPendingChanges) {
+      set({ statusMessage: 'Apply or revert draft changes before importing another GLB' })
+      return
+    }
+    const loaded = await loadGlbFile(file)
+    set(buildImportedSceneState(get(), loaded, file.name))
   },
   selectObject: (editorId) => set({ selectedId: editorId }),
   setMode: (mode) => set({ mode }),

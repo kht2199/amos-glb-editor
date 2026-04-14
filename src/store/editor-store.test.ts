@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+import * as THREE from 'three'
+import { createDemoScene } from '../lib/demoScene'
+import { exportGlb } from '../lib/glb'
 import { useEditorStore } from './editor-store'
 
 beforeEach(() => {
@@ -213,6 +216,89 @@ describe('editor store', () => {
     expect(next.canRedo).toBe(false)
   })
 
+  it('applies uniform scale to lifts and keeps dimensions in sync', () => {
+    const state = useEditorStore.getState()
+    const lift = state.draftLifts[0]
+
+    state.updateLift(lift.editorId, { scale: { x: 1.5, y: 1.5, z: 1.5 } })
+
+    const next = useEditorStore.getState().draftLifts.find((item) => item.editorId === lift.editorId)
+    expect(next?.scale).toEqual({ x: 1.5, y: 1.5, z: 1.5 })
+    expect(next?.width).toBeCloseTo(lift.width * 1.5, 5)
+    expect(next?.depth).toBeCloseTo(lift.depth * 1.5, 5)
+    expect(next?.height).toBeCloseTo(lift.height * 1.5, 5)
+  })
+
+  it('applies uniform scale to ports and background objects', () => {
+    const state = useEditorStore.getState()
+    const port = state.draftPorts.find((item) => !item.deleted)
+    const background = state.draftBackgroundObjects[0]
+
+    expect(port).toBeTruthy()
+    state.updatePort(port!.editorId, { scale: { x: 1.25, y: 1.25, z: 1.25 } })
+    state.updateBackgroundObject(background.editorId, { scale: { x: 0.8, y: 0.8, z: 0.8 } })
+
+    const next = useEditorStore.getState()
+    const scaledPort = next.draftPorts.find((item) => item.editorId === port!.editorId)
+    const scaledBackground = next.draftBackgroundObjects.find((item) => item.editorId === background.editorId)
+
+    expect(scaledPort?.scale).toEqual({ x: 1.25, y: 1.25, z: 1.25 })
+    expect(scaledPort?.width).toBeCloseTo(port!.width * 1.25, 5)
+    expect(scaledBackground?.scale).toEqual({ x: 0.8, y: 0.8, z: 0.8 })
+    expect(scaledBackground?.height).toBeCloseTo(background.height * 0.8, 5)
+  })
+
+  it('imports another GLB into the current scene instead of replacing it', async () => {
+    const initial = useEditorStore.getState()
+    const { scene, bundle } = createDemoScene()
+    const blob = await exportGlb({
+      pristineScene: scene,
+      lifts: bundle.lifts,
+      ports: bundle.ports,
+      backgroundObjects: bundle.backgroundObjects,
+      animations: [],
+    })
+
+    await initial.importFile(new File([blob], 'extra-scene.glb', { type: 'model/gltf-binary' }))
+
+    const next = useEditorStore.getState()
+    expect(next.draftLifts.length).toBe(initial.draftLifts.length * 2)
+    expect(next.draftPorts.length).toBe(initial.draftPorts.length * 2)
+    expect(next.draftBackgroundObjects.length).toBe(initial.draftBackgroundObjects.length * 2)
+    expect(new Set(next.draftLifts.map((item) => item.id)).size).toBe(next.draftLifts.length)
+    expect(new Set(next.draftLifts.map((item) => item.editorId)).size).toBe(next.draftLifts.length)
+    expect(next.statusMessage).toBe('extra-scene.glb imported')
+    expect(next.hasPendingChanges).toBe(false)
+  })
+
+  it('remaps imported animation track targets to the renamed nodes', async () => {
+    const initial = useEditorStore.getState()
+    const { scene, bundle } = createDemoScene()
+    const sourceLift = bundle.lifts[0]
+    const clip = new THREE.AnimationClip('lift-bob', 1, [
+      new THREE.NumberKeyframeTrack(`${sourceLift.nodeName}.position[z]`, [0, 1], [sourceLift.position.z, sourceLift.position.z + 5]),
+    ])
+    const blob = await exportGlb({
+      pristineScene: scene,
+      lifts: bundle.lifts,
+      ports: bundle.ports,
+      backgroundObjects: bundle.backgroundObjects,
+      animations: [clip],
+    })
+
+    await initial.importFile(new File([blob], 'animated-extra.glb', { type: 'model/gltf-binary' }))
+
+    const next = useEditorStore.getState()
+    const importedTrackNames = next.runtime.animations.flatMap((animation) => animation.tracks.map((track) => track.name))
+    const remappedTrackName = importedTrackNames.find((trackName) => trackName !== `${sourceLift.nodeName}.position[z]`)
+
+    expect(remappedTrackName).toBeTruthy()
+    expect(remappedTrackName).toContain('.')
+    expect(remappedTrackName).not.toBe(`${sourceLift.nodeName}.position`)
+    expect(remappedTrackName).toBe(`Lift_A_02.position`)
+    expect(importedTrackNames.filter((trackName) => trackName === `${sourceLift.nodeName}.position[z]`)).toHaveLength(0)
+  })
+
   it('blocks export while draft changes are still pending', async () => {
     const state = useEditorStore.getState()
     const lift = state.draftLifts[0]
@@ -224,5 +310,28 @@ describe('editor store', () => {
 
     expect(useEditorStore.getState().exportFeedback.status).toBe('blocked')
     expect(useEditorStore.getState().exportFeedback.message).toMatch(/Apply or revert/i)
+  })
+
+  it('blocks importing another GLB while draft changes are pending', async () => {
+    const state = useEditorStore.getState()
+    const lift = state.draftLifts[0]
+    const initialLiftCount = state.draftLifts.length
+    const { scene, bundle } = createDemoScene()
+    const blob = await exportGlb({
+      pristineScene: scene,
+      lifts: bundle.lifts,
+      ports: bundle.ports,
+      backgroundObjects: bundle.backgroundObjects,
+      animations: [],
+    })
+
+    state.moveLift(lift.editorId, lift.position.x + 10, lift.position.y)
+    expect(useEditorStore.getState().hasPendingChanges).toBe(true)
+
+    await useEditorStore.getState().importFile(new File([blob], 'blocked-extra.glb', { type: 'model/gltf-binary' }))
+
+    const next = useEditorStore.getState()
+    expect(next.statusMessage).toMatch(/Apply or revert draft changes before importing another GLB/i)
+    expect(next.draftLifts).toHaveLength(initialLiftCount)
   })
 })

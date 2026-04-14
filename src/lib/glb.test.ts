@@ -170,6 +170,54 @@ describe('GLB round-trip and visual bounds', () => {
     expect(loaded.bundle.backgroundObjects.some((item) => item.id === duplicatedBackgroundObject.id)).toBe(true)
   })
 
+  it('preserves scaled entity dimensions after export/import round-trip', async () => {
+    const { scene, bundle } = createDemoScene()
+    const scaledLift = {
+      ...bundle.lifts[0],
+      width: bundle.lifts[0].width * 1.5,
+      depth: bundle.lifts[0].depth * 1.5,
+      height: bundle.lifts[0].height * 1.5,
+      scale: { x: 1.5, y: 1.5, z: 1.5 },
+    }
+    const scaledPort = {
+      ...bundle.ports[0],
+      width: bundle.ports[0].width * 1.25,
+      depth: bundle.ports[0].depth * 1.25,
+      height: bundle.ports[0].height * 1.25,
+      scale: { x: 1.25, y: 1.25, z: 1.25 },
+    }
+    const scaledBackground = {
+      ...bundle.backgroundObjects[0],
+      width: bundle.backgroundObjects[0].width * 0.8,
+      depth: bundle.backgroundObjects[0].depth * 0.8,
+      height: bundle.backgroundObjects[0].height * 0.8,
+      scale: { x: 0.8, y: 0.8, z: 0.8 },
+    }
+
+    const blob = await exportGlb({
+      pristineScene: scene,
+      lifts: [scaledLift, ...bundle.lifts.slice(1)],
+      ports: [scaledPort, ...bundle.ports.slice(1)],
+      backgroundObjects: [scaledBackground, ...bundle.backgroundObjects.slice(1)],
+      animations: [],
+    })
+
+    const loaded = await loadGlbFile(new File([blob], 'scaled-roundtrip.glb', { type: 'model/gltf-binary' }))
+    const reloadedLift = loaded.bundle.lifts.find((item) => item.id === scaledLift.id)
+    const reloadedPort = loaded.bundle.ports.find((item) => item.id === scaledPort.id)
+    const reloadedBackground = loaded.bundle.backgroundObjects.find((item) => item.id === scaledBackground.id)
+
+    expect(reloadedLift?.width).toBeCloseTo(scaledLift.width, 0)
+    expect(reloadedLift?.scale).toEqual({ x: 1.5, y: 1.5, z: 1.5 })
+    expect(reloadedLift?.baseWidth).toBeCloseTo(bundle.lifts[0].width, 0)
+    expect(reloadedPort?.height).toBeCloseTo(scaledPort.height, 0)
+    expect(reloadedPort?.scale).toEqual({ x: 1.25, y: 1.25, z: 1.25 })
+    expect(reloadedPort?.baseHeight).toBeCloseTo(bundle.ports[0].height, 0)
+    expect(reloadedBackground?.depth).toBeCloseTo(scaledBackground.depth, 0)
+    expect(reloadedBackground?.scale).toEqual({ x: 0.8, y: 0.8, z: 0.8 })
+    expect(reloadedBackground?.baseDepth).toBeCloseTo(bundle.backgroundObjects[0].depth, 0)
+  })
+
   it('infers stocker access metadata from raw node names when editorMeta is missing', async () => {
     const scene = new THREE.Scene()
 

@@ -2,7 +2,7 @@ import { Trash2 } from 'lucide-react'
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useEditorStore } from '../store/editor-store'
-import type { Face, LiftEntity, ObjectKind, PortSemanticRole, PortType } from '../types'
+import type { BackgroundObjectEntity, Face, LiftEntity, ObjectKind, PortEntity, PortSemanticRole, PortType } from '../types'
 
 const FACE_OPTIONS: Face[] = ['FRONT', 'BACK', 'LEFT', 'RIGHT']
 const PORT_TYPE_OPTIONS: PortType[] = ['IN', 'OUT', 'INOUT']
@@ -54,6 +54,7 @@ export function InspectorPanel() {
               <NumberField label="Z" value={selectedLift.position.z} onChange={(value) => updateLift(selectedLift.editorId, { position: { ...selectedLift.position, z: value } })} />
               <Field label="Rotation"><select className={fieldClass} value={selectedLift.rotation} onChange={(event) => updateLift(selectedLift.editorId, { rotation: Number(event.target.value) as LiftEntity['rotation'] })}>{[0, 90, 180, 270].map((value) => <option key={value} value={value}>{value}°</option>)}</select></Field>
             </DoubleField>
+            <ScaleField value={scalePercent(selectedLift)} onChange={(value) => updateLift(selectedLift.editorId, { scale: uniformScaleFromPercent(value) })} />
             <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
               <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Animation</p>
               <DoubleField>
@@ -89,6 +90,7 @@ export function InspectorPanel() {
               <NumberField label="Z" value={selectedPort.position.z} onChange={(value) => updatePort(selectedPort.editorId, { position: { ...selectedPort.position, z: value } })} />
               <Field label="Type"><select className={fieldClass} value={selectedPort.portType} onChange={(event) => updatePort(selectedPort.editorId, { portType: event.target.value as PortType })}>{PORT_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></Field>
             </DoubleField>
+            <ScaleField value={scalePercent(selectedPort)} onChange={(value) => updatePort(selectedPort.editorId, { scale: uniformScaleFromPercent(value) })} />
             <IssueList issues={issues} />
             <button type="button" className={dangerButton} onClick={() => deletePort(selectedPort.editorId)}><Trash2 className="h-4 w-4" />Delete Port</button>
           </section>
@@ -104,6 +106,7 @@ export function InspectorPanel() {
               <NumberField label="Y" value={selectedReadonly.position.y} onChange={(value) => updateBackgroundObject(selectedReadonly.editorId, { position: { ...selectedReadonly.position, y: value } })} />
             </DoubleField>
             <NumberField label="Z" value={selectedReadonly.position.z} onChange={(value) => updateBackgroundObject(selectedReadonly.editorId, { position: { ...selectedReadonly.position, z: value } })} />
+            <ScaleField value={scalePercent(selectedReadonly)} onChange={(value) => updateBackgroundObject(selectedReadonly.editorId, { scale: uniformScaleFromPercent(value) })} />
             <p className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-3 py-2 text-sm text-violet-100">배경 오브젝트도 Move 모드와 Inspector에서 좌표를 조정하고 objectType을 재분류할 수 있습니다.</p>
             <IssueList issues={issues} />
           </section>
@@ -127,6 +130,19 @@ function DoubleField({ children }: { children: React.ReactNode }) {
 
 function NumberField({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
   return <Field label={label}><input className={fieldClass} type="number" value={value} onChange={(event) => onChange(Number(event.target.value) || 0)} /></Field>
+}
+
+function ScaleField({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+  return <NumberField label="Scale (%)" value={value} onChange={onChange} />
+}
+
+function scalePercent(entity: Pick<LiftEntity | PortEntity | BackgroundObjectEntity, 'scale'>) {
+  return Math.round((entity.scale?.x ?? 1) * 100)
+}
+
+function uniformScaleFromPercent(value: number) {
+  const normalized = Math.max(value || 0, 10) / 100
+  return { x: normalized, y: normalized, z: normalized }
 }
 
 function IssueList({ issues }: { issues: Array<{ id: string; message: string }> }) {

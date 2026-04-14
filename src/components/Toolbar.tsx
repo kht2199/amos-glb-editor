@@ -7,6 +7,7 @@ import type { EditorMode, ObjectTypeCategory } from '../types'
 
 interface ToolbarProps {
   onOpenFile: () => void
+  onImportFile?: () => void
 }
 
 const modeButtons: Array<{ id: EditorMode; label: string; icon: typeof Move }> = [
@@ -14,7 +15,7 @@ const modeButtons: Array<{ id: EditorMode; label: string; icon: typeof Move }> =
   { id: 'move', label: 'Move', icon: Move },
 ]
 
-export function Toolbar({ onOpenFile }: ToolbarProps) {
+export function Toolbar({ onOpenFile, onImportFile }: ToolbarProps) {
   const [isTypeSettingsOpen, setIsTypeSettingsOpen] = useState(false)
   const [newTypeName, setNewTypeName] = useState('')
   const [newTypeCategory, setNewTypeCategory] = useState<ObjectTypeCategory>('background')
@@ -129,6 +130,7 @@ export function Toolbar({ onOpenFile }: ToolbarProps) {
       <div data-testid="toolbar-action-rail" className="grid grid-cols-2 gap-2 pb-1 lg:flex lg:flex-wrap lg:overflow-visible lg:pb-0">
         <ToolGroup title="File">
           <ToolButton icon={FileUp} onClick={onOpenFile}>Open GLB</ToolButton>
+          {fileName ? <ToolButton icon={FileUp} onClick={onImportFile}>Import GLB</ToolButton> : null}
           <ToolButton icon={FileDown} disabled={disabled} onClick={() => void exportCurrentGlb()}>Export GLB</ToolButton>
           <ToolButton icon={Check} disabled={disabled || !hasPendingChanges} onClick={applyDraftChanges}>Apply</ToolButton>
           <ToolButton icon={RefreshCcw} disabled={disabled || !hasPendingChanges} onClick={revertDraftChanges}>Revert</ToolButton>
@@ -229,6 +231,7 @@ function ToolButton({ icon: Icon, children, disabled, active, onClick }: { icon:
   const labelText = typeof children === 'string' ? children : undefined
   const shortLabel =
     labelText === 'Open GLB' ? 'Open'
+      : labelText === 'Import GLB' ? 'Import'
       : labelText === 'Export GLB' ? 'Export'
       : labelText === 'Rotate 90°' ? 'Rotate'
         : labelText === 'Duplicate' ? 'Copy'

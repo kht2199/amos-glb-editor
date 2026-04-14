@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { EmptyState } from './components/EmptyState'
 import { ExportFeedbackModal } from './components/ExportFeedbackModal'
@@ -25,9 +25,12 @@ function isEditableTarget(target: EventTarget | null) {
 
 export default function App() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const { fileName, loadFile, openDemoScene } = useEditorStore(useShallow((state) => ({
+  const importInputRef = useRef<HTMLInputElement | null>(null)
+  const [isDragActive, setIsDragActive] = useState(false)
+  const { fileName, loadFile, importFile, openDemoScene } = useEditorStore(useShallow((state) => ({
     fileName: state.fileName,
     loadFile: state.loadFile,
+    importFile: state.importFile,
     openDemoScene: state.openDemoScene,
   })))
 
@@ -66,7 +69,29 @@ export default function App() {
   }, [fileName])
 
   return (
-    <div className="relative flex min-h-screen flex-col text-slate-100">
+    <div
+      data-testid="app-shell"
+      className="relative flex min-h-screen flex-col text-slate-100"
+      onDragOver={(event) => {
+        event.preventDefault()
+        setIsDragActive(true)
+      }}
+      onDragLeave={(event) => {
+        if (event.currentTarget.contains(event.relatedTarget as Node | null)) return
+        setIsDragActive(false)
+      }}
+      onDrop={(event) => {
+        event.preventDefault()
+        setIsDragActive(false)
+        const file = event.dataTransfer.files?.[0]
+        if (!file) return
+        if (fileName) {
+          void importFile(file)
+          return
+        }
+        void loadFile(file)
+      }}
+    >
       <input
         ref={fileInputRef}
         type="file"
@@ -78,8 +103,25 @@ export default function App() {
           event.currentTarget.value = ''
         }}
       />
+      <input
+        ref={importInputRef}
+        type="file"
+        accept=".glb"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0]
+          if (file) void importFile(file)
+          event.currentTarget.value = ''
+        }}
+      />
 
-      <Toolbar onOpenFile={() => fileInputRef.current?.click()} />
+      <Toolbar onOpenFile={() => fileInputRef.current?.click()} onImportFile={() => importInputRef.current?.click()} />
+
+      {isDragActive ? (
+        <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-slate-950/70 text-sm font-semibold text-slate-100">
+          {fileName ? 'Drop a GLB to import it into the current scene' : 'Drop a GLB to open it'}
+        </div>
+      ) : null}
 
       <main className="relative flex flex-1 flex-col overflow-auto lg:grid lg:grid-cols-[300px_minmax(0,1fr)_360px] lg:overflow-hidden">
         {fileName ? (

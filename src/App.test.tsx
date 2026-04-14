@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
@@ -108,5 +108,21 @@ describe('App', () => {
     expect(planeEditorIndex).toBeGreaterThanOrEqual(0)
     expect(structureIndex).toBeGreaterThanOrEqual(0)
     expect(planeEditorIndex).toBeLessThan(structureIndex)
+  })
+
+  it('imports an additional GLB when a file is dropped onto an already loaded editor', () => {
+    const importFile = vi.fn().mockResolvedValue(undefined)
+    useEditorStore.getState().openDemoScene()
+    useEditorStore.setState({ importFile })
+    render(<App />)
+
+    const file = new File(['glb'], 'extra.glb', { type: 'model/gltf-binary' })
+    fireEvent.drop(screen.getByTestId('app-shell'), {
+      dataTransfer: {
+        files: [file],
+      },
+    })
+
+    expect(importFile).toHaveBeenCalledWith(file)
   })
 })

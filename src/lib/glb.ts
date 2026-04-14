@@ -17,6 +17,20 @@ interface InferredPortNameMeta {
   parentKey?: string
 }
 
+function asOptionalNumber(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function asScale(raw: unknown): Vec3 | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const value = raw as Partial<Vec3>
+  const x = asOptionalNumber(value.x)
+  const y = asOptionalNumber(value.y)
+  const z = asOptionalNumber(value.z)
+  if (!x || !y || !z) return undefined
+  return { x, y, z }
+}
+
 function normalizeName(object: THREE.Object3D) {
   const parts = [object.name, object.parent?.name]
     .filter(Boolean)
@@ -81,7 +95,36 @@ function editorMeta(object: THREE.Object3D) {
     face: raw.face,
     slot: typeof raw.slot === 'number' ? raw.slot : undefined,
     zOffset: typeof raw.zOffset === 'number' ? raw.zOffset : undefined,
+    baseWidth: asOptionalNumber(raw.baseWidth),
+    baseDepth: asOptionalNumber(raw.baseDepth),
+    baseHeight: asOptionalNumber(raw.baseHeight),
+    scale: asScale(raw.scale),
   }
+}
+
+function inferDimensions(size: THREE.Vector3, meta: ReturnType<typeof editorMeta>) {
+  const width = round(size.x)
+  const depth = round(size.y)
+  const height = round(size.z)
+  const scale = meta.scale ?? { x: 1, y: 1, z: 1 }
+  return {
+    width,
+    depth,
+    height,
+    baseWidth: round(meta.baseWidth ?? (width / scale.x)),
+    baseDepth: round(meta.baseDepth ?? (depth / scale.y)),
+    baseHeight: round(meta.baseHeight ?? (height / scale.z)),
+    scale,
+  }
+}
+
+function inferBaseDimension(current: number, scale: number, base?: number) {
+  if (typeof base === 'number' && Number.isFinite(base)) return base
+  return round(current / scale)
+}
+
+function inferScaleMeta(scale?: Vec3) {
+  return scale ?? { x: 1, y: 1, z: 1 }
 }
 
 function asRotation(object: THREE.Object3D): 0 | 90 | 180 | 270 {
@@ -101,6 +144,13 @@ function inferSlotsPerFace(size: THREE.Vector3) {
   const dominantFaceSpan = Math.max(size.x, size.y)
   const approximate = Math.max(2, Math.round(dominantFaceSpan / 10))
   return Math.min(approximate, 12)
+}
+
+function faceRotation(face: Face) {
+  if (face === 'RIGHT') return -Math.PI / 2
+  if (face === 'LEFT') return Math.PI / 2
+  if (face === 'BACK') return Math.PI
+  return 0
 }
 
 function inferPortNameMeta(name: string): InferredPortNameMeta {
@@ -143,10 +193,11 @@ function normalizedEntityKey(value?: string) {
 function makeLiftEntity(object: THREE.Object3D): LiftEntity {
   const { size, center } = computeBounds(object)
   const meta = editorMeta(object)
+  const dimensions = inferDimensions(size, meta)
   const slotsPerFace = meta.slotsPerFace ?? inferSlotsPerFace(size)
   const animation = meta.animation && typeof meta.animation === 'object'
     ? { ...DEFAULT_ANIMATION, ...(meta.animation as Partial<LiftEntity['animation']>) }
-    : { ...DEFAULT_ANIMATION, maxZ: round(size.z) }
+    : { ...DEFAULT_ANIMATION, maxZ: dimensions.height }
 
   object.userData.editorMeta = {
     ...(object.userData.editorMeta ?? {}),
@@ -155,6 +206,10 @@ function makeLiftEntity(object: THREE.Object3D): LiftEntity {
     objectType: 'Lift',
     slotsPerFace,
     animation,
+    baseWidth: dimensions.baseWidth,
+    baseDepth: dimensions.baseDepth,
+    baseHeight: dimensions.baseHeight,
+    scale: dimensions.scale,
   }
 
   return {
@@ -164,9 +219,13 @@ function makeLiftEntity(object: THREE.Object3D): LiftEntity {
     objectType: 'Lift',
     nodeName: object.name || meta.entityId,
     position: { x: round(center.x), y: round(center.y), z: round(center.z - size.z / 2) },
-    width: Math.max(round(size.x), 20),
-    depth: Math.max(round(size.y), 20),
-    height: Math.max(round(size.z), 10),
+    width: Math.max(dimensions.width, 20),
+    depth: Math.max(dimensions.depth, 20),
+    height: Math.max(dimensions.height, 10),
+    baseWidth: Math.max(dimensions.baseWidth, 20),
+    baseDepth: Math.max(dimensions.baseDepth, 20),
+    baseHeight: Math.max(dimensions.baseHeight, 10),
+    scale: dimensions.scale,
     rotation: asRotation(object),
     slotsPerFace,
     animation,
@@ -176,7 +235,17 @@ function makeLiftEntity(object: THREE.Object3D): LiftEntity {
 function makeBackgroundObjectEntity(object: THREE.Object3D, objectType: 'Bridge' | 'Rail' | 'Stocker' | 'Transport'): BackgroundObjectEntity {
   const { size, center } = computeBounds(object)
   const meta = editorMeta(object)
-  object.userData.editorMeta = { ...(object.userData.editorMeta ?? {}), id: meta.id, entityId: meta.entityId, objectType }
+  const dimensions = inferDimensions(size, meta)
+  object.userData.editorMeta = {
+    ...(object.userData.editorMeta ?? {}),
+    id: meta.id,
+    entityId: meta.entityId,
+    objectType,
+    baseWidth: dimensions.baseWidth,
+    baseDepth: dimensions.baseDepth,
+    baseHeight: dimensions.baseHeight,
+    scale: dimensions.scale,
+  }
   return {
     id: meta.entityId,
     editorId: meta.id,
@@ -184,9 +253,13 @@ function makeBackgroundObjectEntity(object: THREE.Object3D, objectType: 'Bridge'
     objectType,
     nodeName: object.name || meta.entityId,
     position: { x: round(center.x), y: round(center.y), z: round(center.z - size.z / 2) },
-    width: Math.max(round(size.x), 10),
-    depth: Math.max(round(size.y), 10),
-    height: Math.max(round(size.z), 10),
+    width: Math.max(dimensions.width, 10),
+    depth: Math.max(dimensions.depth, 10),
+    height: Math.max(dimensions.height, 10),
+    baseWidth: Math.max(dimensions.baseWidth, 10),
+    baseDepth: Math.max(dimensions.baseDepth, 10),
+    baseHeight: Math.max(dimensions.baseHeight, 10),
+    scale: dimensions.scale,
   }
 }
 
@@ -234,6 +307,7 @@ function assignExternalPortSlot(base: PortEntity, ports: PortEntity[]) {
 function makePortEntity(object: THREE.Object3D, lifts: LiftEntity[], backgroundObjects: BackgroundObjectEntity[], existingPorts: PortEntity[]): PortEntity | null {
   const { size, center } = computeBounds(object)
   const meta = editorMeta(object)
+  const dimensions = inferDimensions(size, meta)
   const inferredNameMeta = inferPortNameMeta(object.name)
   const explicitLift = meta.parentLiftId ? lifts.find((lift) => lift.editorId === meta.parentLiftId) : undefined
   const hintedLift = matchLiftByNameHint(object.name, lifts)
@@ -279,9 +353,13 @@ function makePortEntity(object: THREE.Object3D, lifts: LiftEntity[], backgroundO
     face: (meta.face === 'FRONT' || meta.face === 'BACK' || meta.face === 'LEFT' || meta.face === 'RIGHT') ? meta.face : (inferredNameMeta.face ?? 'FRONT'),
     slot: meta.slot ?? inferredNameMeta.slot ?? 1,
     position: { x: round(center.x), y: round(center.y), z: round(center.z - size.z / 2) },
-    width: Math.max(round(size.x), 6),
-    depth: Math.max(round(size.y), 6),
-    height: Math.max(round(size.z), 6),
+    width: Math.max(dimensions.width, 6),
+    depth: Math.max(dimensions.depth, 6),
+    height: Math.max(dimensions.height, 6),
+    baseWidth: Math.max(dimensions.baseWidth, 6),
+    baseDepth: Math.max(dimensions.baseDepth, 6),
+    baseHeight: Math.max(dimensions.baseHeight, 6),
+    scale: dimensions.scale,
     zOffset: meta.zOffset,
     created: false,
     templateNodeName: object.name,
@@ -312,6 +390,10 @@ function makePortEntity(object: THREE.Object3D, lifts: LiftEntity[], backgroundO
     face: base.face,
     slot: base.slot,
     zOffset: base.zOffset,
+    baseWidth: base.baseWidth,
+    baseDepth: base.baseDepth,
+    baseHeight: base.baseHeight,
+    scale: base.scale,
   }
   return base
 }
@@ -377,6 +459,19 @@ function placeNodeByBottom(node: THREE.Object3D, position: Vec3) {
   }
 }
 
+function applyEntityDimensions(node: THREE.Object3D, entity: Pick<LiftEntity | PortEntity | BackgroundObjectEntity, 'width' | 'depth' | 'height'>) {
+  node.updateMatrixWorld(true)
+  const bounds = new THREE.Box3().setFromObject(node)
+  const size = new THREE.Vector3()
+  bounds.getSize(size)
+  if (!size.x || !size.y || !size.z) return
+  node.scale.set(
+    round(node.scale.x * (entity.width / size.x), 6),
+    round(node.scale.y * (entity.depth / size.y), 6),
+    round(node.scale.z * (entity.height / size.z), 6),
+  )
+}
+
 function createLiftNode(lift: LiftEntity) {
   const group = new THREE.Group()
   const shell = new THREE.Mesh(
@@ -393,6 +488,10 @@ function createLiftNode(lift: LiftEntity) {
     objectType: 'Lift',
     slotsPerFace: lift.slotsPerFace,
     animation: lift.animation,
+    baseWidth: inferBaseDimension(lift.width, inferScaleMeta(lift.scale).x, lift.baseWidth),
+    baseDepth: inferBaseDimension(lift.depth, inferScaleMeta(lift.scale).y, lift.baseDepth),
+    baseHeight: inferBaseDimension(lift.height, inferScaleMeta(lift.scale).z, lift.baseHeight),
+    scale: inferScaleMeta(lift.scale),
   }
   placeNodeByBottom(group, lift.position)
   return group
@@ -405,8 +504,9 @@ function applyLift(scene: THREE.Object3D, lift: LiftEntity) {
     scene.add(node)
   }
   node.name = lift.nodeName
-  placeNodeByBottom(node, lift.position)
   node.rotation.z = (lift.rotation * Math.PI) / 180
+  applyEntityDimensions(node, lift)
+  placeNodeByBottom(node, lift.position)
   node.userData.editorMeta = {
     ...(node.userData.editorMeta ?? {}),
     id: lift.editorId,
@@ -414,6 +514,10 @@ function applyLift(scene: THREE.Object3D, lift: LiftEntity) {
     objectType: 'Lift',
     slotsPerFace: lift.slotsPerFace,
     animation: lift.animation,
+    baseWidth: inferBaseDimension(lift.width, inferScaleMeta(lift.scale).x, lift.baseWidth),
+    baseDepth: inferBaseDimension(lift.depth, inferScaleMeta(lift.scale).y, lift.baseDepth),
+    baseHeight: inferBaseDimension(lift.height, inferScaleMeta(lift.scale).z, lift.baseHeight),
+    scale: inferScaleMeta(lift.scale),
   }
 }
 
@@ -432,6 +536,8 @@ function applyPort(scene: THREE.Object3D, port: PortEntity) {
   if (!node) return
   node.visible = true
   node.name = port.nodeName
+  node.rotation.z = faceRotation(port.face)
+  applyEntityDimensions(node, port)
   placeNodeByBottom(node, port.position)
   node.userData.editorMeta = {
     ...(node.userData.editorMeta ?? {}),
@@ -446,6 +552,10 @@ function applyPort(scene: THREE.Object3D, port: PortEntity) {
     face: port.face,
     slot: port.slot,
     zOffset: port.zOffset,
+    baseWidth: inferBaseDimension(port.width, inferScaleMeta(port.scale).x, port.baseWidth),
+    baseDepth: inferBaseDimension(port.depth, inferScaleMeta(port.scale).y, port.baseDepth),
+    baseHeight: inferBaseDimension(port.height, inferScaleMeta(port.scale).z, port.baseHeight),
+    scale: inferScaleMeta(port.scale),
   }
 }
 
@@ -462,6 +572,10 @@ function createBackgroundObjectNode(entity: BackgroundObjectEntity) {
     id: entity.editorId,
     entityId: entity.id,
     objectType: entity.objectType,
+    baseWidth: inferBaseDimension(entity.width, inferScaleMeta(entity.scale).x, entity.baseWidth),
+    baseDepth: inferBaseDimension(entity.depth, inferScaleMeta(entity.scale).y, entity.baseDepth),
+    baseHeight: inferBaseDimension(entity.height, inferScaleMeta(entity.scale).z, entity.baseHeight),
+    scale: inferScaleMeta(entity.scale),
   }
   placeNodeByBottom(group, entity.position)
   return group
@@ -475,12 +589,17 @@ function applyBackgroundObject(scene: THREE.Object3D, entity: BackgroundObjectEn
   }
   node.visible = true
   node.name = entity.nodeName
+  applyEntityDimensions(node, entity)
   placeNodeByBottom(node, entity.position)
   node.userData.editorMeta = {
     ...(node.userData.editorMeta ?? {}),
     id: entity.editorId,
     entityId: entity.id,
     objectType: entity.objectType,
+    baseWidth: inferBaseDimension(entity.width, inferScaleMeta(entity.scale).x, entity.baseWidth),
+    baseDepth: inferBaseDimension(entity.depth, inferScaleMeta(entity.scale).y, entity.baseDepth),
+    baseHeight: inferBaseDimension(entity.height, inferScaleMeta(entity.scale).z, entity.baseHeight),
+    scale: inferScaleMeta(entity.scale),
   }
 }
 

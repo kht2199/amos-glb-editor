@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { InspectorPanel } from './InspectorPanel'
@@ -26,5 +26,20 @@ describe('InspectorPanel', () => {
     const next = useEditorStore.getState()
     expect(next.draftLifts.some((item) => item.editorId === stocker!.editorId)).toBe(true)
     expect(next.draftBackgroundObjects.some((item) => item.editorId === stocker!.editorId)).toBe(false)
+  })
+
+  it('lets users edit uniform scale for lifts from the inspector', async () => {
+    const state = useEditorStore.getState()
+    const lift = state.draftLifts[0]
+
+    useEditorStore.getState().selectObject(lift.editorId)
+    render(<InspectorPanel />)
+
+    const scaleInput = screen.getAllByLabelText('Scale (%)')[0]
+    fireEvent.change(scaleInput, { target: { value: '150' } })
+
+    const next = useEditorStore.getState().draftLifts.find((item) => item.editorId === lift.editorId)
+    expect(next?.scale).toEqual({ x: 1.5, y: 1.5, z: 1.5 })
+    expect(next?.width).toBeCloseTo(lift.width * 1.5, 5)
   })
 })
