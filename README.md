@@ -134,6 +134,7 @@ re-export는 원본을 전부 재구성하지 않고, import 시점의 pristine 
 - 높이 편집은 Z 직접 수정 중심으로 정리
 - `Port`를 여러 objectType 중 하나로 재위치
 - draft / applied / apply / revert 구조 유지
+- 모바일에서 `Structure Panel`은 현재보다 작업 가능한 높이를 우선 확보하고, 목록 자체만으로도 선택 → 복사 → 좌표 수정 흐름에 진입할 수 있게 한다.
 
 ## UI 구성
 
@@ -143,6 +144,13 @@ re-export는 원본을 전부 재구성하지 않고, import 시점의 pristine 
 - **Inspector Panel**: 선택한 객체의 속성 및 좌표 편집
 - **Preview Overlay**: 결과를 자유롭게 보는 3D 미리보기
 - **Status Bar**: 파일 이름, 저장 상태 등 표시
+
+### Structure Panel 방향
+- 모바일에서는 `Structure Panel`이 너무 얕아 한두 개 그룹만 보이는 상태를 피해야 한다.
+- 현재 구현은 대략 `max-h-[48svh]`, `min-h-[260px]` 기준의 리스트 viewport를 사용한다.
+- 이후 방향은 모바일에서도 더 많은 행이 보이도록 viewport 높이를 우선 재검토하는 것이다.
+- 현재 Structure list는 단순 탐색용이 아니라, **리스트 항목만으로도 선택 → Duplicate(복사) → 좌표 입력**이 가능한 편집 진입점을 제공한다.
+- 즉 사용자는 Top View Canvas를 먼저 건드리지 않아도, Structure list에서 선택한 뒤 복사하고 X / Y / Z 좌표를 설정할 수 있다.
 
 ## 도메인 모델 요약
 

@@ -140,6 +140,7 @@
 - 배경 오브젝트(`Bridge / Rail / Stocker / Transport`)도 draft/applied entity로 유지되며 Inspector에서 X / Y / Z를 직접 수정할 수 있다.
 - 현재 코드에는 Port 관련 전용 로직이 남아 있을 수 있으나, 문서 기준의 목표 방향은 **오브젝트 복사 + objectType/metadata 수정 중심 흐름**이다.
 - 높이 차이는 `TOP/BOTTOM` 단계값이 아니라 **Z 좌표 직접 수정**으로 표현한다.
+- `Structure Panel`은 현재 모바일에서 `max-h-[48svh]`, `min-h-[260px]` 기준의 별도 scroll 영역을 사용한다.
 
 #### 표현 원칙
 - XY plane 중심의 편집 친화 표현
@@ -173,6 +174,7 @@
 - Port는 여러 objectType 중 하나이며, 특별한 생성 진입점을 제품 중심에 두지 않는다.
 - snap on 상태에서는 drag/이동 결과가 object type과 무관하게 같은 grid 기준으로 정렬된다.
 - 자유 배치가 필요한 경우에만 snap off로 전환해 미세 조정을 수행한다.
+- 현재는 Top View Canvas를 거치지 않아도, `Structure Panel`의 목록 항목만으로 선택 객체를 복사하고 좌표 입력 편집까지 진입할 수 있다.
 
 즉:
 - 중앙 = 지금 편집 중인 상태
@@ -339,6 +341,15 @@ Apply를 경계로 두면:
 - preview label: `applied preview · draft pending|draft synced`
 - `Collision issues available` — collision은 참고 정보/검토 보조로 표시
 - `Export ready / blocked / success` — export feedback modal과 연결
+
+### 5.3 Structure Panel 현재 상호작용
+- 모바일에서는 Structure list 자체가 충분한 세로 공간을 가져야 한다.
+- Structure list는 단순 tree browser가 아니라 편집 시작점이다.
+- 현재 가능 동작:
+  1. 리스트 항목 선택
+  2. 리스트 기준 Duplicate 실행
+  3. 선택 객체의 X / Y / Z 좌표 입력
+- 즉 목록만으로도 선택·복사·좌표 설정의 기본 편집 루프를 시작할 수 있다.
 
 ---
 

@@ -34,7 +34,7 @@
 |---|---|---|---|---|---|
 | Scene object editor | 장면 객체를 선택/수정/재배치하는 편집기 | `src/App.tsx`, `src/store/editor-store.ts`, `src/types.ts` | editor app / `useEditorStore` / entity types | aligned | 앱 전체가 objectType + transform + metadata 편집에 맞춰 구성됨 |
 | Top view editing | 상단뷰 기반 XY 편집 | `src/components/TopViewCanvas.tsx`, `src/App.tsx`, `src/lib/topViewProjection.ts` | `TopViewCanvas` | aligned | README 원칙과 UI 구조가 일치하며, 2D에서 draft가 반영된 실제 mesh를 현재 편집 평면으로 투영한 outline으로 표현함 |
-| Structure browsing | scene object 구조 탐색 | `src/components/StructurePanel.tsx` | `StructurePanel` | aligned | 선택/탐색 진입점 역할 |
+| Structure browsing | scene object 구조 탐색 | `src/components/StructurePanel.tsx` | `StructurePanel` | aligned | 모바일 viewport 확대와 함께, 리스트 기준 선택/중첩 탐색/quick Duplicate/quick XYZ 편집까지 한 패널 안에서 이어진다 |
 | Inspector editing | 선택 객체 속성 수정 | `src/components/InspectorPanel.tsx` | `InspectorPanel` | aligned | X/Y/Z, metadata, objectType 수정 흐름 포함 |
 | Preview / free-view | 상단뷰 외 3D 확인 | `src/components/PreviewPanel.tsx`, `src/components/PreviewOverlay.tsx`, `src/components/PreviewSceneCanvas.tsx` | preview panel / overlay | aligned | main 편집은 top-view, preview는 보조 확인 용도 |
 | Toolbar actions | import / demo / apply / export / mode 전환 | `src/components/Toolbar.tsx` | `Toolbar` | aligned | 편집 세션의 주요 액션 집합 |
@@ -62,11 +62,18 @@
 - `src/App.tsx`
 - `Toolbar`, `StructurePanel`, `TopViewCanvas`, `InspectorPanel`, `PreviewPanel`, `StatusBar`를 묶는다.
 - glb-editor의 실제 화면 구성과 사용자 편집 흐름이 여기서 드러난다.
+- 현재 레이아웃에서 `StructurePanel`은 모바일 시 `order-2`와 별도 scroll viewport를 가지며, 리스트 편집 기능 확장은 여기와 `StructurePanel.tsx`를 함께 봐야 한다.
 
 ### 2. 상태/편집 레이어
 - `src/store/editor-store.ts`
 - draft/applied split, selection, mode, duplicate, apply/revert, undo/redo, collision, export orchestration이 모여 있다.
 - concept-to-code 관점에서 가장 중요한 구현 허브다.
+- Structure list에서 직접 Duplicate/좌표 편집 진입을 열려면, 이 레이어의 selection/duplicate/updatePosition 경로를 패널 액션과 연결해야 한다.
+
+### 2.1 Structure Panel 모바일/리스트 편집 상태
+- 현재 `StructurePanel.tsx`는 모바일에서 `max-h-[48svh]`, `min-h-[260px]` viewport를 사용한다.
+- 리스트 항목 선택, quick Duplicate, quick X / Y / Z 좌표 편집이 같은 패널 안에서 이어진다.
+- 현재 남은 문서 기준 gap은 모바일에서 더 많은 구조 행을 안정적으로 보여주는 viewport 최적화다.
 
 ### 3. domain entity/type 레이어
 - `src/types.ts`
