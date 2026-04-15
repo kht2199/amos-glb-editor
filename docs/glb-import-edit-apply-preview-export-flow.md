@@ -136,6 +136,7 @@
 
 #### 현재 구현 메모
 - `Move` 모드는 Lift 전용이 아니라 Lift / Port / 배경 오브젝트 전체의 XY 이동 모드다.
+- `Snap` 토글은 Lift 전용 보정이 아니라 Lift / Port / 배경 오브젝트 전체에 적용되는 공통 grid snap이다.
 - 배경 오브젝트(`Bridge / Rail / Stocker / Transport`)도 draft/applied entity로 유지되며 Inspector에서 X / Y / Z를 직접 수정할 수 있다.
 - 현재 코드에는 Port 관련 전용 로직이 남아 있을 수 있으나, 문서 기준의 목표 방향은 **오브젝트 복사 + objectType/metadata 수정 중심 흐름**이다.
 - 높이 차이는 `TOP/BOTTOM` 단계값이 아니라 **Z 좌표 직접 수정**으로 표현한다.
@@ -170,6 +171,8 @@
 - 새 오브젝트 생성의 기본 진입점은 `Add Port` 같은 타입 전용 액션이 아니라 **선택된 오브젝트 복사(`Duplicate`)**다.
 - 복사 후에는 위치를 조정하고, 필요하면 Inspector에서 `objectType`과 metadata를 수정한다.
 - Port는 여러 objectType 중 하나이며, 특별한 생성 진입점을 제품 중심에 두지 않는다.
+- snap on 상태에서는 drag/이동 결과가 object type과 무관하게 같은 grid 기준으로 정렬된다.
+- 자유 배치가 필요한 경우에만 snap off로 전환해 미세 조정을 수행한다.
 
 즉:
 - 중앙 = 지금 편집 중인 상태
@@ -326,6 +329,7 @@ Apply를 경계로 두면:
 - `Revert` — 구현됨, applied 상태로 draft 복원
 - `Reset to imported GLB` — 아직 미구현
 - `Duplicate` — 목표 UX, 선택된 오브젝트를 복사해 새 작업 시작점 생성
+- `Snap` — 구현됨, Lift / Port / 배경 오브젝트 공통 grid snap 토글
 - `Export GLB` — 구현됨, applied 기준 export, pending draft가 있으면 차단
 
 ### 5.2 상태 표시

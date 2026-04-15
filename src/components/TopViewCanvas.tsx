@@ -199,7 +199,12 @@ function MeshProjectionShape({ editorId, polygonPoints, width, height }: { edito
 
 export function TopViewCanvas() {
   const canvasRef = useRef<HTMLDivElement | null>(null)
-  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const dragBoundsRef = useRef<Bounds | null>(null)
+  const [draggingState, setDraggingState] = useState<null | {
+    editorId: string
+    offsetX: number
+    offsetY: number
+  }>(null)
   const [lockedAxisDragStart, setLockedAxisDragStart] = useState<null | {
     editorId: string
     axis: PlaneAxis
@@ -293,36 +298,14 @@ export function TopViewCanvas() {
   const coordinateStatus = selectedEntity
     ? `${selectedEntity.id} · ${planeLabel} (${selectedEntity.position[currentAxes.horizontal]}, ${selectedEntity.position[currentAxes.vertical]}) · ${freeAxisLabel} ${selectedEntity.position[freeAxis]}`
     : 'No selection'
-  const selectedOutline = selectedEntity ? meshOutlines[selectedEntity.editorId] : undefined
-  const selectedLayout = selectedEntity
-    ? meshProjectionLayout(
-        selectedOutline,
-        bounds,
-        canvasSize.width,
-        canvasSize.height,
-        Math.max(28, axisSize(selectedEntity, currentAxes.horizontal) * getProjectionScale(bounds, canvasSize.width, canvasSize.height)),
-        Math.max(24, axisSize(selectedEntity, currentAxes.vertical) * getProjectionScale(bounds, canvasSize.width, canvasSize.height)),
-      )
-    : null
-  const selectedCenter = selectedEntity ? project(bounds, canvasSize.width, canvasSize.height, selectedEntity.position, topViewFrame) : null
-  const lockedAxisHandle = selectedEntity && selectedCenter
-    ? (() => {
-        const baseLeft = selectedLayout ? selectedLayout.left + selectedLayout.width : selectedCenter.x
-        const baseTop = selectedLayout ? selectedLayout.top : selectedCenter.y - 16
-        const width = 34
-        const height = 54
-        const gap = 12
-        const surfacePadding = 8
-        const preferredLeft = baseLeft + gap
-        const fallbackLeft = (selectedLayout ? selectedLayout.left : selectedCenter.x) - width - gap
-        const maxLeft = Math.max(surfacePadding, canvasSize.width - width - surfacePadding)
-        const left = preferredLeft + width <= canvasSize.width - surfacePadding
-          ? preferredLeft
-          : Math.max(surfacePadding, Math.min(fallbackLeft, maxLeft))
-        const centerTop = selectedLayout ? selectedLayout.top + selectedLayout.height / 2 - height / 2 : baseTop
-        const top = Math.max(surfacePadding, Math.min(centerTop, canvasSize.height - height - surfacePadding))
-        return { left, top, width, height }
-      })()
+  const viewportBounds = dragBoundsRef.current ?? bounds
+  const lockedAxisHandle = selectedEntity
+    ? {
+        top: 16,
+        right: 16,
+        width: 64,
+        height: 84,
+      }
     : null
 
   useEffect(() => {
@@ -373,13 +356,16 @@ export function TopViewCanvas() {
   }
 
   function clearDragState() {
-    setDraggingId(null)
+    dragBoundsRef.current = null
+    setDraggingState(null)
     setLockedAxisDragStart(null)
     setFrameDragStart(null)
   }
 
   function handleLockedAxisPointerDown(event: React.PointerEvent<HTMLElement>, editorId: string) {
+    event.preventDefault()
     event.stopPropagation()
+    dragBoundsRef.current = bounds
     selectObject(editorId)
     if (mode !== 'move') return
     const entity = visibleEntities[editorId]
@@ -407,6 +393,7 @@ export function TopViewCanvas() {
     if (event.target !== event.currentTarget || !canvasRef.current) return
 
     const rect = canvasRef.current.getBoundingClientRect()
+    dragBoundsRef.current = bounds
     setFrameDragStart({
       pointerX: event.clientX,
       pointerY: event.clientY,
@@ -443,6 +430,7 @@ export function TopViewCanvas() {
 
   function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
     if (lockedAxisDragStart) {
+      event.preventDefault()
       applyLockedAxisDrag(event.clientY)
       return
     }
@@ -457,11 +445,17 @@ export function TopViewCanvas() {
       return
     }
 
-    if (!draggingId || !canvasRef.current) return
+    if (!draggingState || !canvasRef.current) return
     const rect = canvasRef.current.getBoundingClientRect()
-    const world = unproject(bounds, rect.width, rect.height, event.clientX - rect.left, event.clientY - rect.top, topViewFrame)
+    const world = unproject(viewportBounds, rect.width, rect.height, event.clientX - rect.left, event.clientY - rect.top, topViewFrame)
     if (mode !== 'move') return
-    if (visibleEntities[draggingId]) updateDraggedEntity(draggingId, world.x, world.y)
+    if (visibleEntities[draggingState.editorId]) {
+      updateDraggedEntity(
+        draggingState.editorId,
+        round(world.x + draggingState.offsetX),
+        round(world.y + draggingState.offsetY),
+      )
+    }
   }
 
   return (
@@ -539,6 +533,7 @@ export function TopViewCanvas() {
         data-testid="top-view-canvas-surface"
         ref={canvasRef}
         className="editor-grid order-1 relative min-h-[34svh] flex-1 overflow-hidden lg:order-2 lg:min-h-0"
+        style={{ touchAction: 'none' }}
         onPointerDown={handleCanvasPointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={clearDragState}
@@ -552,13 +547,16 @@ export function TopViewCanvas() {
             data-testid={`top-view-locked-axis-handle-${selectedEntity.editorId}`}
             aria-label={`Adjust ${freeAxisLabel}`}
             onPointerDown={(event) => handleLockedAxisPointerDown(event, selectedEntity.editorId)}
-            onPointerMove={(event) => applyLockedAxisDrag(event.clientY)}
+            onPointerMove={(event) => {
+              event.preventDefault()
+              applyLockedAxisDrag(event.clientY)
+            }}
             onPointerUp={clearDragState}
             className={cn(
               'absolute z-20 flex flex-col items-center justify-center gap-1 rounded-2xl border border-cyan-300/70 bg-slate-950/90 px-2 py-2 text-[10px] font-semibold text-cyan-100 shadow-lg shadow-cyan-950/30',
               mode === 'move' ? 'cursor-row-resize' : 'cursor-default opacity-70',
             )}
-            style={{ left: lockedAxisHandle.left, top: lockedAxisHandle.top, width: lockedAxisHandle.width, height: lockedAxisHandle.height }}
+            style={{ right: lockedAxisHandle.right, top: lockedAxisHandle.top, width: lockedAxisHandle.width, height: lockedAxisHandle.height, touchAction: 'none' }}
           >
             <span className="text-[9px] uppercase tracking-[0.18em] text-cyan-200/80">Drag</span>
             <span className="text-base leading-none">↑↓</span>
@@ -570,8 +568,8 @@ export function TopViewCanvas() {
         {collisionConnections.length > 0 && (
           <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true">
             {collisionConnections.map((connection) => {
-              const source = project(bounds, canvasSize.width, canvasSize.height, connection.source.position, topViewFrame)
-              const target = project(bounds, canvasSize.width, canvasSize.height, connection.target.position, topViewFrame)
+              const source = project(viewportBounds, canvasSize.width, canvasSize.height, connection.source.position, topViewFrame)
+              const target = project(viewportBounds, canvasSize.width, canvasSize.height, connection.target.position, topViewFrame)
               const stroke = connection.severity === 'error' ? 'rgba(251, 113, 133, 0.9)' : 'rgba(251, 191, 36, 0.8)'
               return (
                 <g key={connection.key}>
@@ -585,9 +583,9 @@ export function TopViewCanvas() {
         )}
 
         {backgroundObjects.map((item) => {
-          const center = project(bounds, canvasSize.width, canvasSize.height, item.position, topViewFrame)
+          const center = project(viewportBounds, canvasSize.width, canvasSize.height, item.position, topViewFrame)
           const outline = meshOutlines[item.editorId]
-          const layout = meshProjectionLayout(outline, bounds, canvasSize.width, canvasSize.height, 28, 18)
+          const layout = meshProjectionLayout(outline, viewportBounds, canvasSize.width, canvasSize.height, 28, 18)
           const colliding = Boolean(collisionIndex[item.editorId]?.length)
           const projectedWidth = layout?.width ?? axisSize(item, currentAxes.horizontal) * center.scale
           const projectedHeight = layout?.height ?? Math.max(18, axisSize(item, currentAxes.vertical) * center.scale)
@@ -597,7 +595,20 @@ export function TopViewCanvas() {
               role="button"
               tabIndex={0}
               onClick={() => selectObject(item.editorId)}
-              onPointerDown={(event) => { event.stopPropagation(); selectObject(item.editorId); if (mode === 'move') setDraggingId(item.editorId) }}
+              onPointerDown={(event) => {
+                event.stopPropagation()
+                selectObject(item.editorId)
+                if (mode !== 'move' || !canvasRef.current) return
+                const rect = canvasRef.current.getBoundingClientRect()
+                dragBoundsRef.current = bounds
+                const pointerWorld = unproject(bounds, rect.width, rect.height, event.clientX - rect.left, event.clientY - rect.top, topViewFrame)
+                const entityPoint = projectEntityPoint(topViewFrame, item.position)
+                setDraggingState({
+                  editorId: item.editorId,
+                  offsetX: round(entityPoint.x - pointerWorld.x),
+                  offsetY: round(entityPoint.y - pointerWorld.y),
+                })
+              }}
               className={cn(
                 'absolute overflow-visible text-[11px]',
                 layout
@@ -623,9 +634,9 @@ export function TopViewCanvas() {
         })}
 
         {lifts.map((lift) => {
-          const center = project(bounds, canvasSize.width, canvasSize.height, lift.position, topViewFrame)
+          const center = project(viewportBounds, canvasSize.width, canvasSize.height, lift.position, topViewFrame)
           const outline = meshOutlines[lift.editorId]
-          const layout = meshProjectionLayout(outline, bounds, canvasSize.width, canvasSize.height, 40, 32)
+          const layout = meshProjectionLayout(outline, viewportBounds, canvasSize.width, canvasSize.height, 40, 32)
           const colliding = Boolean(collisionIndex[lift.editorId]?.length)
           const projectedWidth = layout?.width ?? axisSize(lift, currentAxes.horizontal) * center.scale
           const projectedHeight = layout?.height ?? Math.max(32, axisSize(lift, currentAxes.vertical) * center.scale)
@@ -635,7 +646,20 @@ export function TopViewCanvas() {
               role="button"
               tabIndex={0}
               onClick={() => selectObject(lift.editorId)}
-              onPointerDown={(event) => { event.stopPropagation(); selectObject(lift.editorId); if (mode === 'move') setDraggingId(lift.editorId) }}
+              onPointerDown={(event) => {
+                event.stopPropagation()
+                selectObject(lift.editorId)
+                if (mode !== 'move' || !canvasRef.current) return
+                const rect = canvasRef.current.getBoundingClientRect()
+                dragBoundsRef.current = bounds
+                const pointerWorld = unproject(bounds, rect.width, rect.height, event.clientX - rect.left, event.clientY - rect.top, topViewFrame)
+                const entityPoint = projectEntityPoint(topViewFrame, lift.position)
+                setDraggingState({
+                  editorId: lift.editorId,
+                  offsetX: round(entityPoint.x - pointerWorld.x),
+                  offsetY: round(entityPoint.y - pointerWorld.y),
+                })
+              }}
               className={cn(
                 'absolute overflow-visible text-xs',
                 layout
@@ -665,9 +689,9 @@ export function TopViewCanvas() {
         })}
 
         {visiblePorts.map((port) => {
-          const center = project(bounds, canvasSize.width, canvasSize.height, port.position, topViewFrame)
+          const center = project(viewportBounds, canvasSize.width, canvasSize.height, port.position, topViewFrame)
           const outline = meshOutlines[port.editorId]
-          const layout = meshProjectionLayout(outline, bounds, canvasSize.width, canvasSize.height, 24, 18)
+          const layout = meshProjectionLayout(outline, viewportBounds, canvasSize.width, canvasSize.height, 24, 18)
           const colliding = Boolean(collisionIndex[port.editorId]?.length)
           const projectedWidth = layout?.width ?? Math.max(24, axisSize(port, currentAxes.horizontal) * center.scale)
           const projectedHeight = layout?.height ?? Math.max(18, axisSize(port, currentAxes.vertical) * center.scale)
@@ -677,7 +701,20 @@ export function TopViewCanvas() {
               type="button"
               aria-label={port.id}
               onClick={() => selectObject(port.editorId)}
-              onPointerDown={(event) => { event.stopPropagation(); selectObject(port.editorId); if (mode === 'move') setDraggingId(port.editorId) }}
+              onPointerDown={(event) => {
+                event.stopPropagation()
+                selectObject(port.editorId)
+                if (mode !== 'move' || !canvasRef.current) return
+                const rect = canvasRef.current.getBoundingClientRect()
+                dragBoundsRef.current = bounds
+                const pointerWorld = unproject(bounds, rect.width, rect.height, event.clientX - rect.left, event.clientY - rect.top, topViewFrame)
+                const entityPoint = projectEntityPoint(topViewFrame, port.position)
+                setDraggingState({
+                  editorId: port.editorId,
+                  offsetX: round(entityPoint.x - pointerWorld.x),
+                  offsetY: round(entityPoint.y - pointerWorld.y),
+                })
+              }}
               className={cn(
                 'absolute overflow-visible text-[10px] font-semibold uppercase transition',
                 layout

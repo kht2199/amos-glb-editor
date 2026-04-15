@@ -147,7 +147,7 @@ export function Toolbar({ onOpenFile, onImportFile }: ToolbarProps) {
         </ToolGroup>
 
         <ToolGroup title="View">
-          <ToolButton icon={Layers3} disabled={disabled} active={snapEnabled} onClick={() => setSnapEnabled(!snapEnabled)}>Snap {snapEnabled ? 'ON' : 'OFF'}</ToolButton>
+          <ToolButton icon={Layers3} disabled={disabled} active={snapEnabled} onClick={() => setSnapEnabled(!snapEnabled)}>Grid Snap {snapEnabled ? 'ON' : 'OFF'}</ToolButton>
           <ToolButton icon={Eye} disabled={disabled} onClick={() => setPreviewOpen(true)}>Expand Preview</ToolButton>
           <ToolButton icon={Settings2} disabled={disabled} active={isTypeSettingsOpen} onClick={() => setIsTypeSettingsOpen((open) => !open)}>Type Settings</ToolButton>
         </ToolGroup>
@@ -229,7 +229,7 @@ function ToolButton({ icon: Icon, children, disabled, active, onClick }: { icon:
       : labelText === 'Export GLB' ? 'Export'
       : labelText === 'Rotate 90°' ? 'Rotate'
         : labelText === 'Duplicate' ? 'Copy'
-          : labelText === 'Snap ON' || labelText === 'Snap OFF' ? 'Snap'
+          : labelText === 'Grid Snap ON' || labelText === 'Grid Snap OFF' ? 'Snap'
         : labelText === 'Expand Preview' ? 'Preview'
           : labelText === 'Type Settings' ? 'Types'
             : labelText

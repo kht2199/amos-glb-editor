@@ -112,6 +112,7 @@ re-export는 원본을 전부 재구성하지 않고, import 시점의 pristine 
 - `.glb` import / export
 - demo scene 제공
 - 모든 장면 객체의 XY 이동 (`Move` 모드)
+- 모든 장면 객체의 공통 grid snap (`Grid Snap` 토글)
 - 선택 객체 복사(`Duplicate`) 기반 생성 시작점 제공
 - Lift 회전
 - Inspector 기반 속성 수정
@@ -136,7 +137,7 @@ re-export는 원본을 전부 재구성하지 않고, import 시점의 pristine 
 
 ## UI 구성
 
-- **Toolbar**: import, demo 열기, apply/revert/export, Move/Duplicate/Snap 등 주요 액션
+- **Toolbar**: import, demo 열기, apply/revert/export, Move/Duplicate/Grid Snap 등 주요 액션
 - **Structure Panel**: scene object 구조 탐색
 - **Top View Editor**: object 배치 작업 공간
 - **Inspector Panel**: 선택한 객체의 속성 및 좌표 편집
@@ -155,6 +156,11 @@ re-export는 원본을 전부 재구성하지 않고, import 시점의 pristine 
 - domain metadata
 
 즉, `Lift`, `Port`, `Bridge`, `Rail`, `Stocker`, `Transport`는 모두 이 공통 모델 위의 objectType 예시다.
+
+### 공통 grid snap
+- `Snap` 토글은 Lift 전용 보정이 아니라 **scene object 공통 grid snap**이다.
+- `Move` 모드에서 Lift / Port / 배경 구조물 모두 같은 기준으로 XY 위치가 격자에 맞춰진다.
+- 자유 이동이나 포인터 offset 검증처럼 정밀 좌표가 필요한 테스트/작업에서는 `Snap OFF`로 분리해 본다.
 
 ### 주요 objectType 예시
 

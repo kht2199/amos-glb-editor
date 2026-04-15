@@ -28,7 +28,7 @@ export function StatusBar() {
         <span>Coordinates: <strong className="text-slate-200">{selected ? `X ${selected.position.x} · Y ${selected.position.y} · Z ${selected.position.z}` : '-'}</strong></span>
       </div>
       <div className="flex min-w-0 flex-wrap items-center gap-3">
-        <span>Snap: <strong className="text-slate-200">{snapEnabled ? 'ON' : 'OFF'}</strong></span>
+        <span>Grid Snap: <strong className="text-slate-200">{snapEnabled ? 'ON' : 'OFF'}</strong></span>
         <span>Ports: <strong className="text-slate-200">{visiblePortCount}</strong></span>
         <span>Collisions: <strong className="text-slate-200">{collisionIssues.length}</strong></span>
         <span>Undo/Redo: <strong className="text-slate-200">{canUndo ? 'Y' : 'N'} / {canRedo ? 'Y' : 'N'}</strong></span>

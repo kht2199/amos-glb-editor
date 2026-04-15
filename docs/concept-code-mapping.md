@@ -80,7 +80,13 @@
 
 ### 5. 검증/보조 로직 레이어
 - `src/lib/collision.ts`, `src/lib/utils.ts`, `src/lib/topViewProjection.ts`
-- 충돌 탐지, port 위치 계산, nearest lift 연결, snap 보정, 편집 평면 투영 규칙이 분산되어 있다.
+- 충돌 탐지, port 위치 계산, 공통 grid snap, 편집 평면 투영 규칙이 분산되어 있다.
+
+### 5.1 공통 snap 정리
+- `snapEnabled`는 `src/store/editor-store.ts`의 전역 편집 상태다.
+- Toolbar와 StatusBar는 이를 scene object 공통 토글/표시로 노출한다.
+- 현재 기준에서 `snapEnabled`의 의미는 **Lift 특수 연결 보정**이 아니라 **Lift / Port / 배경 오브젝트 공통 grid snap**이다.
+- 따라서 drag/Inspector 기반 이동은 object type과 무관하게 같은 snap 정책을 공유하고, Port의 parent 추론/관계 메타는 별도 로직으로 본다.
 
 ## minimal-runtime-model 관점 요약
 - 이 저장소는 canonical runtime model의 직접 구현 저장소가 아니다.

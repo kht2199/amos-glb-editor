@@ -4,7 +4,7 @@ import { detectCollisions, collisionMap } from '../lib/collision'
 import { DEFAULT_ANIMATION } from '../lib/constants'
 import { createDemoScene } from '../lib/demoScene'
 import { exportGlb, loadGlbFile } from '../lib/glb'
-import { computePortPosition, round, snapLiftToNeighbors } from '../lib/utils'
+import { computePortPosition, round, snap } from '../lib/utils'
 import type {
   CollisionIssue,
   EditorMode,
@@ -821,22 +821,29 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
   }),
   moveEntity: (editorId, x, y) => set((state) => {
+    const snappedX = snap(x, state.snapEnabled)
+    const snappedY = snap(y, state.snapEnabled)
+
     if (state.draftLifts.some((lift) => lift.editorId === editorId)) {
-      const target = state.draftLifts.find((lift) => lift.editorId === editorId)
-      if (!target) return state
-      const snapped = snapLiftToNeighbors(target, x, y, state.draftLifts.filter((lift) => lift.editorId !== editorId), state.snapEnabled)
-      const draftLifts = state.draftLifts.map((lift) => lift.editorId === editorId ? { ...lift, position: { ...lift.position, x: snapped.x, y: snapped.y } } : lift)
+      const draftLifts = state.draftLifts.map((lift) => lift.editorId === editorId
+        ? { ...lift, position: { ...lift.position, x: snappedX, y: snappedY } }
+        : lift)
       return applyMutation(state, { draftLifts, selectedId: editorId }, 'Lift moved')
     }
 
     if (state.draftPorts.some((port) => port.editorId === editorId)) {
       const draftPorts = state.draftPorts.map((port) => port.editorId === editorId
-        ? detachPortParent({ ...port, position: { ...port.position, x, y } })
+        ? detachPortParent({ ...port, position: { ...port.position, x: snappedX, y: snappedY } })
         : port)
       return applyMutation(state, { draftPorts, selectedId: editorId }, 'Port moved')
     }
 
-    return moveBackgroundObject(state, editorId, x, y)
+    const backgroundObject = state.draftBackgroundObjects.find((item) => item.editorId === editorId)
+    if (!backgroundObject) return state
+    const draftBackgroundObjects = state.draftBackgroundObjects.map((item) => item.editorId === editorId
+      ? { ...item, position: { ...item.position, x: snappedX, y: snappedY } }
+      : item)
+    return applyMutation(state, { draftBackgroundObjects, selectedId: editorId }, `${backgroundObject.objectType} moved`)
   }),
   moveLift: (editorId, x, y) => {
     get().moveEntity(editorId, x, y)

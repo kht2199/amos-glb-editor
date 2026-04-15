@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import * as THREE from 'three'
 import { createDemoScene } from '../lib/demoScene'
 import { exportGlb } from '../lib/glb'
-import { computePortPosition } from '../lib/utils'
+import { computePortPosition, snap } from '../lib/utils'
 import { useEditorStore } from './editor-store'
 
 beforeEach(() => {
@@ -60,6 +60,7 @@ describe('editor store', () => {
 
   it('moves a port freely without snapping it back to a lift', () => {
     const state = useEditorStore.getState()
+    state.setSnapEnabled(false)
     const sourcePort = state.draftPorts.find((port) => !port.deleted)
     const targetLift = state.draftLifts[1]
     expect(sourcePort).toBeTruthy()
@@ -72,6 +73,33 @@ describe('editor store', () => {
     expect(moved?.position.y).toBe(targetLift.position.y - 19)
     expect(moved?.parentLiftId).toBeUndefined()
     expect(moved?.domainParentType).toBe('Transport')
+  })
+
+  it('applies grid snap to ports and background objects when snap is enabled', () => {
+    const state = useEditorStore.getState()
+    const sourcePort = state.draftPorts.find((port) => !port.deleted)
+    const stocker = state.draftBackgroundObjects.find((item) => item.id === 'stocker_01')
+
+    expect(sourcePort).toBeTruthy()
+    expect(stocker).toBeTruthy()
+
+    const targetPortX = sourcePort!.position.x + 23
+    const targetPortY = sourcePort!.position.y - 19
+    state.movePortByWorld(sourcePort!.editorId, targetPortX, targetPortY)
+
+    const movedPort = useEditorStore.getState().draftPorts.find((port) => port.editorId === sourcePort!.editorId)
+    expect(movedPort?.position.x).toBe(snap(targetPortX, true))
+    expect(movedPort?.position.y).toBe(snap(targetPortY, true))
+    expect(movedPort?.parentLiftId).toBeUndefined()
+
+    const targetObjectX = stocker!.position.x + 23
+    const targetObjectY = stocker!.position.y - 19
+    state.moveEntity(stocker!.editorId, targetObjectX, targetObjectY)
+
+    const movedObject = useEditorStore.getState().draftBackgroundObjects.find((item) => item.editorId === stocker!.editorId)
+    expect(movedObject?.position.x).toBe(snap(targetObjectX, true))
+    expect(movedObject?.position.y).toBe(snap(targetObjectY, true))
+    expect(useEditorStore.getState().statusMessage).toBe('Stocker moved')
   })
 
   it('detaches a lift-linked port when x/y is edited directly', () => {
@@ -114,6 +142,7 @@ describe('editor store', () => {
 
   it('moves background objects in move mode', () => {
     const state = useEditorStore.getState()
+    state.setSnapEnabled(false)
     const stocker = state.draftBackgroundObjects.find((item) => item.id === 'stocker_01')
 
     expect(stocker).toBeTruthy()

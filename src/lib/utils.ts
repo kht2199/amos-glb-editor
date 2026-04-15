@@ -87,61 +87,6 @@ export function inferFaceAndSlot(lift: LiftEntity, port: PortEntity): { face: Fa
   return { face, slot }
 }
 
-export function findNearestLift(lifts: LiftEntity[], x: number, y: number, threshold = 120) {
-  const ranked = lifts
-    .map((lift) => ({
-      lift,
-      distance: Math.hypot(lift.position.x - x, lift.position.y - y),
-    }))
-    .sort((a, b) => a.distance - b.distance)
-
-  return ranked[0] && ranked[0].distance <= threshold ? ranked[0].lift : ranked[0]?.lift ?? null
-}
-
-export function snapLiftToNeighbors(target: LiftEntity, x: number, y: number, others: LiftEntity[], enabled: boolean) {
-  let nextX = snap(x, enabled)
-  let nextY = snap(y, enabled)
-  const threshold = enabled ? 12 : 8
-
-  const targetRect = {
-    left: nextX - target.width / 2,
-    right: nextX + target.width / 2,
-    top: nextY - target.depth / 2,
-    bottom: nextY + target.depth / 2,
-  }
-
-  for (const other of others) {
-    const otherRect = {
-      left: other.position.x - other.width / 2,
-      right: other.position.x + other.width / 2,
-      top: other.position.y - other.depth / 2,
-      bottom: other.position.y + other.depth / 2,
-    }
-
-    const candidates = [
-      { delta: otherRect.left - targetRect.left, axis: 'x' },
-      { delta: otherRect.right - targetRect.right, axis: 'x' },
-      { delta: otherRect.left - targetRect.right, axis: 'x', offset: -target.width / 2 },
-      { delta: otherRect.right - targetRect.left, axis: 'x', offset: target.width / 2 },
-      { delta: other.position.x - nextX, axis: 'x' },
-      { delta: otherRect.top - targetRect.top, axis: 'y' },
-      { delta: otherRect.bottom - targetRect.bottom, axis: 'y' },
-      { delta: otherRect.top - targetRect.bottom, axis: 'y', offset: -target.depth / 2 },
-      { delta: otherRect.bottom - targetRect.top, axis: 'y', offset: target.depth / 2 },
-      { delta: other.position.y - nextY, axis: 'y' },
-    ]
-
-    for (const candidate of candidates) {
-      if (Math.abs(candidate.delta) <= threshold) {
-        if (candidate.axis === 'x') nextX = round(nextX + candidate.delta)
-        if (candidate.axis === 'y') nextY = round(nextY + candidate.delta)
-      }
-    }
-  }
-
-  return { x: nextX, y: nextY }
-}
-
 export function cubicInOut(t: number) {
   return t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2
 }
